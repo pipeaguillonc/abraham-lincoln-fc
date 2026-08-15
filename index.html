@@ -481,7 +481,8 @@ async function renderDashboard(){
   main.innerHTML = `<h2 class="section-title">Dashboard</h2><div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="top-scorers"></div>`;
   if(isMaster()){
     const [{count: activePlayers}, summaryRes, nextEventCard] = await Promise.all([
-      supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true),
+      // Un jugador lesionado no cuenta como "activo" en este contador del Dashboard.
+      supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true).eq('injured', false),
       supabase.rpc('team_financial_summary'),
       fetchNextEventCard(),
     ]);
@@ -495,7 +496,8 @@ async function renderDashboard(){
     `;
   } else if(isAdmin()){
     const [{count: activePlayers}, nextEventCard] = await Promise.all([
-      supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true),
+      // Un jugador lesionado no cuenta como "activo" en este contador del Dashboard.
+      supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true).eq('injured', false),
       fetchNextEventCard(),
     ]);
     $('#dash-cards').innerHTML = `
