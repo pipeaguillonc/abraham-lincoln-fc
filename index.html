@@ -660,14 +660,27 @@ function renderPlayersRows(){
       <td>${canManage() ? `<input type="tel" class="phone-input" style="width:130px" value="${p.phone||''}" placeholder="Teléfono">` : (p.phone||'-')}</td>
       <td>${canManage() ? `<input type="email" class="email-input" style="width:160px" value="${p.email||''}" placeholder="correo@ejemplo.com">` : (p.email||'-')}</td>
       <td>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : '<span class="muted">Sin calificar</span>'}</td>
-      <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}</td>
-      ${canManage() ? `<td><button class="small" onclick="window.__updateJersey('${p.id}', this)">Guardar #</button> <button class="small secondary" onclick="window.__updatePhone('${p.id}', this)">Guardar teléfono</button> <button class="small secondary" onclick="window.__updateEmail('${p.id}', this)">Guardar correo</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button></td>` : ''}
+      <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</td>
+      ${canManage() ? `<td><button class="small" onclick="window.__updateJersey('${p.id}', this)">Guardar #</button> <button class="small secondary" onclick="window.__updatePhone('${p.id}', this)">Guardar teléfono</button> <button class="small secondary" onclick="window.__updateEmail('${p.id}', this)">Guardar correo</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button> <button class="small secondary" onclick="window.__toggleInjured('${p.id}', ${p.injured})">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button></td>` : ''}
     </tr>
   `).join('') || '<tr><td colspan="7" class="muted">Sin jugadores registrados</td></tr>';
 }
 
 window.__toggleActive = async (id, active)=>{
   await supabase.from('players').update({active: !active}).eq('id', id);
+  await loadPlayersCache();
+  renderPlayersRows();
+};
+
+// Un jugador lesionado deja de aparecer como disponible en el módulo de
+// Convocatoria (partidos y entrenamientos) — no se le pide respuesta ni se le
+// cuenta en el "X/Y confirmados" — pero sigue viendo su perfil, estadísticas y
+// el resto de la app con normalidad, y su "Mi perfil"/Dashboard le avisa que
+// está marcado como lesionado.
+window.__toggleInjured = async (id, injured)=>{
+  const { error } = await supabase.from('players').update({injured: !injured}).eq('id', id);
+  if(error){ toast(error.message, true); return; }
+  toast(!injured ? 'Jugador marcado como lesionado' : 'Lesión retirada del jugador');
   await loadPlayersCache();
   renderPlayersRows();
 };
@@ -712,6 +725,7 @@ async function renderPerfil(){
   }
   main.innerHTML = `
     <h2 class="section-title">Mi perfil</h2>
+    ${p.injured ? `<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>` : ''}
     <div class="panel">
       <h3>#${p.jersey_number} ${p.full_name}</h3>
       <p class="muted">Puedes actualizar tus datos de contacto y tu número de camiseta. La posición y el nombre solo los edita el cuerpo técnico.</p>
@@ -2244,6 +2258,10 @@ function fmtDeadline(eventDateStr){
 // la notificación en el Dashboard y la insignia del menú "Convocatoria".
 async function getPendingCallUpsForPlayer(){
   if(!profile?.player_id) return [];
+  // Un jugador lesionado no es convocable: no se le muestran convocatorias
+  // pendientes ni se le cuenta en la insignia del menú.
+  const me = playersCache.find(p=>p.id===profile.player_id);
+  if(me?.injured) return [];
   const [{data: callUps}, {data: myResponses}] = await Promise.all([
     supabase.from('call_ups').select('*, matches(opponent)').order('event_date', {ascending:true}),
     supabase.from('call_up_responses').select('call_up_id,response').eq('player_id', profile.player_id),
@@ -2258,6 +2276,16 @@ async function getPendingCallUpsForPlayer(){
 async function renderPlayerNotifications(){
   const container = $('#notify-banner');
   if(!container) return;
+  const me = playersCache.find(p=>p.id===profile.player_id);
+  if(me?.injured){
+    container.innerHTML = `
+      <div class="notify-banner">
+        <h3>🩹 Te encuentras lesionado</h3>
+        <p class="muted">El cuerpo técnico te marcó como lesionado, así que no te llegarán convocatorias a partidos ni entrenamientos hasta que te recuperes.</p>
+      </div>
+    `;
+    return;
+  }
   const pending = await getPendingCallUpsForPlayer();
   if(!pending.length){ container.innerHTML = ''; return; }
   const nextPartido = pending.find(c=>c.type==='partido');
@@ -2412,7 +2440,8 @@ async function loadCallUpsList(){
       if(r.players) confirmedByCallUp[r.call_up_id].push(`#${r.players.jersey_number} ${r.players.full_name}`);
     }
   });
-  const totalActive = playersCache.filter(p=>p.active).length;
+  // Los jugadores lesionados no cuentan como disponibles para la convocatoria.
+  const totalActive = playersCache.filter(p=>p.active && !p.injured).length;
 
   list.innerHTML = visibleCallUps.map(c=>{
     const label = c.type === 'partido' ? `Partido vs ${c.matches?.opponent || '-'}` : 'Entrenamiento';
@@ -2452,11 +2481,13 @@ async function renderCallUpBody(callUp){
   if(canManage()){
     const { data: responses } = await supabase.from('call_up_responses').select('*, players(full_name,jersey_number)').eq('call_up_id', callUp.id);
     const byPlayer = Object.fromEntries((responses||[]).map(r=>[r.player_id, r]));
+    const injuredActive = playersCache.filter(p=>p.active && p.injured);
     container.innerHTML = `
       <p class="muted">El cuerpo técnico y el usuario maestro pueden marcar la asistencia de un jugador directamente, sin necesidad de esperar su respuesta ni la hora límite.</p>
+      ${injuredActive.length ? `<p class="muted">🩹 No convocados por lesión: ${injuredActive.map(p=>`#${p.jersey_number} ${p.full_name}`).join(', ')}</p>` : ''}
       <table><thead><tr><th>#</th><th>Jugador</th><th>Respuesta</th><th>Respondió</th><th></th></tr></thead>
       <tbody>
-        ${playersCache.filter(p=>p.active).map(p=>{
+        ${playersCache.filter(p=>p.active && !p.injured).map(p=>{
           const r = byPlayer[p.id];
           const statusLabel = r?.response === 'asiste' ? 'Asiste' : r?.response === 'no_asiste' ? 'No asiste' : (open ? 'Sin responder' : 'No respondió a tiempo');
           const badgeClass = r?.response === 'asiste' ? 'presente' : r?.response === 'no_asiste' ? 'ausente' : 'tarde';
