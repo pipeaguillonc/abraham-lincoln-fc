@@ -25,7 +25,7 @@
   button{cursor:pointer;padding:9px 14px;border-radius:8px;border:none;background:var(--brand);color:var(--brand-dark);font-weight:700}
   button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
   button.danger{background:var(--danger);color:white}
-  .card-select{width:56px;height:38px;font-size:17px;font-weight:800;text-align:center;text-align-last:center;border-radius:8px;border-width:2px;border-style:solid}
+  .card-select{width:68px;height:46px;font-size:19px;font-weight:800;text-align:center;text-align-last:center;border-radius:8px;border-width:2px;border-style:solid}
   .card-select-yellow{background:#3a2a06;color:var(--warn);border-color:var(--warn)}
   .card-select-red{background:#3a0d0d;color:var(--danger);border-color:var(--danger)}
   button.small{padding:5px 10px;font-size:12px}
@@ -72,7 +72,8 @@
   .match-card{cursor:pointer}
   .match-card:hover{border-color:var(--accent)}
   .toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border);padding:12px 16px;border-radius:8px;z-index:50}
-  .rating-input{width:56px !important;min-width:56px;padding:8px 4px !important;text-align:center;font-size:17px;font-weight:700;margin-bottom:0 !important;color:var(--warn)}
+  .rating-input{width:72px !important;min-width:72px;height:44px;padding:8px 4px !important;text-align:center;font-size:20px;font-weight:700;margin-bottom:0 !important;color:var(--warn)}
+  .stat-input{width:64px !important;min-width:64px;height:44px;padding:8px 4px !important;text-align:center;font-size:18px;font-weight:600;margin-bottom:0 !important}
   iframe{max-width:100%}
 
   /* ============= RESPONSIVE (celular / tablet) ============= */
@@ -183,6 +184,7 @@
     <button class="nav-btn" data-view="entrenamientos">Entrenamientos</button>
     <button class="nav-btn" data-view="partidos">Partidos</button>
     <button class="nav-btn" data-view="convocatoria">Convocatoria</button>
+    <button class="nav-btn" data-view="mensajes">Mensajes</button>
     <button class="nav-btn" data-view="recomendaciones">Recomendaciones</button>
     <button class="nav-btn" data-view="finanzas">Finanzas</button>
     <button class="nav-btn" data-view="temporadas">Temporadas</button>
@@ -351,6 +353,7 @@ async function enterApp(){
   await loadCurrentSeason();
   navigate('dashboard');
   refreshConvocatoriaBadge();
+  refreshMensajesBadge();
 }
 
 $('#fp-save-btn').addEventListener('click', async ()=>{
@@ -374,11 +377,12 @@ const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Later
 
 function buildNav(){
   const itemsByRole = {
-    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','recomendaciones'],
-    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','evalrecom','perfil'],
+    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
+    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
+    // "Mensajes" es el canal directo con el cuerpo técnico — el usuario maestro no participa de él.
     usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','finanzas','temporadas','usuarios'],
     // Igual que "jugador" pero sin "Resumen financiero".
-    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','evalrecom','perfil'],
+    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
   const items = itemsByRole[profile.role] || itemsByRole.jugador;
   $$('.nav-btn').forEach(b=>{
@@ -410,6 +414,7 @@ function navigate(view){
     'resumen-financiero': renderResumenFinanciero,
     entrenamientos: renderEntrenamientos,
     convocatoria: renderConvocatoria,
+    mensajes: renderMensajes,
     finanzas: renderFinanzas,
     partidos: renderPartidos,
     recomendaciones: renderRecomendaciones,
@@ -502,8 +507,47 @@ async function renderUnratedMatchesReminder(){
   `;
 }
 
+// Tabla de posiciones de la Copa Futbolgol (torneo que juega el equipo),
+// tomada en vivo de futbolgol.com a través de la Edge Function
+// "fetch-standings" (el fetch se hace del lado del servidor porque el sitio
+// de Futbolgol no permite llamadas directas desde el navegador). Muestra los
+// primeros 10 puestos y, si Abraham Lincoln no está entre ellos, lo agrega
+// como una fila extra con su posición real.
+async function renderTournamentStandings(){
+  const container = $('#tabla-torneo');
+  if(!container) return;
+  container.innerHTML = `<h3 class="section-title" style="margin-top:8px">Tabla de posiciones · Copa Futbolgol</h3><p class="muted">Cargando tabla…</p>`;
+  try{
+    const { data, error } = await supabase.functions.invoke('fetch-standings');
+    if(error || !data || data.error) throw new Error(data?.error || error?.message || 'No se pudo cargar la tabla');
+    const rows = [...(data.top10||[])];
+    if(data.ourTeam && !data.ourInTop10) rows.push(data.ourTeam);
+    container.innerHTML = `
+      <h3 class="section-title" style="margin-top:8px">Tabla de posiciones · Copa Futbolgol</h3>
+      <table>
+        <thead><tr><th>Pos</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>GD</th><th>PTS</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>{
+            const isUs = (r.href||'').includes('abraham-lincoln');
+            return `<tr style="${isUs?'font-weight:700;background:var(--panel2)':''}">
+              <td>${r.pos ?? '-'}</td><td>${isUs?'⭐ ':''}${r.team}</td><td>${r.pj??'-'}</td><td>${r.pg??'-'}</td><td>${r.pe??'-'}</td><td>${r.pp??'-'}</td><td>${r.gf??'-'}</td><td>${r.gc??'-'}</td><td>${r.gd??'-'}</td><td>${r.pts??'-'}</td>
+            </tr>`;
+          }).join('') || '<tr><td colspan="10" class="muted">Sin datos todavía.</td></tr>'}
+        </tbody>
+      </table>
+      <p class="muted" style="margin-top:6px">Actualizado ${new Date(data.updatedAt).toLocaleString('es-ES')} · <a href="${data.source}" target="_blank" rel="noopener">Ver tabla completa en Futbolgol</a></p>
+    `;
+  }catch(err){
+    container.innerHTML = `
+      <h3 class="section-title" style="margin-top:8px">Tabla de posiciones · Copa Futbolgol</h3>
+      <p class="muted">No se pudo cargar la tabla en este momento. <a href="https://www.futbolgol.com/copa/" target="_blank" rel="noopener">Verla directo en Futbolgol</a>.</p>
+    `;
+  }
+}
+
 async function renderDashboard(){
-  main.innerHTML = `<h2 class="section-title">Dashboard</h2><div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="top-scorers"></div>`;
+  main.innerHTML = `<h2 class="section-title">Dashboard</h2><div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="tabla-torneo"></div><div id="top-scorers"></div>`;
+  renderTournamentStandings();
   if(isMaster()){
     const [{count: activePlayers}, summaryRes, nextEventCard] = await Promise.all([
       // Un jugador lesionado no cuenta como "activo" en este contador del Dashboard.
@@ -1982,9 +2026,9 @@ window.__openMatch = async (matchId)=>{
           return `<tr data-pid="${p.id}" data-match-date="${m.match_date}">
             <td>#${p.jersey_number}</td><td>${p.full_name}</td>
             <td><input type="checkbox" class="f-started" ${s.started?'checked':''}></td>
-            <td><input type="number" class="f-minutes" value="${s.minutes_played||0}" style="width:55px"></td>
-            <td><input type="number" class="f-goals" value="${s.goals||0}" style="width:45px"></td>
-            <td><input type="number" class="f-assists" value="${s.assists||0}" style="width:45px"></td>
+            <td><input type="number" class="f-minutes stat-input" value="${s.minutes_played||0}"></td>
+            <td><input type="number" class="f-goals stat-input" value="${s.goals||0}"></td>
+            <td><input type="number" class="f-assists stat-input" value="${s.assists||0}"></td>
             <td><select class="f-yellow card-select card-select-yellow">
               <option value="0" ${!s.yellow_cards?'selected':''}>0</option>
               <option value="1" ${s.yellow_cards==1?'selected':''}>1</option>
@@ -2583,6 +2627,124 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
   toast('Asistencia marcada por el cuerpo técnico');
   loadCallUpsList();
 };
+
+// ---------------- MENSAJES (directos, jugador/fichaje <-> cuerpo técnico) ----------------
+// Canal 1 a 1: un jugador (o fichaje) elige a qué miembro del cuerpo técnico
+// escribirle, y el cuerpo técnico elige a qué jugador/fichaje responderle.
+// El usuario maestro no tiene acceso a este módulo.
+async function renderMensajes(){
+  const isStaffSide = profile.role === 'cuerpo_tecnico';
+  main.innerHTML = `
+    <h2 class="section-title">Mensajes</h2>
+    <div class="panel">
+      <div class="row">
+        <select id="msg-contact" style="flex:1"><option value="">Cargando contactos…</option></select>
+      </div>
+      <div id="msg-thread" style="margin:12px 0;max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div>
+      <div class="row">
+        <textarea id="msg-body" placeholder="Escribe un mensaje…" style="flex:1;min-height:60px"></textarea>
+      </div>
+      <button id="msg-send">Enviar</button>
+    </div>
+  `;
+
+  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico'];
+  const [{ data: contacts }, { data: unread }] = await Promise.all([
+    supabase.from('profiles')
+      .select('id, full_name, role, player_id, players(jersey_number)')
+      .in('role', contactRoles)
+      .neq('id', profile.id)
+      .order('full_name'),
+    // Mensajes sin leer que me han mandado, agrupados por quién los mandó —
+    // para mostrar un aviso junto al nombre de cada contacto.
+    supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
+  ]);
+  const unreadBySender = {};
+  (unread||[]).forEach(m=>{ unreadBySender[m.sender_id] = (unreadBySender[m.sender_id]||0) + 1; });
+
+  const sorted = (contacts||[]).slice().sort((a,b)=>{
+    const ja = a.players?.jersey_number, jb = b.players?.jersey_number;
+    if(ja!=null && jb!=null) return ja - jb;
+    return a.full_name.localeCompare(b.full_name);
+  });
+
+  const contactSel = $('#msg-contact');
+  contactSel.innerHTML = sorted.length
+    ? sorted.map(c=>{
+        const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
+        const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
+        return `<option value="${c.id}">${tag}${c.full_name}${unreadTag}</option>`;
+      }).join('')
+    : '<option value="">No hay contactos disponibles todavía</option>';
+
+  if(sorted.length){
+    await loadMessageThread(sorted[0].id);
+  } else {
+    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
+  }
+
+  contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
+
+  $('#msg-send').addEventListener('click', async ()=>{
+    const recipientId = contactSel.value;
+    const body = $('#msg-body').value.trim();
+    if(!recipientId){ toast('Elige un contacto primero', true); return; }
+    if(!body){ toast('Escribe un mensaje', true); return; }
+    const { error } = await supabase.from('messages').insert({ sender_id: profile.id, recipient_id: recipientId, body });
+    if(error){ toast(error.message, true); return; }
+    $('#msg-body').value = '';
+    await loadMessageThread(recipientId);
+  });
+}
+
+async function loadMessageThread(contactId){
+  const thread = $('#msg-thread');
+  if(!thread || !contactId) return;
+  thread.innerHTML = '<p class="muted">Cargando…</p>';
+  const { data: msgs } = await supabase.from('messages')
+    .select('*')
+    .or(`and(sender_id.eq.${profile.id},recipient_id.eq.${contactId}),and(sender_id.eq.${contactId},recipient_id.eq.${profile.id})`)
+    .order('created_at', {ascending:true});
+
+  thread.innerHTML = (msgs||[]).length
+    ? msgs.map(m=>{
+        const mine = m.sender_id === profile.id;
+        const safeBody = (m.body||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `
+          <div style="margin-bottom:10px;text-align:${mine?'right':'left'}">
+            <div class="muted" style="font-size:11px">${mine?'Tú':'Ellos'} · ${new Date(m.created_at).toLocaleString('es-ES')}</div>
+            <div style="display:inline-block;background:${mine?'var(--accent2)':'var(--panel2)'};color:${mine?'#fff':'var(--text)'};padding:6px 10px;border-radius:8px;max-width:80%;text-align:left;white-space:pre-wrap">${safeBody}</div>
+          </div>
+        `;
+      }).join('')
+    : '<p class="muted">Todavía no hay mensajes en esta conversación. Escribe el primero.</p>';
+  thread.scrollTop = thread.scrollHeight;
+
+  // Al abrir la conversación, marca como leídos los mensajes que ese contacto me mandó.
+  const unreadIds = (msgs||[]).filter(m=>m.recipient_id===profile.id && !m.read_at).map(m=>m.id);
+  if(unreadIds.length){
+    await supabase.from('messages').update({ read_at: new Date().toISOString() }).in('id', unreadIds);
+    refreshMensajesBadge();
+  }
+}
+
+async function refreshMensajesBadge(){
+  const btn = document.querySelector('.nav-btn[data-view="mensajes"]');
+  if(!btn) return;
+  const existing = btn.querySelector('.nav-badge');
+  if(existing) existing.remove();
+  if(!['cuerpo_tecnico','jugador','fichaje'].includes(profile.role)) return;
+  const { count } = await supabase.from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('recipient_id', profile.id)
+    .is('read_at', null);
+  if(count){
+    const badge = document.createElement('span');
+    badge.className = 'nav-badge';
+    badge.textContent = count;
+    btn.appendChild(badge);
+  }
+}
 </script>
 </body>
 </html>
