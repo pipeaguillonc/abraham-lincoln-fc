@@ -477,6 +477,31 @@ async function fetchNextEventCard(){
   return matchIsNext ? await fetchNextMatchCard() : await fetchNextTrainingCard();
 }
 
+// Recordatorio para el cuerpo técnico: partidos que ya se jugaron pero
+// todavía no tienen ninguna calificación (técnica/física/táctica/mental)
+// cargada para sus jugadores — para que no se le pase calificarlos.
+async function renderUnratedMatchesReminder(){
+  const container = $('#notify-banner');
+  if(!container) return;
+  const today = new Date().toISOString().slice(0,10);
+  const [{ data: pastMatches }, { data: evals }] = await Promise.all([
+    supabase.from('matches').select('id, opponent, match_date').lt('match_date', today).order('match_date', {ascending:false}),
+    supabase.from('evaluations').select('match_id').not('match_id', 'is', null),
+  ]);
+  const ratedMatchIds = new Set((evals||[]).map(e=>e.match_id));
+  const unrated = (pastMatches||[]).filter(m=>!ratedMatchIds.has(m.id));
+  if(!unrated.length){ container.innerHTML = ''; return; }
+  container.innerHTML = `
+    <div class="notify-banner">
+      <h3>⚠️ Tienes ${unrated.length} partido${unrated.length>1?'s':''} sin calificar</h3>
+      <p class="muted">Ya se jugaron pero todavía no les cargas la calificación (técnica/física/táctica/mental) a los jugadores. Entra a Partidos → selecciona el partido → Editar partido para calificarlos.</p>
+      <ul style="margin:4px 0 0;padding-left:18px">
+        ${unrated.map(m=>`<li>vs ${m.opponent} · ${fmtDate(m.match_date)}</li>`).join('')}
+      </ul>
+    </div>
+  `;
+}
+
 async function renderDashboard(){
   main.innerHTML = `<h2 class="section-title">Dashboard</h2><div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="top-scorers"></div>`;
   if(isMaster()){
@@ -495,6 +520,7 @@ async function renderDashboard(){
       <div class="card"><div class="num">${fmtMoney((s.total_recaudado||0)-(s.total_gastado||0))}</div><div class="label">Saldo en caja</div></div>
     `;
   } else if(isAdmin()){
+    renderUnratedMatchesReminder();
     const [{count: activePlayers}, nextEventCard] = await Promise.all([
       // Un jugador lesionado no cuenta como "activo" en este contador del Dashboard.
       supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true).eq('injured', false),
@@ -2426,30 +2452,43 @@ async function loadCallUpsList(){
     visibleCallUps = upcoming.length ? [upcoming[0]] : [callUps[callUps.length-1]];
   }
 
-  // Resumen rápido (X/Y confirmados) y, para el jugador, también los nombres de
-  // quiénes ya confirmaron — así sabe con cuántos compañeros se cuenta ese día
-  // sin tener que desplegar la convocatoria de cada uno.
+  // Resumen rápido (X/Y confirmados) y el detalle de quién asiste, quién no
+  // asiste y quién todavía no responde — visible tanto para el cuerpo técnico
+  // y usuario maestro como para el jugador, sin tener que desplegar cada
+  // convocatoria para saber con cuántos compañeros se cuenta ese día.
   const { data: allResponses } = await supabase.from('call_up_responses')
-    .select('call_up_id, response, players(full_name, jersey_number)')
+    .select('call_up_id, player_id, response, players(full_name, jersey_number)')
     .in('call_up_id', visibleCallUps.map(c=>c.id));
   let countsByCallUp = {};
   let confirmedByCallUp = {};
+  let notAttendingByCallUp = {};
+  let respondedIdsByCallUp = {};
   (allResponses||[]).forEach(r=>{
     if(!countsByCallUp[r.call_up_id]) countsByCallUp[r.call_up_id] = 0;
     if(!confirmedByCallUp[r.call_up_id]) confirmedByCallUp[r.call_up_id] = [];
+    if(!notAttendingByCallUp[r.call_up_id]) notAttendingByCallUp[r.call_up_id] = [];
+    if(!respondedIdsByCallUp[r.call_up_id]) respondedIdsByCallUp[r.call_up_id] = new Set();
+    if(r.player_id) respondedIdsByCallUp[r.call_up_id].add(r.player_id);
     if(r.response === 'asiste'){
       countsByCallUp[r.call_up_id]++;
       if(r.players) confirmedByCallUp[r.call_up_id].push(`#${r.players.jersey_number} ${r.players.full_name}`);
+    } else if(r.response === 'no_asiste'){
+      if(r.players) notAttendingByCallUp[r.call_up_id].push(`#${r.players.jersey_number} ${r.players.full_name}`);
     }
   });
   // Los jugadores lesionados no cuentan como disponibles para la convocatoria.
-  const totalActive = playersCache.filter(p=>p.active && !p.injured).length;
+  const eligiblePlayers = playersCache.filter(p=>p.active && !p.injured);
+  const totalActive = eligiblePlayers.length;
 
   list.innerHTML = visibleCallUps.map(c=>{
     const label = c.type === 'partido' ? `Partido vs ${c.matches?.opponent || '-'}` : 'Entrenamiento';
     const open = isCallUpOpen(c.event_date);
     const summary = `<span class="muted" style="margin-left:8px">${countsByCallUp[c.id]||0}/${totalActive} confirmados</span>`;
     const confirmedNames = confirmedByCallUp[c.id] || [];
+    const notAttendingNames = notAttendingByCallUp[c.id] || [];
+    const respondedIds = respondedIdsByCallUp[c.id] || new Set();
+    const pendingNames = eligiblePlayers.filter(p=>!respondedIds.has(p.id)).map(p=>`#${p.jersey_number} ${p.full_name}`);
+    const nameList = (names)=> names.length ? `<ul style="margin:4px 0 0;padding-left:18px">${names.map(n=>`<li>${n}</li>`).join('')}</ul>` : '<div class="muted" style="margin-top:4px">Nadie por ahora.</div>';
     return `
       <div class="panel">
         <details ${!canManage() ? 'open' : ''}>
@@ -2461,11 +2500,18 @@ async function loadCallUpsList(){
           <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c.event_date)}</div>
           ${c.type==='partido' && c.uniform ? `<div style="margin-top:6px">Uniforme: <strong>${UNIFORM_LABELS[c.uniform]||c.uniform}</strong></div>` : ''}
           ${c.notes ? `<div class="muted" style="margin-top:6px">${c.notes}</div>` : ''}
-          ${!canManage() ? `
           <div style="margin-top:8px">
-            <div class="muted">Jugadores que ya confirmaron asistencia (${confirmedNames.length}/${totalActive}):</div>
-            ${confirmedNames.length ? `<ul style="margin:4px 0 0;padding-left:18px">${confirmedNames.map(n=>`<li>${n}</li>`).join('')}</ul>` : '<div class="muted" style="margin-top:4px">Todavía nadie ha confirmado.</div>'}
-          </div>` : ''}
+            <div class="muted">✅ Asisten (${confirmedNames.length}/${totalActive}):</div>
+            ${nameList(confirmedNames)}
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted">❌ No asisten (${notAttendingNames.length}/${totalActive}):</div>
+            ${nameList(notAttendingNames)}
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted">⏳ Pendientes por responder (${pendingNames.length}/${totalActive}):</div>
+            ${nameList(pendingNames)}
+          </div>
           <div id="cu-body-${c.id}" style="margin-top:12px">Cargando…</div>
         </details>
       </div>
