@@ -1250,6 +1250,49 @@ async function loadExpenseCategories(){
   expenseCategories = data || [];
 }
 
+// ---------------- PAGOS DE TARJETAS Y SANCIONES (sección aparte y siempre visible) ----------------
+// Es una categoría de gasto normal por debajo (así entra en el presupuesto de
+// la temporada junto a las demás), pero tiene su propio panel exclusivo en
+// Finanzas para que el cuerpo técnico / usuario maestro no tenga que filtrar
+// la lista general de gastos para verlos: quedan aparte y siempre a la vista.
+const SANCIONES_CATEGORY_NAME = 'Sanciones y tarjetas (amarillas y rojas)';
+let sancionesCategoryId = null;
+async function ensureSancionesCategory(){
+  const seasonId = currentSeasonId();
+  let cat = expenseCategories.find(c => c.name === SANCIONES_CATEGORY_NAME);
+  if(!cat){
+    // No existe todavía para esta temporada (por ejemplo, una temporada nueva) — se crea sola.
+    const { data, error } = await supabase.from('expense_categories')
+      .insert({ name: SANCIONES_CATEGORY_NAME, estimated_amount: 0, season_id: seasonId })
+      .select().single();
+    if(!error && data){ cat = data; expenseCategories.push(data); }
+  }
+  sancionesCategoryId = cat?.id || null;
+}
+async function loadSancionesPagos(){
+  if(!sancionesCategoryId) return [];
+  const { data } = await supabase.from('team_expenses')
+    .select('*')
+    .eq('category_id', sancionesCategoryId)
+    .order('expense_date', {ascending:false});
+  return data || [];
+}
+async function renderSancionesPanel(){
+  const pagos = await loadSancionesPagos();
+  const total = pagos.reduce((sum,p)=>sum + Number(p.amount), 0);
+  const container = $('#sanciones-list');
+  if(!container) return;
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr></thead>
+      <tbody>
+        ${pagos.map(p=>`<tr><td>${fmtDate(p.expense_date)}</td><td>${p.description||'-'}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Todavía no hay pagos registrados.</td></tr>'}
+      </tbody>
+    </table>
+    <p style="margin-top:8px"><strong>Total pagado en tarjetas/sanciones: ${fmtMoney(total)}</strong></p>
+  `;
+}
+
 // Multa por tarjeta amarilla/roja: se suma automáticamente a lo que debe cada
 // jugador (no hay que crear una cuota manual por cada tarjeta).
 let fineSettings = { id: null, yellow_card_fine: 0, red_card_fine: 0 };
@@ -1310,6 +1353,7 @@ function renderFinancialSummaryHTML(s){
 async function renderFinanzas(){
   await loadCurrentSeason();
   await loadExpenseCategories();
+  await ensureSancionesCategory();
   await loadFineSettings();
   main.innerHTML = `
     <h2 class="section-title">Finanzas del equipo</h2>
@@ -1363,9 +1407,20 @@ async function renderFinanzas(){
       </div>
     </div>
     <div class="panel">
+      <h3>🟨🟥 Pagos de tarjetas y sanciones</h3>
+      <p class="muted">Sección aparte y siempre visible, exclusiva para lo que el equipo le paga al torneo por tarjetas amarillas/rojas o sanciones — sin mezclarse con el resto de gastos.</p>
+      <div class="row">
+        <input id="sanc-desc" placeholder="Descripción (ej. Tarjeta roja vs. Equipo X, fecha 5)" />
+        <input id="sanc-amount" type="number" placeholder="Monto" />
+        <input id="sanc-date" type="date" />
+      </div>
+      <button id="sanc-save">Registrar pago</button>
+      <div id="sanciones-list" style="margin-top:12px">Cargando…</div>
+    </div>
+    <div class="panel">
       <h3>Nuevo gasto del equipo</h3>
       <div class="row">
-        <select id="exp-category">${expenseCategories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('') || '<option value="">— crea una categoría de presupuesto primero —</option>'}</select>
+        <select id="exp-category">${expenseCategories.filter(c=>c.name !== SANCIONES_CATEGORY_NAME).map(c=>`<option value="${c.id}">${c.name}</option>`).join('') || '<option value="">— crea una categoría de presupuesto primero —</option>'}</select>
         <input id="exp-desc" placeholder="Descripción (ej. Alquiler cancha semana 3)" />
         <input id="exp-amount" type="number" placeholder="Monto" />
         <input id="exp-date" type="date" />
@@ -1386,8 +1441,27 @@ async function renderFinanzas(){
   `;
   renderBudgetRows();
   renderPlayerHealthRows();
+  await renderSancionesPanel();
   await loadFinancialSummaryReadOnly('#fin-summary');
   await loadFinanceDetail();
+
+  $('#sanc-save').addEventListener('click', async ()=>{
+    const amount = Number($('#sanc-amount').value);
+    if(!amount){ toast('El monto es obligatorio', true); return; }
+    if(!sancionesCategoryId){ toast('No se pudo preparar la categoría de sanciones, intenta de nuevo', true); return; }
+    const { error } = await supabase.from('team_expenses').insert({
+      category_id: sancionesCategoryId, description: $('#sanc-desc').value.trim(),
+      amount, expense_date: $('#sanc-date').value || new Date().toISOString().slice(0,10),
+      recorded_by: profile.id,
+    });
+    if(error) return toast(error.message, true);
+    toast('Pago de tarjeta/sanción registrado');
+    $('#sanc-desc').value = ''; $('#sanc-amount').value = ''; $('#sanc-date').value = '';
+    await renderSancionesPanel();
+    renderBudgetRows();
+    await loadFinancialSummaryReadOnly('#fin-summary');
+    await loadFinanceDetail();
+  });
 
   $('#fine-save').addEventListener('click', async ()=>{
     const yellow_card_fine = Number($('#fine-yellow').value) || 0;
