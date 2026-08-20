@@ -518,7 +518,13 @@ async function renderTournamentStandings(){
   if(!container) return;
   container.innerHTML = `<h3 class="section-title" style="margin-top:8px">Tabla de posiciones · Copa Futbolgol</h3><p class="muted">Cargando tabla…</p>`;
   try{
-    const { data, error } = await supabase.functions.invoke('fetch-standings');
+    // Este proyecto usa el sistema nuevo de llaves de Supabase. El cliente
+    // global se creó con la llave anon "legacy" (formato JWT), que la
+    // pasarela de Edge Functions rechaza. Por eso aquí forzamos los headers
+    // con la publishable key nueva, que sí autentica correctamente.
+    const { data, error } = await supabase.functions.invoke('fetch-standings', {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
+    });
     if(error || !data || data.error) throw new Error(data?.error || error?.message || 'No se pudo cargar la tabla');
     const rows = [...(data.top10||[])];
     if(data.ourTeam && !data.ourInTop10) rows.push(data.ourTeam);
@@ -2315,15 +2321,22 @@ async function renderEvalRecom(){
 // ---------------- CONVOCATORIA (a entrenamiento o a partido) ----------------
 const UNIFORM_LABELS = { uniforme_1: 'Uniforme 1 (negro y amarillo)', uniforme_2: 'Uniforme 2 (blanco y azul)' };
 
-function callUpDeadline(eventDateStr){
-  const d = new Date(eventDateStr + 'T00:00:00');
-  d.setDate(d.getDate() - 1);
-  d.setHours(20, 0, 0, 0);
+// El cierre de la convocatoria es 3 horas antes de la hora real del evento
+// (la del entrenamiento o la del partido), no un horario fijo. Si por algún
+// motivo el entrenamiento/partido no tiene hora registrada, se usa 8:00pm
+// como respaldo para no dejar la convocatoria sin fecha de cierre.
+function callUpEventDateTime(c){
+  const timeStr = (c.type === 'partido' ? c.matches?.match_time : c.trainings?.start_time) || '20:00:00';
+  return new Date(`${c.event_date}T${timeStr}`);
+}
+function callUpDeadline(c){
+  const d = callUpEventDateTime(c);
+  d.setHours(d.getHours() - 3);
   return d;
 }
-function isCallUpOpen(eventDateStr){ return new Date() < callUpDeadline(eventDateStr); }
-function fmtDeadline(eventDateStr){
-  return callUpDeadline(eventDateStr).toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+function isCallUpOpen(c){ return new Date() < callUpDeadline(c); }
+function fmtDeadline(c){
+  return callUpDeadline(c).toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
 }
 
 // Convocatorias abiertas que el jugador todavía no respondió — usado para
@@ -2335,11 +2348,11 @@ async function getPendingCallUpsForPlayer(){
   const me = playersCache.find(p=>p.id===profile.player_id);
   if(me?.injured) return [];
   const [{data: callUps}, {data: myResponses}] = await Promise.all([
-    supabase.from('call_ups').select('*, matches(opponent)').order('event_date', {ascending:true}),
+    supabase.from('call_ups').select('*, matches(opponent,match_time), trainings(start_time)').order('event_date', {ascending:true}),
     supabase.from('call_up_responses').select('call_up_id,response').eq('player_id', profile.player_id),
   ]);
   const answered = new Set((myResponses||[]).filter(r=>r.response).map(r=>r.call_up_id));
-  return (callUps||[]).filter(c => isCallUpOpen(c.event_date) && !answered.has(c.id));
+  return (callUps||[]).filter(c => isCallUpOpen(c) && !answered.has(c.id));
 }
 
 // Banner de notificación en el Dashboard del jugador: solo la próxima
@@ -2366,12 +2379,12 @@ async function renderPlayerNotifications(){
   container.innerHTML = `
     <div class="notify-banner">
       <h3>📣 Tienes ${pending.length} convocatoria${pending.length>1?'s':''} por responder</h3>
-      <p class="muted">Responde antes de las 8:00pm del día anterior para que el cuerpo técnico pueda organizar el entrenamiento o el partido.</p>
+      <p class="muted">Responde antes de que falten 3 horas para el entrenamiento o el partido, para que el cuerpo técnico pueda organizarlo.</p>
       ${shown.map(c=>{
         const label = c.type === 'partido' ? `Partido vs ${c.matches?.opponent || '-'}` : 'Entrenamiento';
         return `
           <div class="notify-item">
-            <div><strong>${label}</strong> · ${fmtDate(c.event_date)} <span class="muted">· cierra ${fmtDeadline(c.event_date)}</span></div>
+            <div><strong>${label}</strong> · ${fmtDate(c.event_date)} <span class="muted">· cierra ${fmtDeadline(c)}</span></div>
             <div>
               <button class="small" onclick="window.__respondCallUp('${c.id}','asiste')">Sí, asisto</button>
               <button class="small secondary" onclick="window.__respondCallUp('${c.id}','no_asiste')">No puedo</button>
@@ -2480,7 +2493,7 @@ async function renderConvocatoria(){
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
   const { data: callUps } = await supabase.from('call_ups')
-    .select('*, trainings(session_date,start_time,location), matches(match_date,opponent,location)')
+    .select('*, trainings(session_date,start_time,location), matches(match_date,match_time,opponent,location)')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
@@ -2526,7 +2539,7 @@ async function loadCallUpsList(){
 
   list.innerHTML = visibleCallUps.map(c=>{
     const label = c.type === 'partido' ? `Partido vs ${c.matches?.opponent || '-'}` : 'Entrenamiento';
-    const open = isCallUpOpen(c.event_date);
+    const open = isCallUpOpen(c);
     const summary = `<span class="muted" style="margin-left:8px">${countsByCallUp[c.id]||0}/${totalActive} confirmados</span>`;
     const confirmedNames = confirmedByCallUp[c.id] || [];
     const notAttendingNames = notAttendingByCallUp[c.id] || [];
@@ -2541,7 +2554,7 @@ async function loadCallUpsList(){
             <span class="badge ${open?'presente':'ausente'}" style="margin-left:8px">${open?'Abierta':'Cerrada'}</span>
             ${summary}
           </summary>
-          <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c.event_date)}</div>
+          <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c)}</div>
           ${c.type==='partido' && c.uniform ? `<div style="margin-top:6px">Uniforme: <strong>${UNIFORM_LABELS[c.uniform]||c.uniform}</strong></div>` : ''}
           ${c.notes ? `<div class="muted" style="margin-top:6px">${c.notes}</div>` : ''}
           <div style="margin-top:8px">
@@ -2568,7 +2581,7 @@ async function loadCallUpsList(){
 async function renderCallUpBody(callUp){
   const container = $(`#cu-body-${callUp.id}`);
   if(!container) return;
-  const open = isCallUpOpen(callUp.event_date);
+  const open = isCallUpOpen(callUp);
 
   if(canManage()){
     const { data: responses } = await supabase.from('call_up_responses').select('*, players(full_name,jersey_number)').eq('call_up_id', callUp.id);
@@ -2619,7 +2632,7 @@ window.__respondCallUp = async (callUpId, response)=>{
 
 // El cuerpo técnico / usuario maestro fija la respuesta de un jugador a una
 // convocatoria (partido o entrenamiento) directamente, sin esperar a que el
-// jugador responda ni a la hora límite de las 8:00pm del día anterior.
+// jugador responda ni a la hora límite (3 horas antes del evento).
 window.__staffSetResponse = async (callUpId, playerId, response)=>{
   const payload = { call_up_id: callUpId, player_id: playerId, response, responded_at: new Date().toISOString() };
   const { error } = await supabase.from('call_up_responses').upsert(payload, { onConflict: 'call_up_id,player_id' });
