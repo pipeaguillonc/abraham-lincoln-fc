@@ -13,17 +13,53 @@
     --warn:#f59e0b; --danger:#ef4444;
     /* Colores del equipo: Abraham Lincoln FC (negro y amarillo) */
     --brand:#f4c515; --brand-dark:#0b0b0c;
+    /* Paleta extra de "cancha" / balón para los acentos de fútbol */
+    --pitch:#0f5132; --pitch2:#146c3e;
+    --fun1:#7c3aed; --fun2:#3b82f6; --fun3:#22c55e; --fun4:#f59e0b; --fun5:#ef4444; --fun6:#22d3ee;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center}
-  .login-box{background:var(--panel);padding:32px;border-radius:12px;width:340px;border:1px solid var(--border);border-top:4px solid var(--brand)}
+
+  /* Fondo de anillos concéntricos de colores — el mismo recurso visual de la
+     imagen de inspiración (Mundial 2026): bandas curvas de colores vibrantes
+     alrededor de un punto central, aquí con el balón encima. */
+  .field-hero{
+    position:relative;
+    background:
+      repeating-radial-gradient(circle at 50% 42%,
+        var(--fun1) 0px, var(--fun1) 60px,
+        var(--fun2) 60px, var(--fun2) 120px,
+        var(--fun3) 120px, var(--fun3) 180px,
+        var(--fun4) 180px, var(--fun4) 240px,
+        var(--fun5) 240px, var(--fun5) 300px,
+        var(--fun6) 300px, var(--fun6) 360px
+      );
+    overflow:hidden;
+  }
+  .field-hero::before{
+    /* Oscurece el fondo de anillos para que el contenido de encima siga siendo legible */
+    content:'';position:absolute;inset:0;background:rgba(6,6,8,.72);
+  }
+  @keyframes float-ball{
+    0%,100%{transform:translateY(0) rotate(0deg)}
+    50%{transform:translateY(-14px) rotate(18deg)}
+  }
+  .floating-ball{display:inline-block;animation:float-ball 2.6s ease-in-out infinite}
+  .bg-ball{position:absolute;font-size:34px;opacity:.35;animation:float-ball 3.4s ease-in-out infinite;pointer-events:none}
+  .dash-hero{position:relative;overflow:hidden;border-radius:12px;margin-bottom:20px;background:linear-gradient(90deg,var(--fun1),var(--fun2),var(--fun3),var(--fun4),var(--fun5),var(--fun6))}
+  .dash-hero-inner{position:relative;z-index:1;padding:16px 20px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
+  .login-box{position:relative;z-index:1;background:var(--panel);padding:32px;border-radius:12px;width:340px;border:1px solid var(--border);border-top:4px solid var(--brand);box-shadow:0 20px 60px rgba(0,0,0,.5)}
   .login-box h1{font-size:20px;margin:0 0 4px}
   .login-box p{color:var(--muted);font-size:13px;margin:0 0 20px}
   input,select,textarea,button{font-family:inherit;font-size:14px}
   input,select,textarea{width:100%;padding:9px 10px;margin-bottom:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
-  button{cursor:pointer;padding:9px 14px;border-radius:8px;border:none;background:var(--brand);color:var(--brand-dark);font-weight:700}
+  button{cursor:pointer;padding:9px 14px;border-radius:20px;border:none;background:var(--brand);color:var(--brand-dark);font-weight:700;transition:transform .1s,box-shadow .15s}
+  button:hover{box-shadow:0 4px 14px rgba(244,197,21,.35);transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
   button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  button.secondary:hover{box-shadow:0 4px 14px rgba(255,255,255,.08)}
   button.danger{background:var(--danger);color:white}
   .card-select{width:68px;height:46px;font-size:19px;font-weight:800;text-align:center;text-align-last:center;border-radius:8px;border-width:2px;border-style:solid}
   .card-select-yellow{background:#3a2a06;color:var(--warn);border-color:var(--warn)}
@@ -31,20 +67,30 @@
   button.small{padding:5px 10px;font-size:12px}
   #app{display:none;min-height:100vh;grid-template-columns:220px 1fr}
   #app.active{display:grid}
-  nav{background:var(--panel);border-right:3px solid var(--brand);padding:18px 12px;display:flex;flex-direction:column}
+  nav{background:var(--panel);border-right:3px solid var(--brand);padding:18px 12px;display:flex;flex-direction:column;position:relative}
+  .nav-rainbow-bar{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--fun1),var(--fun2),var(--fun3),var(--fun4),var(--fun5),var(--fun6));pointer-events:none}
   nav h2{font-size:16px;margin:4px 8px 18px;color:var(--brand)}
   nav .who{font-size:12px;color:var(--muted);margin:0 8px 16px}
-  nav button.nav-btn{background:transparent;color:var(--text);text-align:left;margin-bottom:4px;font-weight:500;position:relative}
-  nav button.nav-btn.active{background:var(--panel2);color:var(--brand)}
+  nav button.nav-btn{background:transparent;color:var(--text);text-align:left;margin-bottom:4px;font-weight:500;position:relative;border-radius:8px;transition:background .15s}
+  nav button.nav-btn:hover{background:var(--panel2)}
+  nav button.nav-btn.active{background:var(--panel2);color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
   nav .logout{margin-top:auto}
   .nav-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;text-align:center}
   .notify-banner{background:#1e2a4a;border:1px solid var(--accent2);border-radius:10px;padding:16px;margin-bottom:20px}
   .notify-banner h3{margin:0 0 4px}
   .notify-item{background:var(--panel2);border-radius:8px;padding:10px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
   main{padding:24px;overflow-y:auto;max-height:100vh}
-  h2.section-title{margin-top:0}
+  h2.section-title{margin-top:0;display:flex;align-items:center;gap:8px}
+  h2.section-title::before{content:'⚽';font-size:.85em}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-top:3px solid var(--fun2);border-radius:10px;padding:16px;transition:transform .15s,border-color .15s}
+  .card:hover{transform:translateY(-2px);border-top-color:var(--brand)}
+  .card:nth-of-type(6n+1){border-top-color:var(--fun1)}
+  .card:nth-of-type(6n+2){border-top-color:var(--fun2)}
+  .card:nth-of-type(6n+3){border-top-color:var(--fun3)}
+  .card:nth-of-type(6n+4){border-top-color:var(--fun4)}
+  .card:nth-of-type(6n+5){border-top-color:var(--fun5)}
+  .card:nth-of-type(6n+6){border-top-color:var(--fun6)}
   .card .num{font-size:26px;font-weight:700}
   .card .label{font-size:12px;color:var(--muted)}
   table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
@@ -81,6 +127,7 @@
      oculto); en celular ya no se usan — el menú pasó a ser una barra
      horizontal fija arriba, siempre visible, sin necesidad de abrirla. */
   #menu-toggle{display:none}
+  #music-toggle{position:fixed;bottom:20px;left:20px;z-index:200;width:48px;height:48px;padding:0;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.4)}
   #nav-overlay{display:none}
 
   @media (max-width: 860px){
@@ -137,7 +184,8 @@
     .cards{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
     .tabs{gap:8px}
     .tabs button{padding:10px 14px;min-height:40px}
-    .toast{left:16px;right:16px;bottom:16px}
+    .toast{left:16px;right:16px;bottom:80px}
+    #music-toggle{bottom:16px;left:16px;width:42px;height:42px}
   }
   @media (max-width: 420px){
     .login-box{padding:20px}
@@ -148,9 +196,13 @@
 <body>
 
 <!-- ============= LOGIN ============= -->
-<div id="login-screen">
+<div id="login-screen" class="field-hero">
+  <span class="bg-ball" style="top:10%;left:8%;animation-delay:0s">⚽</span>
+  <span class="bg-ball" style="top:70%;left:85%;font-size:26px;animation-delay:.6s">⚽</span>
+  <span class="bg-ball" style="top:80%;left:12%;font-size:20px;animation-delay:1.2s">⚽</span>
+  <span class="bg-ball" style="top:15%;left:80%;font-size:22px;animation-delay:1.8s">⚽</span>
   <div class="login-box">
-    <h1>⚽ Abraham Lincoln FC</h1>
+    <h1><span class="floating-ball">⚽</span> Abraham Lincoln FC</h1>
     <p>Papás del Colegio Abraham Lincoln · Copa Futbolgol. Inicia sesión con tu cuenta (creada por el cuerpo técnico).</p>
     <input id="login-email" type="email" placeholder="Correo" />
     <input id="login-password" type="password" placeholder="Contraseña" />
@@ -160,7 +212,7 @@
 </div>
 
 <!-- ============= CAMBIO DE CONTRASEÑA OBLIGATORIO (primer login o tras un restablecimiento) ============= -->
-<div id="force-password-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center">
+<div id="force-password-screen" class="field-hero" style="display:none;min-height:100vh;align-items:center;justify-content:center">
   <div class="login-box">
     <h1>🔒 Cambia tu contraseña</h1>
     <p>Por seguridad, debes elegir tu propia contraseña antes de continuar (la que te entregaron es solo temporal).</p>
@@ -173,10 +225,12 @@
 
 <!-- ============= APP ============= -->
 <button id="menu-toggle" aria-label="Abrir menú">☰</button>
+<button id="music-toggle" title="Música" aria-label="Prender o apagar la música">🔇</button>
 <div id="nav-overlay"></div>
 <div id="app">
   <nav>
-    <h2>⚽ Abraham Lincoln FC</h2>
+    <div class="nav-rainbow-bar"></div>
+    <h2><span class="floating-ball">⚽</span> Abraham Lincoln FC</h2>
     <div class="who" id="who-am-i"></div>
     <button class="nav-btn" data-view="dashboard">Dashboard</button>
     <button class="nav-btn" data-view="jugadores">Jugadores</button>
@@ -327,6 +381,51 @@ function closeMobileNav(){
 }
 $('#menu-toggle').addEventListener('click', openMobileNav);
 $('#nav-overlay').addEventListener('click', closeMobileNav);
+
+// ---------------- MÚSICA ESTILO VIDEOJUEGO ----------------
+// Melodía cortita en loop, sintetizada en el navegador con Web Audio API
+// (osciladores tipo "8-bit"), no un archivo de audio — así no depende de
+// ningún tema con derechos de autor. Los navegadores bloquean el audio
+// automático sin que el usuario haga clic primero, así que arranca apagada
+// y solo suena si el usuario le da al botón 🎵.
+let audioCtx = null;
+let musicPlaying = false;
+let musicTimer = null;
+// Escala pentatónica alegre estilo "8-bit", dos compases cortos que se repiten.
+const MUSIC_NOTES = [523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99, 987.77, 783.99, 659.25];
+function playMusicNote(ctx, freq, startTime, duration){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.05, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+function scheduleMusicLoop(){
+  const ctx = audioCtx;
+  const noteLength = 0.2;
+  const startAt = ctx.currentTime + 0.05;
+  MUSIC_NOTES.forEach((freq, i) => playMusicNote(ctx, freq, startAt + i*noteLength, noteLength*0.85));
+  musicTimer = setTimeout(scheduleMusicLoop, MUSIC_NOTES.length * noteLength * 1000);
+}
+$('#music-toggle').addEventListener('click', ()=>{
+  const btn = $('#music-toggle');
+  if(musicPlaying){
+    clearTimeout(musicTimer);
+    musicPlaying = false;
+    btn.textContent = '🔇';
+  } else {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume();
+    musicPlaying = true;
+    btn.textContent = '🎵';
+    scheduleMusicLoop();
+  }
+});
 
 async function afterLogin(sess){
   session = sess;
@@ -552,7 +651,10 @@ async function renderTournamentStandings(){
 }
 
 async function renderDashboard(){
-  main.innerHTML = `<h2 class="section-title">Dashboard</h2><div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="tabla-torneo"></div><div id="top-scorers"></div>`;
+  main.innerHTML = `
+    <h2 class="section-title">Dashboard</h2>
+    <div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div>
+    <div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="tabla-torneo"></div><div id="top-scorers"></div>`;
   renderTournamentStandings();
   if(isMaster()){
     const [{count: activePlayers}, summaryRes, nextEventCard] = await Promise.all([
