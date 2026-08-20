@@ -6,49 +6,63 @@
 <title>Abraham Lincoln FC — Copa Futbolgol</title>
 <!-- ExcelJS: genera archivos .xlsx con formato (encabezados en negrita, anchos de columna, moneda) directamente en el navegador -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<!-- Tipografía condensada estilo póster retro/vintage, para los títulos grandes -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0b0c; --panel:#18181a; --panel2:#222224; --border:#3a3a3d;
-    --text:#f2f2f0; --muted:#a3a3a0; --accent:#22c55e; --accent2:#3b82f6;
-    --warn:#f59e0b; --danger:#ef4444;
+    /* Línea gráfica "vintage retro fútbol" — fondo crema/papel, tinta casi
+       negra, y los colores del equipo (negro y amarillo) como acento
+       principal, con rojo/azul como acentos secundarios tipo póster. */
+    --bg:#efe2c3; --panel:#fbf4e4; --panel2:#e7d8b4; --border:#d6c39a;
+    --text:#1c1a16; --muted:#786a4e; --accent:#1f7a4d; --accent2:#2f5f9e;
+    --warn:#c98a12; --danger:#c23b32;
     /* Colores del equipo: Abraham Lincoln FC (negro y amarillo) */
-    --brand:#f4c515; --brand-dark:#0b0b0c;
-    /* Acentos "ochenteros" (synthwave): solo dos neones, no arcoíris */
-    --neon-pink:#ff2e93; --neon-cyan:#00e5ff;
+    --brand:#f4c515; --brand-dark:#171512;
+    --poster-red:#d64545; --poster-blue:#2f5f9e;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .display-font{font-family:'Anton',Impact,sans-serif;letter-spacing:.01em}
 
   @keyframes float-ball{
     0%,100%{transform:translateY(0) rotate(0deg)}
     50%{transform:translateY(-14px) rotate(18deg)}
   }
-  .floating-ball{display:inline-block;animation:float-ball 2.6s ease-in-out infinite;filter:drop-shadow(0 0 6px var(--neon-cyan))}
-  .legends-strip{color:var(--muted);font-size:10.5px;text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:.05em}
-  .legends-strip strong{color:var(--neon-cyan);font-weight:600}
+  .floating-ball{display:inline-block;animation:float-ball 2.6s ease-in-out infinite}
+  .legends-strip{color:var(--muted);font-size:10.5px;text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em}
+  .legends-strip strong{color:var(--brand-dark);font-weight:700}
 
-  /* Fondo "ochentero" (synthwave): degradado noche + horizonte con grilla en
-     perspectiva y un sol retro detrás del nombre del equipo. Solo dos
-     neones (rosa y cian) para que no quede recargado. */
-  .retro-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#1a0b2e 0%,#3a1257 45%,#0b0b0c 100%)}
+  /* Fondo "póster vintage": papel color crema, confeti geométrico (triángulos
+     rojo/azul/amarillo) en las esquinas y una cuadrícula finita de líneas,
+     como en afiches deportivos retro. */
+  .retro-hero{position:relative;overflow:hidden;background:var(--bg)}
   .retro-hero::before{
-    content:'';position:absolute;left:50%;top:14%;width:200px;height:200px;border-radius:50%;
-    background:linear-gradient(180deg,var(--brand),var(--neon-pink));
-    transform:translateX(-50%);filter:blur(1px);opacity:.55;
+    /* Cuadrícula fina arriba a la derecha */
+    content:'';position:absolute;top:0;right:0;width:45%;height:40%;
+    background-image:linear-gradient(var(--poster-blue) 1px,transparent 1px),linear-gradient(90deg,var(--poster-blue) 1px,transparent 1px);
+    background-size:26px 26px;opacity:.18;
+    -webkit-mask-image:linear-gradient(225deg,#000 30%,transparent 75%);
+    mask-image:linear-gradient(225deg,#000 30%,transparent 75%);
   }
   .retro-hero::after{
-    content:'';position:absolute;left:-60%;right:-60%;bottom:-10%;height:55%;
-    background-image:linear-gradient(var(--neon-cyan) 1px,transparent 1px),linear-gradient(90deg,var(--neon-cyan) 1px,transparent 1px);
-    background-size:44px 44px;transform:perspective(280px) rotateX(62deg);transform-origin:bottom;opacity:.4;
+    /* Confeti geométrico abajo a la izquierda */
+    content:'';position:absolute;bottom:-40px;left:-40px;width:220px;height:220px;
+    background:
+      conic-gradient(from 20deg at 20% 80%, var(--poster-red) 0 30deg, transparent 30deg 360deg),
+      conic-gradient(from 200deg at 70% 90%, var(--brand) 0 40deg, transparent 40deg 360deg),
+      conic-gradient(from 100deg at 45% 55%, var(--poster-blue) 0 35deg, transparent 35deg 360deg);
+    opacity:.5;
   }
   #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative}
-  .login-box{position:relative;z-index:1;background:var(--panel);padding:32px;border-radius:4px;width:340px;border:2px solid var(--neon-cyan);box-shadow:0 0 24px rgba(0,229,255,.25),0 0 0 4px var(--brand-dark) inset}
-  .login-box h1{font-size:21px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.03em;color:#fff;text-shadow:0 0 8px var(--neon-pink),0 0 18px var(--neon-pink)}
+  .login-box{position:relative;z-index:1;background:var(--panel);padding:32px;border-radius:6px;width:340px;border:2px solid var(--brand-dark)}
+  .login-box h1{font-size:26px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.01em;color:var(--brand-dark);font-family:'Anton',Impact,sans-serif}
   .login-box p{color:var(--muted);font-size:13px;margin:0 0 20px}
   input,select,textarea,button{font-family:inherit;font-size:14px}
-  input,select,textarea{width:100%;padding:9px 10px;margin-bottom:12px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
-  button{cursor:pointer;padding:9px 14px;border-radius:8px;border:none;background:var(--brand);color:var(--brand-dark);font-weight:700}
-  button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  input,select,textarea{width:100%;padding:9px 10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--text)}
+  button{cursor:pointer;padding:10px 16px;border-radius:6px;border:none;background:var(--brand-dark);color:#fbf4e4;font-weight:700;text-transform:uppercase;letter-spacing:.03em;font-size:13px}
+  button.secondary{background:transparent;color:var(--brand-dark);border:2px solid var(--brand-dark)}
   button.danger{background:var(--danger);color:white}
   .card-select{width:68px;height:46px;font-size:19px;font-weight:800;text-align:center;text-align-last:center;border-radius:8px;border-width:2px;border-style:solid}
   .card-select-yellow{background:#3a2a06;color:var(--warn);border-color:var(--warn)}
@@ -56,27 +70,27 @@
   button.small{padding:5px 10px;font-size:12px}
   #app{display:none;min-height:100vh;grid-template-columns:220px 1fr}
   #app.active{display:grid}
-  nav{background:var(--panel);border-right:3px solid var(--brand);padding:18px 12px;display:flex;flex-direction:column;position:relative}
-  .nav-rainbow-bar{position:absolute;top:0;left:0;right:0;height:3px;background:var(--neon-cyan);box-shadow:0 0 8px var(--neon-cyan);pointer-events:none}
-  nav h2{font-size:16px;margin:4px 8px 18px;color:var(--brand)}
+  nav{background:var(--panel);border-right:3px solid var(--brand-dark);padding:18px 12px;display:flex;flex-direction:column;position:relative}
+  .nav-rainbow-bar{position:absolute;top:0;left:0;right:0;height:4px;background:var(--brand);pointer-events:none}
+  nav h2{font-size:16px;margin:4px 8px 18px;color:var(--brand-dark);font-family:'Anton',Impact,sans-serif;text-transform:uppercase;letter-spacing:.01em}
   nav .who{font-size:12px;color:var(--muted);margin:0 8px 16px}
   nav button.nav-btn{background:transparent;color:var(--text);text-align:left;margin-bottom:4px;font-weight:500;position:relative;border-radius:8px;transition:background .15s}
   nav button.nav-btn:hover{background:var(--panel2)}
-  nav button.nav-btn.active{background:var(--panel2);color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
+  nav button.nav-btn.active{background:var(--brand-dark);color:#fbf4e4;box-shadow:inset 3px 0 0 var(--brand)}
   nav .logout{margin-top:auto}
   .nav-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;text-align:center}
-  .notify-banner{background:#1e2a4a;border:1px solid var(--accent2);border-radius:10px;padding:16px;margin-bottom:20px}
+  .notify-banner{background:var(--panel2);border:2px solid var(--poster-blue);border-radius:10px;padding:16px;margin-bottom:20px}
   .notify-banner h3{margin:0 0 4px}
-  .notify-item{background:var(--panel2);border-radius:8px;padding:10px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .notify-item{background:var(--panel);border-radius:8px;padding:10px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
   main{padding:24px;overflow-y:auto;max-height:100vh}
-  h2.section-title{margin-top:0;display:flex;align-items:center;gap:8px}
+  h2.section-title{margin-top:0;display:flex;align-items:center;gap:8px;font-family:'Anton',Impact,sans-serif;text-transform:uppercase;letter-spacing:.01em;font-weight:400}
   h2.section-title::before{content:'⚽';font-size:.85em}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
-  .card{background:var(--panel);border:1px solid var(--border);border-top:3px solid var(--neon-cyan);border-radius:10px;padding:16px;transition:transform .15s,border-color .15s}
-  .card:hover{transform:translateY(-2px);border-top-color:var(--brand)}
+  .card{background:var(--panel);border:1px solid var(--border);border-top:4px solid var(--brand);border-radius:6px;padding:16px;transition:transform .15s,border-color .15s}
+  .card:hover{transform:translateY(-2px);border-top-color:var(--poster-red)}
   .card .num{font-size:26px;font-weight:700}
-  .dash-hero{background:var(--panel);border:1px solid var(--neon-pink);box-shadow:0 0 12px rgba(255,46,147,.25);border-radius:10px;margin-bottom:20px}
-  .dash-hero-inner{padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:14px;color:#fff;text-transform:uppercase;letter-spacing:.04em}
+  .dash-hero{background:var(--brand-dark);border-radius:6px;margin-bottom:20px}
+  .dash-hero-inner{padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:14px;color:var(--brand);text-transform:uppercase;letter-spacing:.04em}
   .card .label{font-size:12px;color:var(--muted)}
   table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:10px;overflow:hidden}
   th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:13px}
