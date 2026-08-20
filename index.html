@@ -31,8 +31,16 @@
     50%{transform:translateY(-14px) rotate(18deg)}
   }
   .floating-ball{display:inline-block;animation:float-ball 2.6s ease-in-out infinite}
-  .legends-strip{color:var(--muted);font-size:10.5px;text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em}
-  .legends-strip strong{color:var(--brand-dark);font-weight:700}
+
+  /* Ilustración genérica de "jugadores" (pictogramas, no personas reales) que
+     acompaña el login en pantallas anchas — homenaje al fútbol sin usar fotos
+     ni retratos de nadie en particular. */
+  .login-illustration{display:none}
+  @media (min-width: 900px){
+    .login-illustration{display:flex;align-items:flex-end;margin-right:20px}
+    .player-svg{width:130px;height:auto}
+    .player-svg-2{margin-left:-30px;margin-bottom:-6px;opacity:.85}
+  }
 
   /* Fondo "póster vintage": papel color crema, confeti geométrico (triángulos
      rojo/azul/amarillo) en las esquinas y una cuadrícula finita de líneas,
@@ -126,7 +134,6 @@
      oculto); en celular ya no se usan — el menú pasó a ser una barra
      horizontal fija arriba, siempre visible, sin necesidad de abrirla. */
   #menu-toggle{display:none}
-  #music-toggle{position:fixed;bottom:20px;left:20px;z-index:200;width:48px;height:48px;padding:0;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.4)}
   #nav-overlay{display:none}
 
   @media (max-width: 860px){
@@ -183,8 +190,7 @@
     .cards{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
     .tabs{gap:8px}
     .tabs button{padding:10px 14px;min-height:40px}
-    .toast{left:16px;right:16px;bottom:80px}
-    #music-toggle{bottom:16px;left:16px;width:42px;height:42px}
+    .toast{left:16px;right:16px;bottom:16px}
   }
   @media (max-width: 420px){
     .login-box{padding:20px}
@@ -196,6 +202,25 @@
 
 <!-- ============= LOGIN ============= -->
 <div id="login-screen" class="retro-hero">
+  <div class="login-illustration" aria-hidden="true">
+    <svg viewBox="0 0 220 200" class="player-svg player-svg-1">
+      <circle cx="110" cy="26" r="16" fill="var(--brand-dark)"/>
+      <rect x="96" y="42" width="26" height="52" rx="12" fill="var(--brand-dark)" transform="rotate(-6 109 68)"/>
+      <rect x="60" y="46" width="13" height="42" rx="6" fill="var(--brand-dark)" transform="rotate(38 66 46)"/>
+      <rect x="88" y="90" width="16" height="58" rx="8" fill="var(--brand-dark)"/>
+      <rect x="106" y="86" width="16" height="48" rx="8" fill="var(--brand-dark)" transform="rotate(58 114 88)"/>
+      <circle cx="182" cy="150" r="15" fill="none" stroke="var(--brand-dark)" stroke-width="4"/>
+      <path d="M182 138 l9 6 -3 10 -12 0 -3-10z M172 150 l0 -0 M192 150 l0 0" fill="none" stroke="var(--brand-dark)" stroke-width="2.5"/>
+    </svg>
+    <svg viewBox="0 0 220 200" class="player-svg player-svg-2">
+      <circle cx="90" cy="30" r="15" fill="var(--poster-red)"/>
+      <rect x="77" y="45" width="24" height="48" rx="11" fill="var(--poster-red)"/>
+      <rect x="55" y="48" width="12" height="38" rx="6" fill="var(--poster-red)" transform="rotate(-30 61 48)"/>
+      <rect x="112" y="48" width="12" height="38" rx="6" fill="var(--poster-red)" transform="rotate(30 118 48)"/>
+      <rect x="72" y="92" width="15" height="55" rx="7" fill="var(--poster-red)" transform="rotate(-10 80 92)"/>
+      <rect x="90" y="92" width="15" height="55" rx="7" fill="var(--poster-red)" transform="rotate(10 98 92)"/>
+    </svg>
+  </div>
   <div class="login-box">
     <h1><span class="floating-ball">⚽</span> Abraham Lincoln FC</h1>
     <p>Papás del Colegio Abraham Lincoln · Copa Futbolgol. Inicia sesión con tu cuenta (creada por el cuerpo técnico).</p>
@@ -203,7 +228,6 @@
     <input id="login-password" type="password" placeholder="Contraseña" />
     <button id="login-btn" style="width:100%">Entrar</button>
     <div id="login-error" style="color:var(--danger);font-size:12px;margin-top:8px"></div>
-    <div class="legends-strip">⚽ Con el espíritu de <strong>Pelé</strong>, <strong>Maradona</strong>, <strong>Cruyff</strong> y <strong>el Pibe Valderrama</strong></div>
   </div>
 </div>
 
@@ -221,7 +245,6 @@
 
 <!-- ============= APP ============= -->
 <button id="menu-toggle" aria-label="Abrir menú">☰</button>
-<button id="music-toggle" title="Música" aria-label="Prender o apagar la música">🔇</button>
 <div id="nav-overlay"></div>
 <div id="app">
   <nav>
@@ -377,51 +400,6 @@ function closeMobileNav(){
 }
 $('#menu-toggle').addEventListener('click', openMobileNav);
 $('#nav-overlay').addEventListener('click', closeMobileNav);
-
-// ---------------- MÚSICA ESTILO VIDEOJUEGO ----------------
-// Melodía cortita en loop, sintetizada en el navegador con Web Audio API
-// (osciladores tipo "8-bit"), no un archivo de audio — así no depende de
-// ningún tema con derechos de autor. Los navegadores bloquean el audio
-// automático sin que el usuario haga clic primero, así que arranca apagada
-// y solo suena si el usuario le da al botón 🎵.
-let audioCtx = null;
-let musicPlaying = false;
-let musicTimer = null;
-// Escala pentatónica alegre estilo "8-bit", dos compases cortos que se repiten.
-const MUSIC_NOTES = [523.25, 659.25, 783.99, 659.25, 523.25, 659.25, 783.99, 987.77, 783.99, 659.25];
-function playMusicNote(ctx, freq, startTime, duration){
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.0001, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.05, startTime + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(startTime);
-  osc.stop(startTime + duration);
-}
-function scheduleMusicLoop(){
-  const ctx = audioCtx;
-  const noteLength = 0.2;
-  const startAt = ctx.currentTime + 0.05;
-  MUSIC_NOTES.forEach((freq, i) => playMusicNote(ctx, freq, startAt + i*noteLength, noteLength*0.85));
-  musicTimer = setTimeout(scheduleMusicLoop, MUSIC_NOTES.length * noteLength * 1000);
-}
-$('#music-toggle').addEventListener('click', ()=>{
-  const btn = $('#music-toggle');
-  if(musicPlaying){
-    clearTimeout(musicTimer);
-    musicPlaying = false;
-    btn.textContent = '🔇';
-  } else {
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    audioCtx.resume();
-    musicPlaying = true;
-    btn.textContent = '🎵';
-    scheduleMusicLoop();
-  }
-});
 
 async function afterLogin(sess){
   session = sess;
