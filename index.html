@@ -1303,6 +1303,31 @@ window.__deleteSancionPago = async (id)=>{
   await loadFinanceDetail();
 };
 
+// ---------------- INGRESO EXTRA (lista junto al mismo formulario) ----------------
+async function renderIncomeList(){
+  const container = $('#income-list');
+  if(!container) return;
+  const { data: income } = await supabase.from('team_income').select('*').order('income_date', {ascending:false});
+  const total = (income||[]).reduce((sum,i)=>sum + Number(i.amount), 0);
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+      <tbody>
+        ${(income||[]).map(i=>`<tr><td>${fmtDate(i.income_date)}</td><td>${i.description}</td><td>${fmtMoney(i.amount)}</td><td><button class="small secondary" onclick="window.__deleteIncome('${i.id}')">Eliminar</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Todavía no hay ingresos extra registrados.</td></tr>'}
+      </tbody>
+    </table>
+    <p style="margin-top:8px"><strong>Total ingresos extra: ${fmtMoney(total)}</strong></p>
+  `;
+}
+window.__deleteIncome = async (id)=>{
+  if(!confirm('¿Eliminar este ingreso extra? Esta acción no se puede deshacer.')) return;
+  const { error } = await supabase.from('team_income').delete().eq('id', id);
+  if(error) return toast(error.message, true);
+  toast('Ingreso eliminado');
+  await renderIncomeList();
+  await loadFinancialSummaryReadOnly('#fin-summary');
+};
+
 // Multa por tarjeta amarilla/roja: se suma automáticamente a lo que debe cada
 // jugador (no hay que crear una cuota manual por cada tarjeta).
 let fineSettings = { id: null, yellow_card_fine: 0, red_card_fine: 0 };
@@ -1446,12 +1471,14 @@ async function renderFinanzas(){
         <input id="income-date" type="date" />
       </div>
       <button id="income-save">Registrar ingreso</button>
+      <div id="income-list" style="margin-top:12px">Cargando…</div>
     </div>
     <div id="fin-detail"></div>
   `;
   renderBudgetRows();
   renderPlayerHealthRows();
   await renderSancionesPanel();
+  await renderIncomeList();
   await loadFinancialSummaryReadOnly('#fin-summary');
   await loadFinanceDetail();
 
@@ -1632,11 +1659,10 @@ async function renderPlayerHealthRows(){
 }
 
 async function loadFinanceDetail(){
-  const [{data: dues}, {data: pays}, {data: expenses}, {data: income}] = await Promise.all([
+  const [{data: dues}, {data: pays}, {data: expenses}] = await Promise.all([
     supabase.from('payment_dues').select('*, players(full_name, jersey_number)').order('due_date', {ascending:false}),
     supabase.from('payments').select('*, players(full_name, jersey_number)').order('payment_date', {ascending:false}),
     supabase.from('team_expenses').select('*, expense_categories(name)').order('expense_date', {ascending:false}),
-    supabase.from('team_income').select('*').order('income_date', {ascending:false}),
   ]);
   $('#fin-detail').innerHTML = `
     <div class="panel">
@@ -1653,11 +1679,6 @@ async function loadFinanceDetail(){
       <h3>Gastos del equipo</h3>
       <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th></tr></thead>
       <tbody>${(expenses||[]).map(e=>`<tr><td>${fmtDate(e.expense_date)}</td><td>${e.expense_categories?.name || '-'}</td><td>${e.description||'-'}</td><td>${fmtMoney(e.amount)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin gastos</td></tr>'}</tbody></table>
-    </div>
-    <div class="panel">
-      <h3>Ingresos extra (patrocinios, donaciones, etc.)</h3>
-      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr></thead>
-      <tbody>${(income||[]).map(i=>`<tr><td>${fmtDate(i.income_date)}</td><td>${i.description}</td><td>${fmtMoney(i.amount)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Sin ingresos extra</td></tr>'}</tbody></table>
     </div>
   `;
 }
