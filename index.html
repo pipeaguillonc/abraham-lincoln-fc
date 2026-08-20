@@ -1015,7 +1015,7 @@ async function renderEntrenamientos(){
 
   // Cada entrenamiento va colapsado por defecto y se despliega al hacer clic — con el
   // roster completo, mostrar todos abiertos a la vez hace la lista interminable.
-  list.innerHTML = (trainings||[]).map(t=>{
+  const trainingCard = t => {
     const summary = canManage() ? `<span class="muted" style="margin-left:8px">${presentesByTraining[t.id]||0}/${totalActive} presentes</span>` : '';
     return `
     <div class="panel">
@@ -1043,7 +1043,17 @@ async function renderEntrenamientos(){
       </details>
     </div>
   `;
-  }).join('') || '<p class="muted">No hay entrenamientos registrados.</p>';
+  };
+  // Próximos (el más cercano primero) aparte de los ya realizados (el más reciente primero).
+  const today = new Date().toISOString().slice(0,10);
+  const proximos = (trainings||[]).filter(t=>t.session_date >= today).sort((a,b)=>a.session_date.localeCompare(b.session_date));
+  const realizados = (trainings||[]).filter(t=>t.session_date < today).sort((a,b)=>b.session_date.localeCompare(a.session_date));
+  list.innerHTML = `
+    <h3 class="section-title">Próximos entrenamientos</h3>
+    ${proximos.map(trainingCard).join('') || '<p class="muted">No hay entrenamientos próximos.</p>'}
+    <h3 class="section-title" style="margin-top:20px">Entrenamientos realizados</h3>
+    ${realizados.map(trainingCard).join('') || '<p class="muted">Todavía no se ha realizado ningún entrenamiento.</p>'}
+  `;
 
   for(const t of (trainings||[])) renderAttendanceForTraining(t.id, t.session_date);
 
@@ -1950,11 +1960,21 @@ async function renderPartidos(){
     </div>
     <div id="match-detail"></div>
   `;
-  $('#matches-list').innerHTML = (matches||[]).map(m=>`
+  const matchCard = m => `
     <div class="panel match-card" onclick="window.__openMatch('${m.id}')">
       <strong>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent}</strong> ${m.result ? '· '+m.result : ''} ${m.competition ? '· '+m.competition : ''}
     </div>
-  `).join('') || '<p class="muted">No hay partidos registrados.</p>';
+  `;
+  // Próximos (el más cercano primero) aparte de los ya jugados (el más reciente primero).
+  const today = new Date().toISOString().slice(0,10);
+  const proximos = (matches||[]).filter(m=>m.match_date >= today).sort((a,b)=>a.match_date.localeCompare(b.match_date));
+  const jugados = (matches||[]).filter(m=>m.match_date < today).sort((a,b)=>b.match_date.localeCompare(a.match_date));
+  $('#matches-list').innerHTML = `
+    <h3 class="section-title">Próximos partidos</h3>
+    ${proximos.map(matchCard).join('') || '<p class="muted">No hay partidos próximos.</p>'}
+    <h3 class="section-title" style="margin-top:20px">Partidos jugados</h3>
+    ${jugados.map(matchCard).join('') || '<p class="muted">Todavía no se ha jugado ningún partido.</p>'}
+  `;
 
   if(canManage()){
     $('#nm-search-yt').addEventListener('click', searchYouTube);
