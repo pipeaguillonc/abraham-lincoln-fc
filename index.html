@@ -1284,14 +1284,24 @@ async function renderSancionesPanel(){
   if(!container) return;
   container.innerHTML = `
     <table>
-      <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
       <tbody>
-        ${pagos.map(p=>`<tr><td>${fmtDate(p.expense_date)}</td><td>${p.description||'-'}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Todavía no hay pagos registrados.</td></tr>'}
+        ${pagos.map(p=>`<tr><td>${fmtDate(p.expense_date)}</td><td>${p.description||'-'}</td><td>${fmtMoney(p.amount)}</td><td><button class="small secondary" onclick="window.__deleteSancionPago('${p.id}')">Eliminar</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Todavía no hay pagos registrados.</td></tr>'}
       </tbody>
     </table>
     <p style="margin-top:8px"><strong>Total pagado en tarjetas/sanciones: ${fmtMoney(total)}</strong></p>
   `;
 }
+window.__deleteSancionPago = async (id)=>{
+  if(!confirm('¿Eliminar este pago de tarjeta/sanción? Esta acción no se puede deshacer.')) return;
+  const { error } = await supabase.from('team_expenses').delete().eq('id', id);
+  if(error) return toast(error.message, true);
+  toast('Pago eliminado');
+  await renderSancionesPanel();
+  renderBudgetRows();
+  await loadFinancialSummaryReadOnly('#fin-summary');
+  await loadFinanceDetail();
+};
 
 // Multa por tarjeta amarilla/roja: se suma automáticamente a lo que debe cada
 // jugador (no hay que crear una cuota manual por cada tarjeta).
