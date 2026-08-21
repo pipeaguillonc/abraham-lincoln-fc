@@ -34,12 +34,21 @@
 
   /* Ilustración genérica de "jugadores" (pictogramas, no personas reales) que
      acompaña el login en pantallas anchas — homenaje al fútbol sin usar fotos
-     ni retratos de nadie en particular. */
+     ni retratos de nadie en particular. Textura de puntos (halftone) detrás,
+     como en los afiches deportivos impresos de los 80. */
   .login-illustration{display:none}
   @media (min-width: 900px){
-    .login-illustration{display:flex;align-items:flex-end;margin-right:20px}
-    .player-svg{width:130px;height:auto}
-    .player-svg-2{margin-left:-30px;margin-bottom:-6px;opacity:.85}
+    .login-illustration{
+      display:flex;align-items:flex-end;margin-right:8px;padding:24px 10px 0;position:relative;
+      background-image:radial-gradient(var(--poster-blue) 1.6px, transparent 1.6px);
+      background-size:14px 14px;background-position:0 0;
+      -webkit-mask-image:radial-gradient(ellipse 100% 90% at 50% 100%, #000 55%, transparent 100%);
+      mask-image:radial-gradient(ellipse 100% 90% at 50% 100%, #000 55%, transparent 100%);
+      opacity:.9;
+    }
+    .player-svg{width:175px;height:auto;position:relative}
+    .player-svg-2{margin-left:-46px;margin-bottom:-4px}
+    .player-svg-3{margin-left:-40px;margin-bottom:10px;width:140px}
   }
 
   /* Fondo "póster vintage": papel color crema, confeti geométrico (triángulos
@@ -203,7 +212,18 @@
 <!-- ============= LOGIN ============= -->
 <div id="login-screen" class="retro-hero">
   <div class="login-illustration" aria-hidden="true">
+    <svg viewBox="0 0 220 200" class="player-svg player-svg-3">
+      <!-- figura de fondo: cabeceando el balón -->
+      <circle cx="120" cy="34" r="15" fill="var(--poster-blue)"/>
+      <rect x="107" y="49" width="24" height="46" rx="11" fill="var(--poster-blue)" transform="rotate(4 119 72)"/>
+      <rect x="86" y="52" width="12" height="36" rx="6" fill="var(--poster-blue)" transform="rotate(-42 92 52)"/>
+      <rect x="132" y="52" width="12" height="36" rx="6" fill="var(--poster-blue)" transform="rotate(42 138 52)"/>
+      <rect x="100" y="94" width="15" height="52" rx="7" fill="var(--poster-blue)" transform="rotate(-6 107 94)"/>
+      <rect x="118" y="94" width="15" height="52" rx="7" fill="var(--poster-blue)" transform="rotate(6 125 94)"/>
+      <circle cx="122" cy="14" r="11" fill="none" stroke="var(--poster-blue)" stroke-width="3.5"/>
+    </svg>
     <svg viewBox="0 0 220 200" class="player-svg player-svg-1">
+      <!-- figura principal: pateando el balón -->
       <circle cx="110" cy="26" r="16" fill="var(--brand-dark)"/>
       <rect x="96" y="42" width="26" height="52" rx="12" fill="var(--brand-dark)" transform="rotate(-6 109 68)"/>
       <rect x="60" y="46" width="13" height="42" rx="6" fill="var(--brand-dark)" transform="rotate(38 66 46)"/>
@@ -213,12 +233,14 @@
       <path d="M182 138 l9 6 -3 10 -12 0 -3-10z M172 150 l0 -0 M192 150 l0 0" fill="none" stroke="var(--brand-dark)" stroke-width="2.5"/>
     </svg>
     <svg viewBox="0 0 220 200" class="player-svg player-svg-2">
+      <!-- figura frontal: corriendo con el balón -->
       <circle cx="90" cy="30" r="15" fill="var(--poster-red)"/>
       <rect x="77" y="45" width="24" height="48" rx="11" fill="var(--poster-red)"/>
       <rect x="55" y="48" width="12" height="38" rx="6" fill="var(--poster-red)" transform="rotate(-30 61 48)"/>
       <rect x="112" y="48" width="12" height="38" rx="6" fill="var(--poster-red)" transform="rotate(30 118 48)"/>
       <rect x="72" y="92" width="15" height="55" rx="7" fill="var(--poster-red)" transform="rotate(-10 80 92)"/>
       <rect x="90" y="92" width="15" height="55" rx="7" fill="var(--poster-red)" transform="rotate(10 98 92)"/>
+      <circle cx="35" cy="150" r="13" fill="none" stroke="var(--poster-red)" stroke-width="3.5"/>
     </svg>
   </div>
   <div class="login-box">
@@ -506,6 +528,15 @@ function navigate(view){
 
 // ---------------- DASHBOARD ----------------
 
+// Link "Cómo llegar" (Google Maps, Waze o cualquier URL que haya puesto el
+// cuerpo técnico) — se abre en pestaña nueva y nunca rompe el layout si no
+// hay link cargado.
+function mapsLink(url, label){
+  if(!url) return '';
+  const safeUrl = url.replace(/"/g,'&quot;');
+  return `<a href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label || '📍 Cómo llegar'}</a>`;
+}
+
 // Tarjeta "próximo entrenamiento": fecha, horario y lugar juntos.
 async function fetchNextTrainingCard(){
   const { data } = await supabase.from('trainings').select('*').gte('session_date', new Date().toISOString().slice(0,10)).order('session_date').limit(1);
@@ -516,6 +547,7 @@ async function fetchNextTrainingCard(){
       <div class="label">Próximo entrenamiento</div>
       <div class="num" style="font-size:18px">${fmtDate(t.session_date)}</div>
       <div class="muted">${t.start_time ? '🕒 '+t.start_time.slice(0,5) : ''}${t.location ? ' · 📍 '+t.location : ''}</div>
+      ${t.location_url ? `<div style="margin-top:4px">${mapsLink(t.location_url)}</div>` : ''}
     </div>
   `;
 }
@@ -531,7 +563,9 @@ async function fetchNextMatchCard(){
       <div class="label">Próximo partido</div>
       <div class="num" style="font-size:18px">vs ${m.opponent}</div>
       <div class="muted">${fmtDate(m.match_date)}${m.match_time ? ' · 🕒 '+m.match_time.slice(0,5) : ''}</div>
+      ${m.location ? `<div class="muted">📍 ${m.location}</div>` : ''}
       ${cu?.uniform ? `<div class="muted">👕 ${UNIFORM_LABELS[cu.uniform]||cu.uniform}</div>` : ''}
+      ${m.location_url ? `<div style="margin-top:4px">${mapsLink(m.location_url)}</div>` : ''}
     </div>
   `;
 }
@@ -1071,6 +1105,9 @@ async function renderEntrenamientos(){
         <input id="nt-location" placeholder="Lugar" />
         <input id="nt-notes" placeholder="Notas" />
       </div>
+      <div class="row">
+        <input id="nt-location-url" placeholder="Link de Google Maps o Waze (opcional)" style="flex:1" />
+      </div>
       <button id="nt-save">Crear entrenamiento</button>
     </div>` : ''}
     ${canManage() ? `<button id="nt-export" class="secondary" style="margin-bottom:16px">⬇️ Exportar asistencia a Excel</button>` : ''}
@@ -1100,6 +1137,7 @@ async function renderEntrenamientos(){
           <strong>${fmtDate(t.session_date)}</strong> ${t.start_time ? '· '+t.start_time.slice(0,5) : ''} ${t.location ? '· '+t.location : ''}
           ${summary}
         </summary>
+        ${t.location_url ? `<div style="margin-top:4px">${mapsLink(t.location_url)}</div>` : ''}
         ${t.notes ? `<div class="muted" style="margin-top:6px">${t.notes}</div>` : ''}
         ${canManage() ? `
         <div class="panel" style="background:var(--panel2);margin-top:10px">
@@ -1109,6 +1147,9 @@ async function renderEntrenamientos(){
             <input type="time" class="et-time" value="${t.start_time?.slice(0,5)||''}" />
             <input class="et-location" placeholder="Lugar" value="${t.location||''}" />
             <input class="et-notes" placeholder="Notas" value="${t.notes||''}" />
+          </div>
+          <div class="row">
+            <input class="et-location-url" placeholder="Link de Google Maps o Waze (opcional)" value="${t.location_url||''}" style="flex:1" />
           </div>
           <div class="row">
             <button class="small" onclick="window.__saveTraining('${t.id}', this)">Guardar cambios</button>
@@ -1140,6 +1181,7 @@ async function renderEntrenamientos(){
         session_date: $('#nt-date').value,
         start_time: $('#nt-time').value || null,
         location: $('#nt-location').value.trim(),
+        location_url: $('#nt-location-url').value.trim() || null,
         notes: $('#nt-notes').value.trim(),
         season_id: currentSeasonId(),
       };
@@ -1171,6 +1213,7 @@ window.__saveTraining = async (trainingId, btn)=>{
     session_date,
     start_time: panel.querySelector('.et-time').value || null,
     location: panel.querySelector('.et-location').value.trim(),
+    location_url: panel.querySelector('.et-location-url').value.trim() || null,
     notes: panel.querySelector('.et-notes').value.trim(),
   };
   const { error } = await supabase.from('trainings').update(payload).eq('id', trainingId);
@@ -2012,6 +2055,9 @@ async function renderPartidos(){
           <input id="nm-result" placeholder="Resultado (ej. 3-1)" />
         </div>
         <div class="row">
+          <input id="nm-location-url" placeholder="Link de Google Maps o Waze (opcional)" style="flex:1" />
+        </div>
+        <div class="row">
           <input id="nm-instagram" placeholder="Link de Instagram (post/reel)" />
         </div>
         <div class="row">
@@ -2064,6 +2110,7 @@ async function renderPartidos(){
         opponent: $('#nm-opponent').value.trim(),
         competition: $('#nm-competition').value.trim(),
         location: $('#nm-location').value.trim(),
+        location_url: $('#nm-location-url').value.trim() || null,
         result: $('#nm-result').value.trim(),
         instagram_url: $('#nm-instagram').value.trim() || null,
         youtube_url: ytUrl || null,
@@ -2159,6 +2206,7 @@ window.__openMatch = async (matchId)=>{
     <div class="panel">
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
+      ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${m.location_url ? mapsLink(m.location_url) : ''}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -2187,6 +2235,9 @@ window.__openMatch = async (matchId)=>{
         <div class="row">
           <input id="em-location" placeholder="Lugar" value="${m.location||''}" />
           <input id="em-result" placeholder="Resultado (ej. 3-1)" value="${m.result||''}" />
+        </div>
+        <div class="row">
+          <input id="em-location-url" placeholder="Link de Google Maps o Waze (opcional)" value="${m.location_url||''}" style="flex:1" />
         </div>
         <div class="row">
           <input id="em-youtube" placeholder="Link de YouTube - Primer tiempo" value="${m.youtube_url||''}" />
@@ -2321,6 +2372,7 @@ window.__saveMatch = async (matchId)=>{
     opponent,
     competition: $('#em-competition').value.trim(),
     location: $('#em-location').value.trim(),
+    location_url: $('#em-location-url').value.trim() || null,
     result: $('#em-result').value.trim(),
     youtube_url: ytUrl || null,
     youtube_video_id: extractYouTubeId(ytUrl),
@@ -2694,7 +2746,7 @@ async function renderConvocatoria(){
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
   const { data: callUps } = await supabase.from('call_ups')
-    .select('*, trainings(session_date,start_time,location), matches(match_date,match_time,opponent,location)')
+    .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
@@ -2741,6 +2793,8 @@ async function loadCallUpsList(){
   list.innerHTML = visibleCallUps.map(c=>{
     const label = c.type === 'partido' ? `Partido vs ${c.matches?.opponent || '-'}` : 'Entrenamiento';
     const open = isCallUpOpen(c);
+    const eventLocation = c.type === 'partido' ? c.matches?.location : c.trainings?.location;
+    const eventLocationUrl = c.type === 'partido' ? c.matches?.location_url : c.trainings?.location_url;
     const summary = `<span class="muted" style="margin-left:8px">${countsByCallUp[c.id]||0}/${totalActive} confirmados</span>`;
     const confirmedNames = confirmedByCallUp[c.id] || [];
     const notAttendingNames = notAttendingByCallUp[c.id] || [];
@@ -2756,6 +2810,7 @@ async function loadCallUpsList(){
             ${summary}
           </summary>
           <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c)}</div>
+          ${(eventLocation || eventLocationUrl) ? `<div style="margin-top:6px">${eventLocation ? '📍 '+eventLocation+' ' : ''}${eventLocationUrl ? mapsLink(eventLocationUrl) : ''}</div>` : ''}
           ${c.type==='partido' && c.uniform ? `<div style="margin-top:6px">Uniforme: <strong>${UNIFORM_LABELS[c.uniform]||c.uniform}</strong></div>` : ''}
           ${c.notes ? `<div class="muted" style="margin-top:6px">${c.notes}</div>` : ''}
           <div style="margin-top:8px">
