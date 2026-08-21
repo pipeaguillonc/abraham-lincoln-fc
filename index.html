@@ -533,7 +533,12 @@ function navigate(view){
 // hay link cargado.
 function mapsLink(url, label){
   if(!url) return '';
-  const safeUrl = url.replace(/"/g,'&quot;');
+  // Si pegaron el link sin "https://" (por ejemplo, copiando solo el texto
+  // visible), el navegador lo trata como una ruta interna de la app y el
+  // clic no lleva a ningún lado. Se le agrega el esquema automáticamente.
+  let href = url.trim();
+  if(!/^https?:\/\//i.test(href)) href = 'https://' + href;
+  const safeUrl = href.replace(/"/g,'&quot;');
   return `<a href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label || '📍 Cómo llegar'}</a>`;
 }
 
