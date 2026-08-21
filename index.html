@@ -2757,11 +2757,15 @@ async function renderConvocatoria(){
 
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
-  const { data: callUps } = await supabase.from('call_ups')
+  const { data: callUps, error: callUpsError } = await supabase.from('call_ups')
     .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
+  // Antes esto se trataba en silencio como "no hay convocatorias" cuando en
+  // realidad Supabase devolvía un error (p. ej. de permisos/RLS) — ahora se
+  // muestra el mensaje real para poder diagnosticarlo sin abrir la consola.
+  if(callUpsError){ list.innerHTML = `<p class="muted">No se pudieron cargar las convocatorias: ${callUpsError.message}</p>`; return; }
   if(!callUps || !callUps.length){ list.innerHTML = '<p class="muted">No hay convocatorias registradas.</p>'; return; }
 
   // El cuerpo técnico y el usuario maestro ven el historial completo. El
