@@ -2758,7 +2758,7 @@ async function renderConvocatoria(){
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
   const { data: callUps, error: callUpsError } = await supabase.from('call_ups')
-    .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
+    .select('*')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
@@ -2767,6 +2767,24 @@ async function loadCallUpsList(){
   // muestra el mensaje real para poder diagnosticarlo sin abrir la consola.
   if(callUpsError){ list.innerHTML = `<p class="muted">No se pudieron cargar las convocatorias: ${callUpsError.message}</p>`; return; }
   if(!callUps || !callUps.length){ list.innerHTML = '<p class="muted">No hay convocatorias registradas.</p>'; return; }
+
+  // Los datos de entrenamiento/partido se traen aparte (en vez de con el embed
+  // automático de PostgREST: trainings(...), matches(...)) porque ese embed
+  // fallaba con "column trainings_1.location_url does not exist" — algo
+  // ambiguo en cómo Supabase resuelve la relación entre call_ups y trainings.
+  // Trayendo cada tabla por separado y uniéndolas aquí se evita el problema.
+  const trainingIds = [...new Set(callUps.filter(c=>c.training_id).map(c=>c.training_id))];
+  const matchIds = [...new Set(callUps.filter(c=>c.match_id).map(c=>c.match_id))];
+  const [{ data: trainingsData }, { data: matchesData }] = await Promise.all([
+    trainingIds.length ? supabase.from('trainings').select('id,session_date,start_time,location,location_url').in('id', trainingIds) : Promise.resolve({ data: [] }),
+    matchIds.length ? supabase.from('matches').select('id,match_date,match_time,opponent,location,location_url').in('id', matchIds) : Promise.resolve({ data: [] }),
+  ]);
+  const trainingsById = Object.fromEntries((trainingsData||[]).map(t=>[t.id, t]));
+  const matchesById = Object.fromEntries((matchesData||[]).map(m=>[m.id, m]));
+  callUps.forEach(c=>{
+    c.trainings = c.training_id ? trainingsById[c.training_id] : null;
+    c.matches = c.match_id ? matchesById[c.match_id] : null;
+  });
 
   // El cuerpo técnico y el usuario maestro ven el historial completo. El
   // jugador (y "fichaje") solo necesita ver la convocatoria más próxima —
