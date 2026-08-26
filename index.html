@@ -442,7 +442,12 @@ async function afterLogin(sess){
 async function enterApp(){
   $('#force-password-screen').style.display = 'none';
   $('#app').classList.add('active');
-  $('#who-am-i').textContent = `${profile.full_name} · ${ROLE_LABELS[profile.role] || profile.role}`;
+  // El usuario maestro se identifica solo como "Comité ALS" (sin mostrar el
+  // nombre de la persona detrás de la cuenta) — para el resto de roles sí se
+  // muestra "Nombre · Rol" como siempre.
+  $('#who-am-i').textContent = profile.role === 'usuario_maestro'
+    ? (ROLE_LABELS[profile.role] || profile.role)
+    : `${profile.full_name} · ${ROLE_LABELS[profile.role] || profile.role}`;
   buildNav();
   await loadPlayersCache();
   await loadCurrentSeason();
@@ -1003,7 +1008,7 @@ async function renderUsuarios(){
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
-            <td>${p.full_name}</td>
+            <td>${p.role === 'usuario_maestro' ? 'Comité ALS' : p.full_name}</td>
             <td>${p.email || '<span class="muted">—</span>'}</td>
             <td>${p.must_change_password && p.temp_password ? `<code>${p.temp_password}</code>` : '<span class="muted">Cambiada por el usuario</span>'}</td>
             <td>${ROLE_LABELS[p.role] || p.role}</td>
