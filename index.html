@@ -542,15 +542,6 @@ function mapsLink(url, label){
   return `<a href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label || '📍 Cómo llegar'}</a>`;
 }
 
-// Link "Cómo llegar" con respaldo automático: si el cuerpo técnico solo
-// escribió el nombre del lugar (campo "Lugar") pero no pegó un link de Google
-// Maps/Waze, se arma un link de búsqueda de Google Maps con ese texto para
-// que el pin siempre quede clickeable en vez de mostrar solo el nombre suelto.
-function mapsLinkAuto(location, location_url){
-  const url = location_url || (location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}` : '');
-  return url ? mapsLink(url) : '';
-}
-
 // Tarjeta "próximo entrenamiento": fecha, horario y lugar juntos.
 async function fetchNextTrainingCard(){
   const { data } = await supabase.from('trainings').select('*').gte('session_date', new Date().toISOString().slice(0,10)).order('session_date').limit(1);
@@ -561,7 +552,7 @@ async function fetchNextTrainingCard(){
       <div class="label">Próximo entrenamiento</div>
       <div class="num" style="font-size:18px">${fmtDate(t.session_date)}</div>
       <div class="muted">${t.start_time ? '🕒 '+t.start_time.slice(0,5) : ''}${t.location ? ' · 📍 '+t.location : ''}</div>
-      ${(t.location || t.location_url) ? `<div style="margin-top:4px">${mapsLinkAuto(t.location, t.location_url)}</div>` : ''}
+      ${t.location_url ? `<div style="margin-top:4px">${mapsLink(t.location_url)}</div>` : ''}
     </div>
   `;
 }
@@ -579,16 +570,15 @@ async function fetchNextMatchCard(){
       <div class="muted">${fmtDate(m.match_date)}${m.match_time ? ' · 🕒 '+m.match_time.slice(0,5) : ''}</div>
       ${m.location ? `<div class="muted">📍 ${m.location}</div>` : ''}
       ${cu?.uniform ? `<div class="muted">👕 ${UNIFORM_LABELS[cu.uniform]||cu.uniform}</div>` : ''}
-      ${(m.location || m.location_url) ? `<div style="margin-top:4px">${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
+      ${m.location_url ? `<div style="margin-top:4px">${mapsLink(m.location_url)}</div>` : ''}
     </div>
   `;
 }
 
 // Tarjeta única con el próximo evento del equipo (partido o entrenamiento, lo
 // que caiga primero) — usada en el Dashboard de TODOS los roles, en vez de dos
-// tarjetas separadas. Se muestra siempre que haya un partido o entreno
-// programado a futuro (sin límite de días), para que la ubicación quede
-// visible con anticipación.
+// tarjetas separadas. Solo se muestra desde 3 días antes del evento; si falta
+// más que eso (o no hay nada programado), no se renderiza nada.
 async function fetchNextEventCard(){
   const today = new Date().toISOString().slice(0,10);
   const [{ data: trainings }, { data: matches }] = await Promise.all([
@@ -598,6 +588,9 @@ async function fetchNextEventCard(){
   const t = trainings?.[0], m = matches?.[0];
   if(!t && !m) return '';
   const matchIsNext = m && (!t || m.match_date <= t.session_date);
+  const nextDate = matchIsNext ? m.match_date : t.session_date;
+  const daysUntil = Math.round((new Date(nextDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
+  if(daysUntil > 3) return '';
   return matchIsNext ? await fetchNextMatchCard() : await fetchNextTrainingCard();
 }
 
@@ -2218,7 +2211,7 @@ window.__openMatch = async (matchId)=>{
     <div class="panel">
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
-      ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
+      ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${m.location_url ? mapsLink(m.location_url) : ''}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -2757,34 +2750,12 @@ async function renderConvocatoria(){
 
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
-  const { data: callUps, error: callUpsError } = await supabase.from('call_ups')
-    .select('*')
+  const { data: callUps } = await supabase.from('call_ups')
+    .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
-  // Antes esto se trataba en silencio como "no hay convocatorias" cuando en
-  // realidad Supabase devolvía un error (p. ej. de permisos/RLS) — ahora se
-  // muestra el mensaje real para poder diagnosticarlo sin abrir la consola.
-  if(callUpsError){ list.innerHTML = `<p class="muted">No se pudieron cargar las convocatorias: ${callUpsError.message}</p>`; return; }
   if(!callUps || !callUps.length){ list.innerHTML = '<p class="muted">No hay convocatorias registradas.</p>'; return; }
-
-  // Los datos de entrenamiento/partido se traen aparte (en vez de con el embed
-  // automático de PostgREST: trainings(...), matches(...)) porque ese embed
-  // fallaba con "column trainings_1.location_url does not exist" — algo
-  // ambiguo en cómo Supabase resuelve la relación entre call_ups y trainings.
-  // Trayendo cada tabla por separado y uniéndolas aquí se evita el problema.
-  const trainingIds = [...new Set(callUps.filter(c=>c.training_id).map(c=>c.training_id))];
-  const matchIds = [...new Set(callUps.filter(c=>c.match_id).map(c=>c.match_id))];
-  const [{ data: trainingsData }, { data: matchesData }] = await Promise.all([
-    trainingIds.length ? supabase.from('trainings').select('id,session_date,start_time,location,location_url').in('id', trainingIds) : Promise.resolve({ data: [] }),
-    matchIds.length ? supabase.from('matches').select('id,match_date,match_time,opponent,location,location_url').in('id', matchIds) : Promise.resolve({ data: [] }),
-  ]);
-  const trainingsById = Object.fromEntries((trainingsData||[]).map(t=>[t.id, t]));
-  const matchesById = Object.fromEntries((matchesData||[]).map(m=>[m.id, m]));
-  callUps.forEach(c=>{
-    c.trainings = c.training_id ? trainingsById[c.training_id] : null;
-    c.matches = c.match_id ? matchesById[c.match_id] : null;
-  });
 
   // El cuerpo técnico y el usuario maestro ven el historial completo. El
   // jugador (y "fichaje") solo necesita ver la convocatoria más próxima —
@@ -2844,7 +2815,7 @@ async function loadCallUpsList(){
             ${summary}
           </summary>
           <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c)}</div>
-          ${(eventLocation || eventLocationUrl) ? `<div style="margin-top:6px">${eventLocation ? '📍 '+eventLocation+' ' : ''}${mapsLinkAuto(eventLocation, eventLocationUrl)}</div>` : ''}
+          ${(eventLocation || eventLocationUrl) ? `<div style="margin-top:6px">${eventLocation ? '📍 '+eventLocation+' ' : ''}${eventLocationUrl ? mapsLink(eventLocationUrl) : ''}</div>` : ''}
           ${c.type==='partido' && c.uniform ? `<div style="margin-top:6px">Uniforme: <strong>${UNIFORM_LABELS[c.uniform]||c.uniform}</strong></div>` : ''}
           ${c.notes ? `<div class="muted" style="margin-top:6px">${c.notes}</div>` : ''}
           <div style="margin-top:8px">
@@ -2939,6 +2910,13 @@ async function renderMensajes(){
   const isStaffSide = profile.role === 'cuerpo_tecnico';
   main.innerHTML = `
     <h2 class="section-title">Mensajes</h2>
+    ${isStaffSide ? `
+    <div class="panel">
+      <h3>📢 Mensaje masivo a todo el equipo</h3>
+      <p class="muted">Se envía como un mensaje individual a cada jugador y fichaje con cuenta creada, además de (no en vez de) los mensajes personalizados de abajo.</p>
+      <textarea id="bcast-body" placeholder="Escribe el mensaje para todo el equipo…" style="width:100%;min-height:60px"></textarea>
+      <button id="bcast-send" style="margin-top:8px">Enviar a todo el equipo</button>
+    </div>` : ''}
     <div class="panel">
       <div class="row">
         <select id="msg-contact" style="flex:1"><option value="">Cargando contactos…</option></select>
@@ -2987,6 +2965,28 @@ async function renderMensajes(){
   }
 
   contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
+
+  // Mensaje masivo: inserta el mismo texto como un mensaje individual a cada
+  // jugador/fichaje con cuenta creada (uno por destinatario), reutilizando el
+  // mismo canal 1 a 1 ya existente — cada quien lo ve mezclado con su propia
+  // conversación con el cuerpo técnico, marcado con 📢 para distinguirlo.
+  if(isStaffSide){
+    $('#bcast-send').addEventListener('click', async ()=>{
+      const body = $('#bcast-body').value.trim();
+      if(!body){ toast('Escribe el mensaje', true); return; }
+      if(!sorted.length){ toast('Todavía no hay jugadores ni fichajes con cuenta creada', true); return; }
+      if(!confirm(`¿Enviar este mensaje a los ${sorted.length} jugadores/fichajes con cuenta creada?`)) return;
+      const btn = $('#bcast-send');
+      btn.disabled = true;
+      const rows = sorted.map(c => ({ sender_id: profile.id, recipient_id: c.id, body: `📢 Mensaje para todo el equipo:\n${body}` }));
+      const { error } = await supabase.from('messages').insert(rows);
+      btn.disabled = false;
+      if(error){ toast(error.message, true); return; }
+      $('#bcast-body').value = '';
+      toast(`Mensaje enviado a ${sorted.length} jugadores/fichajes`);
+      if(contactSel.value) loadMessageThread(contactSel.value);
+    });
+  }
 
   $('#msg-send').addEventListener('click', async ()=>{
     const recipientId = contactSel.value;
