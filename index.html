@@ -427,7 +427,7 @@ async function afterLogin(sess){
   session = sess;
   const { data: prof, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
   if(error || !prof){
-    toast('No se encontró un perfil para este usuario. Pide al usuario maestro que lo cree.', true);
+    toast('No se encontró un perfil para este usuario. Pide al Comité ALS que lo cree.', true);
     return;
   }
   profile = prof;
@@ -467,7 +467,7 @@ $('#fp-save-btn').addEventListener('click', async ()=>{
   $('#fp-save-btn').disabled = false;
 });
 
-const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Usuario maestro', fichaje: 'Fichaje' };
+const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Comité ALS', fichaje: 'Fichaje' };
 const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Lateral derecho','Volante defensivo','Mediocampista','Volante creativo','Extremo izquierdo','Extremo derecho','Delantero'];
 
 function buildNav(){
@@ -2977,7 +2977,7 @@ async function renderMensajes(){
   if(sorted.length){
     await loadMessageThread(sorted[0].id);
   } else {
-    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico ni de usuario maestro creadas.'}</p>`;
+    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico ni de Comité ALS creadas.'}</p>`;
   }
 
   contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
