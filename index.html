@@ -474,8 +474,7 @@ function buildNav(){
   const itemsByRole = {
     cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
     jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
-    // "Mensajes" es el canal directo con el cuerpo técnico — el usuario maestro no participa de él.
-    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','finanzas','temporadas','usuarios'],
+    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios'],
     // Igual que "jugador" pero sin "Resumen financiero".
     fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
@@ -1806,8 +1805,8 @@ async function loadFinanceDetail(){
     </div>
     <div class="panel">
       <h3>Pagos registrados</h3>
-      <table><thead><tr><th>Jugador</th><th>Monto</th><th>Fecha</th><th>Método</th></tr></thead>
-      <tbody>${(pays||[]).map(p=>`<tr><td>#${p.players.jersey_number} ${p.players.full_name}</td><td>${fmtMoney(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${p.method}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin pagos</td></tr>'}</tbody></table>
+      <table><thead><tr><th>Jugador</th><th>Monto</th><th>Fecha</th><th>Método</th>${isMaster()?'<th></th>':''}</tr></thead>
+      <tbody>${(pays||[]).map(p=>`<tr><td>#${p.players.jersey_number} ${p.players.full_name}</td><td>${fmtMoney(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${p.method}</td>${isMaster()?`<td><button class="small danger" onclick="window.__deletePayment('${p.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${isMaster()?5:4}" class="muted">Sin pagos</td></tr>`}</tbody></table>
     </div>
     <div class="panel">
       <h3>Gastos del equipo</h3>
@@ -1828,6 +1827,19 @@ window.__deleteDue = async (dueId, btn)=>{
   const { error } = await supabase.from('payment_dues').delete().eq('id', dueId);
   if(error){ btn.disabled = false; toast(error.message, true); return; }
   toast('Cuota eliminada');
+  renderPlayerHealthRows();
+  loadFinanceDetail();
+};
+
+// Solo el usuario maestro puede borrar un pago (por ejemplo, si se registró por
+// error o duplicado). No afecta la cuota asociada, que queda intacta; solo
+// cambia cuánto aparece pagado contra ella.
+window.__deletePayment = async (paymentId, btn)=>{
+  if(!confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')) return;
+  btn.disabled = true;
+  const { error } = await supabase.from('payments').delete().eq('id', paymentId);
+  if(error){ btn.disabled = false; toast(error.message, true); return; }
+  toast('Pago eliminado');
   renderPlayerHealthRows();
   loadFinanceDetail();
 };
@@ -2902,12 +2914,13 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
   loadCallUpsList();
 };
 
-// ---------------- MENSAJES (directos, jugador/fichaje <-> cuerpo técnico) ----------------
-// Canal 1 a 1: un jugador (o fichaje) elige a qué miembro del cuerpo técnico
-// escribirle, y el cuerpo técnico elige a qué jugador/fichaje responderle.
-// El usuario maestro no tiene acceso a este módulo.
+// ---------------- MENSAJES (directos, jugador/fichaje <-> cuerpo técnico / usuario maestro) ----------------
+// Canal 1 a 1: un jugador (o fichaje) elige a qué miembro del cuerpo técnico o
+// al usuario maestro escribirle, y el cuerpo técnico / usuario maestro elige a
+// qué jugador/fichaje responderle o escribirle. El cuerpo técnico y el usuario
+// maestro no se escriben entre sí por este módulo.
 async function renderMensajes(){
-  const isStaffSide = profile.role === 'cuerpo_tecnico';
+  const isStaffSide = profile.role === 'cuerpo_tecnico' || profile.role === 'usuario_maestro';
   main.innerHTML = `
     <h2 class="section-title">Mensajes</h2>
     ${isStaffSide ? `
@@ -2929,7 +2942,7 @@ async function renderMensajes(){
     </div>
   `;
 
-  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico'];
+  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico','usuario_maestro'];
   const [{ data: contacts }, { data: unread }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
@@ -2953,15 +2966,18 @@ async function renderMensajes(){
   contactSel.innerHTML = sorted.length
     ? sorted.map(c=>{
         const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
+        // Del lado de jugador/fichaje ahora hay dos tipos de contacto posibles
+        // (cuerpo técnico y usuario maestro) — se marca el rol para distinguirlos.
+        const roleTag = !isStaffSide ? ` (${ROLE_LABELS[c.role]||c.role})` : '';
         const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
-        return `<option value="${c.id}">${tag}${c.full_name}${unreadTag}</option>`;
+        return `<option value="${c.id}">${tag}${c.full_name}${roleTag}${unreadTag}</option>`;
       }).join('')
     : '<option value="">No hay contactos disponibles todavía</option>';
 
   if(sorted.length){
     await loadMessageThread(sorted[0].id);
   } else {
-    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
+    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico ni de usuario maestro creadas.'}</p>`;
   }
 
   contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
@@ -3036,7 +3052,7 @@ async function refreshMensajesBadge(){
   if(!btn) return;
   const existing = btn.querySelector('.nav-badge');
   if(existing) existing.remove();
-  if(!['cuerpo_tecnico','jugador','fichaje'].includes(profile.role)) return;
+  if(!['cuerpo_tecnico','usuario_maestro','jugador','fichaje'].includes(profile.role)) return;
   const { count } = await supabase.from('messages')
     .select('*', { count: 'exact', head: true })
     .eq('recipient_id', profile.id)
