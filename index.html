@@ -280,6 +280,7 @@
     <button class="nav-btn" data-view="partidos">Partidos</button>
     <button class="nav-btn" data-view="convocatoria">Convocatoria</button>
     <button class="nav-btn" data-view="mensajes">Mensajes</button>
+    <button class="nav-btn" data-view="ejercicios">Ejercicios y Estiramientos</button>
     <button class="nav-btn" data-view="recomendaciones">Recomendaciones</button>
     <button class="nav-btn" data-view="finanzas">Finanzas</button>
     <button class="nav-btn" data-view="temporadas">Temporadas</button>
@@ -477,11 +478,11 @@ const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Later
 
 function buildNav(){
   const itemsByRole = {
-    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
-    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
-    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios'],
+    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','ejercicios','recomendaciones'],
+    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','ejercicios','evalrecom','perfil'],
+    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','ejercicios','finanzas','temporadas','usuarios'],
     // Igual que "jugador" pero sin "Resumen financiero".
-    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
+    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','ejercicios','evalrecom','perfil'],
   };
   const items = itemsByRole[profile.role] || itemsByRole.jugador;
   $$('.nav-btn').forEach(b=>{
@@ -514,6 +515,7 @@ function navigate(view){
     entrenamientos: renderEntrenamientos,
     convocatoria: renderConvocatoria,
     mensajes: renderMensajes,
+    ejercicios: renderEjercicios,
     finanzas: renderFinanzas,
     partidos: renderPartidos,
     recomendaciones: renderRecomendaciones,
@@ -711,7 +713,7 @@ async function renderDashboard(){
     const today = new Date().toISOString().slice(0,10);
     const [{data: att}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, nextEventCard] = await Promise.all([
       supabase.from('attendance').select('status').eq('player_id', pid),
-      supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
+      supabase.from('player_match_stats').select('started,minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
       supabase.from('player_recommendations').select('*', {count:'exact', head:true}).eq('player_id', pid),
@@ -721,7 +723,12 @@ async function renderDashboard(){
     const total = att?.length || 0;
     const presentes = att?.filter(a=>a.status!=='ausente').length || 0;
     const pctEntrenos = total ? Math.round((presentes/total)*100) : 0;
-    const partidosJugados = stats?.length || 0;
+    // "Partidos jugados" cuenta solo los partidos en los que el jugador
+    // REALMENTE participó (fue titular o entró con minutos), no cualquier
+    // partido que tenga una fila guardada en player_match_stats — el cuerpo
+    // técnico puede guardar la fila de un jugador con 0 minutos para dejar
+    // constancia de que no jugó, y eso no debe contar como participación.
+    const partidosJugados = (stats||[]).filter(s => s.started || (s.minutes_played||0) > 0).length;
     const pctPartidos = totalMatches ? Math.round((partidosJugados/totalMatches)*100) : 0;
     const minutosTotales = (stats||[]).reduce((a,s)=>a+s.minutes_played,0);
     const minutosPromedio = partidosJugados ? Math.round(minutosTotales/partidosJugados) : 0;
@@ -2603,6 +2610,80 @@ async function renderEvalRecom(){
     ${renderEvalRows(evals)}
     <h3 class="section-title">Recomendaciones del cuerpo técnico</h3>
     ${renderRecRows(recs)}
+  `;
+}
+
+// ---------------- EJERCICIOS Y ESTIRAMIENTOS ----------------
+// Contenido informativo fijo (no depende de la base de datos): calentamiento,
+// estiramientos y cuidados pensados para el perfil real del equipo — papás,
+// la mayoría mayores de 40 años, jugando fútbol amateur. Es información
+// general, no reemplaza la valoración de un médico o fisioterapeuta.
+async function renderEjercicios(){
+  main.innerHTML = `
+    <h2 class="section-title">Ejercicios y Estiramientos</h2>
+    <div class="panel">
+      <p class="muted" style="margin:0">Esta sección es información general para prevenir lesiones y recuperarse mejor entre partidos — pensada para jugadores adultos (muchos de nosotros por encima de los 40). No reemplaza la valoración de un médico o fisioterapeuta: si tienes una condición de salud, dolor persistente o una lesión previa, consulta antes de exigirte en cancha.</p>
+    </div>
+
+    <div class="panel">
+      <details open>
+        <summary style="cursor:pointer"><strong>🔥 Calentamiento antes de jugar o entrenar (8-10 min)</strong></summary>
+        <p class="muted">Después de los 40, el calentamiento debe ser más largo y progresivo que cuando éramos jugadores más jóvenes — el cuerpo tarda más en "encender". Nunca empieces con sprints o cambios de dirección en frío.</p>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+          <li><strong>Trote suave (3-4 min):</strong> ritmo cómodo, solo para subir la temperatura del cuerpo.</li>
+          <li><strong>Movilidad articular (2 min):</strong> círculos de tobillo, rodilla, cadera y hombros, de a poco.</li>
+          <li><strong>Zancadas caminando (1 min):</strong> paso largo, bajando la cadera, alternando piernas.</li>
+          <li><strong>Elevación de talones y rodillas (1 min):</strong> skipping suave, sin exigir velocidad todavía.</li>
+          <li><strong>Aceleraciones progresivas (1-2 min):</strong> 3 a 4 trotes cortos aumentando la velocidad de a poco, el último sí a ritmo de partido.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="panel">
+      <details>
+        <summary style="cursor:pointer"><strong>🧘 Estiramientos después de jugar o entrenar</strong></summary>
+        <p class="muted">Al terminar, con el músculo caliente, es el mejor momento para estirar de forma estática: sostener cada posición 20-30 segundos, sin rebotar, respirando con calma, 2 veces por lado.</p>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+          <li><strong>Isquiotibiales (parte de atrás del muslo):</strong> pierna estirada apoyada en un banco o el piso, bajar el torso hacia la punta del pie sin doblar mucho la espalda.</li>
+          <li><strong>Cuádriceps (parte de adelante del muslo):</strong> de pie, llevar el talón hacia el glúteo sosteniendo el tobillo, rodillas juntas.</li>
+          <li><strong>Gemelos / pantorrilla:</strong> apoyado contra una pared, una pierna atrás con el talón pegado al piso, empujar la cadera hacia adelante.</li>
+          <li><strong>Aductores (ingle):</strong> sentado, plantas de los pies juntas, bajar suavemente las rodillas hacia el piso.</li>
+          <li><strong>Glúteos:</strong> acostado boca arriba, cruzar un tobillo sobre la rodilla contraria y llevar la pierna hacia el pecho.</li>
+          <li><strong>Flexores de cadera:</strong> en posición de zancada baja (una rodilla en el piso), empujar la cadera hacia adelante manteniendo la espalda recta.</li>
+          <li><strong>Espalda baja:</strong> acostado boca arriba, llevar ambas rodillas al pecho y abrazarlas.</li>
+          <li><strong>Hombros y pecho:</strong> llevar un brazo cruzado al pecho sosteniéndolo con el otro brazo; para el pecho, entrelazar las manos detrás de la espalda y abrir el pecho.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="panel">
+      <details>
+        <summary style="cursor:pointer"><strong>👨 Cuidados especiales para jugadores +40</strong></summary>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+          <li>Calienta más tiempo y con más calma que un jugador joven — el cuerpo necesita más minutos para estar listo para sprints o cambios de dirección.</li>
+          <li>Hidrátate antes, durante y después del partido, no solo cuando ya sientes sed.</li>
+          <li>Si quedaste con alguna molestia, descansa al menos 48 horas antes de volver a exigirte fuerte.</li>
+          <li>Usa guayos o tenis en buen estado y adecuados a la cancha donde vas a jugar.</li>
+          <li>Ante un golpe o torcedura: hielo envuelto en un paño (nunca directo sobre la piel), 15-20 minutos, y mantener la zona elevada si es posible.</li>
+          <li>No sigas jugando con dolor agudo o inflamación visible — una molestia leve ignorada puede convertirse en una lesión larga.</li>
+          <li>Fortalecer piernas y core 1-2 veces por semana (fuera del fútbol) ayuda mucho a prevenir lesiones de isquiotibiales, rodilla y tobillo, que son las más comunes en jugadores adultos.</li>
+          <li>Dormir bien y cuidar la alimentación en los días cercanos al partido mejora la recuperación.</li>
+          <li>Si tienes antecedentes cardíacos, hipertensión, o cualquier condición médica, consulta con tu médico antes de exigirte en partidos competitivos.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="panel">
+      <details>
+        <summary style="cursor:pointer"><strong>🚨 Señales de alarma — deja de jugar y consulta a un médico</strong></summary>
+        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+          <li>Dolor en el pecho, falta de aire fuera de lo normal, mareo intenso o desmayo.</li>
+          <li>Dolor articular o muscular que no mejora después de 2-3 días de descanso.</li>
+          <li>Inflamación importante, o no poder apoyar el pie o la pierna con normalidad.</li>
+          <li>Sensación de "chasquido" o "trueno" en una articulación seguida de dolor intenso o inestabilidad.</li>
+        </ul>
+      </details>
+    </div>
   `;
 }
 
