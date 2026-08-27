@@ -1815,8 +1815,8 @@ async function loadFinanceDetail(){
     </div>
     <div class="panel">
       <h3>Gastos del equipo</h3>
-      <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th></tr></thead>
-      <tbody>${(expenses||[]).map(e=>`<tr><td>${fmtDate(e.expense_date)}</td><td>${e.expense_categories?.name || '-'}</td><td>${e.description||'-'}</td><td>${fmtMoney(e.amount)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin gastos</td></tr>'}</tbody></table>
+      <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th>${isMaster()?'<th></th>':''}</tr></thead>
+      <tbody>${(expenses||[]).map(e=>`<tr><td>${fmtDate(e.expense_date)}</td><td>${e.expense_categories?.name || '-'}</td><td>${e.description||'-'}</td><td>${fmtMoney(e.amount)}</td>${isMaster()?`<td><button class="small danger" onclick="window.__deleteExpense('${e.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${isMaster()?5:4}" class="muted">Sin gastos</td></tr>`}</tbody></table>
     </div>
   `;
 }
@@ -1847,6 +1847,19 @@ window.__deletePayment = async (paymentId, btn)=>{
   toast('Pago eliminado');
   renderPlayerHealthRows();
   loadFinanceDetail();
+};
+
+// Solo el usuario maestro puede borrar un gasto (por ejemplo, si se registró por
+// error, duplicado, o por un monto equivocado). Al borrarlo, el presupuesto de
+// la temporada recalcula automáticamente lo "ejecutado" de esa categoría, por
+// eso se refresca toda la vista de Finanzas y no solo la tabla de gastos.
+window.__deleteExpense = async (expenseId, btn)=>{
+  if(!confirm('¿Eliminar este gasto? Esta acción no se puede deshacer.')) return;
+  btn.disabled = true;
+  const { error } = await supabase.from('team_expenses').delete().eq('id', expenseId);
+  if(error){ btn.disabled = false; toast(error.message, true); return; }
+  toast('Gasto eliminado');
+  renderFinanzas();
 };
 
 // Exporta un .xlsx con 4 hojas: Presupuesto, Cuotas, Pagos y Gastos.
@@ -2767,11 +2780,18 @@ async function renderConvocatoria(){
 
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
-  const { data: callUps } = await supabase.from('call_ups')
+  const { data: callUps, error: callUpsError } = await supabase.from('call_ups')
     .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
+  // Si la consulta falla (por ejemplo, porque la columna location_url todavía
+  // no existe en la base de datos porque falta correr esa migración), se
+  // muestra el error en pantalla en vez de dejar la lista vacía en silencio.
+  if(callUpsError){
+    list.innerHTML = `<p class="muted" style="color:var(--danger)">No se pudo cargar la convocatoria: ${callUpsError.message}</p>`;
+    return;
+  }
   if(!callUps || !callUps.length){ list.innerHTML = '<p class="muted">No hay convocatorias registradas.</p>'; return; }
 
   // El cuerpo técnico y el usuario maestro ven el historial completo. El
