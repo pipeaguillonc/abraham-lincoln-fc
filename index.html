@@ -697,9 +697,24 @@ window.__saveSponsor = async (id)=>{
     sort_order: Number(row.querySelector('.sp-edit-order').value) || 0,
   };
   if(!payload.name){ toast('El nombre es obligatorio', true); return; }
+  // Si además dejaron seleccionada una imagen nueva en el campo de logo de
+  // esta fila (aunque no hayan usado el botón "Cambiar logo"), se sube junto
+  // con el resto de los cambios — así "Guardar" y "Cambiar logo" funcionan
+  // igual y no depende de acordarse cuál botón usar.
+  const logoFile = row.querySelector('.sp-edit-logo')?.files[0];
+  if(logoFile){
+    if(!logoFile.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
+    const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
+    const path = `sponsors/${id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, logoFile, { upsert: true });
+    if(upErr){ toast(upErr.message, true); return; }
+    const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+    payload.logo_url = pub.publicUrl;
+  }
   const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
   if(error){ toast(error.message, true); return; }
-  toast('Patrocinador actualizado');
+  toast('Patrocinador actualizado' + (logoFile ? ' (logo incluido)' : ''));
+  renderPatrocinadores();
   renderSponsorsFooter();
 };
 
