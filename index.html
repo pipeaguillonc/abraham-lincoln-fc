@@ -138,6 +138,22 @@
   .stat-input{width:64px !important;min-width:64px;height:44px;padding:8px 4px !important;text-align:center;font-size:18px;font-weight:600;margin-bottom:0 !important}
   iframe{max-width:100%}
 
+  /* Pie de página con los logos de los patrocinadores: ocupa las dos
+     columnas del grid de #app (nav + main), así que siempre queda debajo de
+     todo el contenido, sin importar la vista abierta. */
+  #sponsors-footer{grid-column:1/-1}
+  .sponsors-footer{display:flex;align-items:center;flex-wrap:wrap;gap:18px;padding:14px 24px;border-top:2px solid var(--border);background:var(--panel)}
+  .sponsors-footer-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-right:4px;flex:0 0 auto}
+  .sponsor-logo{display:inline-flex;align-items:center}
+  .sponsor-logo img{max-height:40px;max-width:110px;object-fit:contain;opacity:.92;transition:opacity .15s}
+  .sponsor-logo img:hover{opacity:1}
+
+  /* Tarjetas "Figura del partido" / "Jugador del mes" del dashboard, y el
+     distintivo que se muestra en el detalle de un partido con figura elegida. */
+  .highlight-card{border-top-color:var(--warn)}
+  .highlight-name{font-size:18px;font-weight:700;margin:4px 0 2px}
+  .mvp-badge{display:inline-block;background:var(--warn);color:#241a03;font-weight:700;padding:4px 12px;border-radius:999px;font-size:12px;margin:6px 0}
+
   /* ============= RESPONSIVE (celular / tablet) ============= */
   /* #menu-toggle y #nav-overlay quedan del diseño anterior (menú lateral
      oculto); en celular ya no se usan — el menú pasó a ser una barra
@@ -200,6 +216,8 @@
     .tabs{gap:8px}
     .tabs button{padding:10px 14px;min-height:40px}
     .toast{left:16px;right:16px;bottom:16px}
+    .sponsors-footer{padding:14px;gap:14px;justify-content:center}
+    .sponsor-logo img{max-height:32px;max-width:88px}
   }
   @media (max-width: 420px){
     .login-box{padding:20px}
@@ -284,6 +302,7 @@
     <button class="nav-btn" data-view="finanzas">Finanzas</button>
     <button class="nav-btn" data-view="temporadas">Temporadas</button>
     <button class="nav-btn" data-view="usuarios">Usuarios</button>
+    <button class="nav-btn" data-view="patrocinadores">Patrocinadores</button>
     <button class="nav-btn" data-view="evalrecom">Evaluación y Recomendaciones</button>
     <button class="nav-btn" data-view="perfil">Mi perfil</button>
     <div class="logout">
@@ -291,6 +310,7 @@
     </div>
   </nav>
   <main id="main-content"></main>
+  <div id="sponsors-footer"></div>
 </div>
 
 <div id="toast" class="toast" style="display:none"></div>
@@ -454,6 +474,7 @@ async function enterApp(){
   navigate('dashboard');
   refreshConvocatoriaBadge();
   refreshMensajesBadge();
+  renderSponsorsFooter();
 }
 
 $('#fp-save-btn').addEventListener('click', async ()=>{
@@ -479,7 +500,7 @@ function buildNav(){
   const itemsByRole = {
     cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
     jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
-    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios'],
+    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios','patrocinadores'],
     // Igual que "jugador" pero sin "Resumen financiero".
     fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
@@ -525,6 +546,7 @@ function navigate(view){
     temporadas: renderTemporadas,
     perfil: renderPerfil,
     usuarios: renderUsuarios,
+    patrocinadores: renderPatrocinadores,
   };
   Promise.resolve()
     .then(() => (renderers[view] || renderDashboard)())
@@ -558,6 +580,152 @@ function mapsLinkAuto(location, location_url){
   const url = location_url || (location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}` : '');
   return url ? mapsLink(url) : '';
 }
+
+// Igual que con mapsLink: si pegaron el link del patrocinador sin "https://"
+// el navegador lo trataría como una ruta interna de la app.
+function normalizeUrl(url){
+  if(!url) return '';
+  let href = url.trim();
+  if(!/^https?:\/\//i.test(href)) href = 'https://' + href;
+  return href.replace(/"/g,'&quot;');
+}
+
+// ---------------- PATROCINADORES ----------------
+// El pie de página con los logos vive fuera de #main-content (ver
+// #sponsors-footer en el HTML) para que se vea en cualquier vista de la app,
+// no solo en la que esté abierta en ese momento. Se llena una sola vez al
+// entrar a la app y se vuelve a llenar cada vez que se edita algo desde
+// "Patrocinadores".
+async function renderSponsorsFooter(){
+  const el = $('#sponsors-footer');
+  if(!el) return;
+  const { data } = await supabase.from('sponsors').select('*').eq('active', true).order('sort_order', {ascending:true});
+  if(!data || !data.length){ el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="sponsors-footer">
+      <span class="sponsors-footer-label">Con el apoyo de</span>
+      ${data.map(s=>{
+        const safeName = (s.name || 'Patrocinador').replace(/"/g,'&quot;');
+        const img = `<img src="${s.logo_url}" alt="${safeName}" title="${safeName}" />`;
+        return s.website_url
+          ? `<a class="sponsor-logo" href="${normalizeUrl(s.website_url)}" target="_blank" rel="noopener">${img}</a>`
+          : `<span class="sponsor-logo">${img}</span>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// Panel de administración, exclusivo del Comité ALS (usuario_maestro): subir
+// logos, editar nombre/link/orden, activar u ocultar, o eliminar.
+async function renderPatrocinadores(){
+  if(!isMaster()){ main.innerHTML = '<div class="panel"><p class="muted">No tienes acceso a esta sección.</p></div>'; return; }
+  const { data: sponsors, error } = await supabase.from('sponsors').select('*').order('sort_order', {ascending:true});
+  if(error){ main.innerHTML = `<div class="panel"><p class="muted">No se pudieron cargar los patrocinadores: ${error.message}</p></div>`; return; }
+  main.innerHTML = `
+    <h2 class="section-title">Patrocinadores</h2>
+    <div class="panel">
+      <h3>Agregar patrocinador</h3>
+      <div class="row">
+        <input id="sp-name" placeholder="Nombre del patrocinador" />
+        <input id="sp-website" placeholder="Link de su web o Instagram (opcional)" />
+      </div>
+      <div class="row">
+        <input type="file" id="sp-logo" accept="image/*" />
+      </div>
+      <button id="sp-save">Agregar patrocinador</button>
+      <p class="muted">El logo se muestra en el pie de página de toda la app. Usa una imagen con fondo transparente si es posible (PNG).</p>
+    </div>
+    <div id="sponsors-list"></div>
+  `;
+  $('#sponsors-list').innerHTML = (sponsors && sponsors.length) ? `
+    <div class="table-scroll"><table><thead><tr><th>Logo</th><th>Nombre</th><th>Web</th><th>Visible</th><th>Orden</th><th></th></tr></thead>
+    <tbody>
+      ${sponsors.map(s=>`
+        <tr data-id="${s.id}">
+          <td>
+            ${s.logo_url ? `<img src="${s.logo_url}" style="max-height:36px;max-width:90px;object-fit:contain;display:block;margin-bottom:6px" />` : '<span class="muted">Sin logo</span>'}
+            <input type="file" class="sp-edit-logo" accept="image/*" style="font-size:11px;margin-bottom:6px;padding:2px" />
+            <button class="small secondary" onclick="window.__replaceSponsorLogo('${s.id}', this)">Cambiar logo</button>
+          </td>
+          <td><input class="sp-edit-name" value="${(s.name||'').replace(/"/g,'&quot;')}" style="margin-bottom:0" /></td>
+          <td><input class="sp-edit-website" value="${(s.website_url||'').replace(/"/g,'&quot;')}" style="margin-bottom:0" /></td>
+          <td><input type="checkbox" class="sp-edit-active" ${s.active?'checked':''} /></td>
+          <td><input type="number" class="sp-edit-order stat-input" value="${s.sort_order ?? 0}" style="width:70px" /></td>
+          <td>
+            <button class="small" onclick="window.__saveSponsor('${s.id}')">Guardar</button>
+            <button class="small danger" onclick="window.__deleteSponsor('${s.id}')">Eliminar</button>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody></table></div>
+  ` : '<p class="muted">Todavía no hay patrocinadores registrados.</p>';
+
+  $('#sp-save').addEventListener('click', async ()=>{
+    const name = $('#sp-name').value.trim();
+    if(!name){ toast('El nombre es obligatorio', true); return; }
+    const btn = $('#sp-save'); btn.disabled = true;
+    let logo_url = null;
+    const file = $('#sp-logo').files[0];
+    if(file){
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const path = `sponsors/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+      if(upErr){ toast(upErr.message, true); btn.disabled = false; return; }
+      const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+      logo_url = pub.publicUrl;
+    }
+    const { data: maxRow } = await supabase.from('sponsors').select('sort_order').order('sort_order', {ascending:false}).limit(1).maybeSingle();
+    const { error: insError } = await supabase.from('sponsors').insert({
+      name, website_url: $('#sp-website').value.trim() || null, logo_url, active: true,
+      sort_order: (maxRow?.sort_order ?? -1) + 1,
+    });
+    btn.disabled = false;
+    if(insError){ toast(insError.message, true); return; }
+    toast('Patrocinador agregado');
+    renderPatrocinadores();
+    renderSponsorsFooter();
+  });
+}
+
+window.__saveSponsor = async (id)=>{
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const payload = {
+    name: row.querySelector('.sp-edit-name').value.trim(),
+    website_url: row.querySelector('.sp-edit-website').value.trim() || null,
+    active: row.querySelector('.sp-edit-active').checked,
+    sort_order: Number(row.querySelector('.sp-edit-order').value) || 0,
+  };
+  if(!payload.name){ toast('El nombre es obligatorio', true); return; }
+  const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
+  if(error){ toast(error.message, true); return; }
+  toast('Patrocinador actualizado');
+  renderSponsorsFooter();
+};
+
+window.__replaceSponsorLogo = async (id, btn)=>{
+  const row = btn.closest('tr');
+  const input = row.querySelector('.sp-edit-logo');
+  const file = input.files[0];
+  if(!file){ toast('Selecciona una imagen primero', true); return; }
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const path = `sponsors/${id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  if(upErr){ toast(upErr.message, true); return; }
+  const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+  const { error } = await supabase.from('sponsors').update({ logo_url: pub.publicUrl }).eq('id', id);
+  if(error){ toast(error.message, true); return; }
+  toast('Logo actualizado');
+  renderPatrocinadores();
+  renderSponsorsFooter();
+};
+
+window.__deleteSponsor = async (id)=>{
+  const { error } = await supabase.from('sponsors').delete().eq('id', id);
+  if(error){ toast(error.message, true); return; }
+  toast('Patrocinador eliminado');
+  renderPatrocinadores();
+  renderSponsorsFooter();
+};
 
 // Tarjeta "próximo entrenamiento": fecha, horario y lugar juntos.
 async function fetchNextTrainingCard(){
@@ -678,12 +846,45 @@ async function renderTournamentStandings(){
   }
 }
 
+// Banner del Dashboard con la Figura del último partido (elegida a mano por
+// el cuerpo técnico, ver window.__saveMatch/matches.mvp_player_id) y el
+// Jugador del Mes, calculado solo: quien acumule más veces "Figura del
+// partido" dentro de los partidos ya jugados del mes calendario en curso
+// (empate = ambos quedan mencionados igual, se ordenan por nombre).
+async function renderMonthlyHighlights(){
+  const container = $('#monthly-highlights');
+  if(!container) return;
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const [{ data: lastMatches }, { data: monthMatches }] = await Promise.all([
+    supabase.from('matches').select('opponent,match_date,mvp_player_id').lte('match_date', today).order('match_date', {ascending:false}).limit(1),
+    supabase.from('matches').select('mvp_player_id').gte('match_date', monthStart).lte('match_date', today).not('mvp_player_id', 'is', null),
+  ]);
+  const lastMatch = lastMatches?.[0];
+  const mvpCounts = {};
+  (monthMatches||[]).forEach(m=>{ mvpCounts[m.mvp_player_id] = (mvpCounts[m.mvp_player_id]||0) + 1; });
+  const ranked = Object.entries(mvpCounts).sort((a,b)=> b[1]-a[1] || playerName(a[0]).localeCompare(playerName(b[0])));
+  const playerOfMonth = ranked[0];
+  const monthName = now.toLocaleDateString('es-ES', {month:'long'});
+  const cards = [];
+  if(lastMatch?.mvp_player_id){
+    cards.push(`<div class="card highlight-card"><div class="label">🏅 Figura del último partido</div><div class="highlight-name">${playerName(lastMatch.mvp_player_id)}</div><div class="muted">vs ${lastMatch.opponent}</div></div>`);
+  }
+  if(playerOfMonth){
+    cards.push(`<div class="card highlight-card"><div class="label">⭐ Jugador del mes de ${monthName}</div><div class="highlight-name">${playerName(playerOfMonth[0])}</div><div class="muted">${playerOfMonth[1]} figura${playerOfMonth[1]>1?'s':''} del partido este mes</div></div>`);
+  }
+  container.innerHTML = cards.length ? `<div class="cards">${cards.join('')}</div>` : '';
+}
+
 async function renderDashboard(){
   main.innerHTML = `
     <h2 class="section-title">Dashboard</h2>
     <div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div>
+    <div id="monthly-highlights"></div>
     <div id="notify-banner"></div><div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div><div id="tabla-torneo"></div><div id="top-scorers"></div>`;
   renderTournamentStandings();
+  renderMonthlyHighlights();
   if(isMaster()){
     const [{count: activePlayers}, summaryRes, nextEventCard] = await Promise.all([
       // Un jugador lesionado no cuenta como "activo" en este contador del Dashboard.
@@ -720,13 +921,14 @@ async function renderDashboard(){
     // reprogramado a futuro después de haber guardado sus estadísticas podía inflar
     // el % por encima de 100%.
     const today = new Date().toISOString().slice(0,10);
-    const [{data: att}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, nextEventCard] = await Promise.all([
+    const [{data: att}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, nextEventCard] = await Promise.all([
       supabase.from('attendance').select('status').eq('player_id', pid),
       supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
       supabase.from('player_recommendations').select('*', {count:'exact', head:true}).eq('player_id', pid),
       supabase.from('matches').select('*', {count:'exact', head:true}).lte('match_date', today),
+      supabase.from('matches').select('*', {count:'exact', head:true}).eq('mvp_player_id', pid).lte('match_date', today),
       fetchNextEventCard(),
     ]);
     const total = att?.length || 0;
@@ -756,6 +958,7 @@ async function renderDashboard(){
       <div class="card"><div class="num">${asistencias}</div><div class="label">Asistencias</div></div>
       <div class="card"><div class="num">${amarillas}</div><div class="label">Tarjetas amarillas</div></div>
       <div class="card"><div class="num">${rojas}</div><div class="label">Tarjetas rojas</div></div>
+      <div class="card highlight-card"><div class="num">🏅 ${mvpCount ?? 0}</div><div class="label">Veces figura del partido</div></div>
       <div class="card"><div class="num">${recCount ?? 0}</div><div class="label">Recomendaciones del técnico</div></div>
     `;
     // "fichaje" es igual a "jugador" pero sin nada del módulo financiero —
@@ -2281,6 +2484,7 @@ window.__openMatch = async (matchId)=>{
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
       ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
+      ${m.mvp_player_id ? `<div class="mvp-badge">🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -2339,6 +2543,12 @@ window.__openMatch = async (matchId)=>{
           <select id="em-uniform">
             <option value="uniforme_1" ${(!matchCallUp?.uniform || matchCallUp.uniform==='uniforme_1')?'selected':''}>Uniforme 1 (negro y amarillo)</option>
             <option value="uniforme_2" ${matchCallUp?.uniform==='uniforme_2'?'selected':''}>Uniforme 2 (blanco y azul)</option>
+          </select>
+        </div>
+        <div class="row">
+          <select id="em-mvp">
+            <option value="">🏅 Figura del partido — sin elegir</option>
+            ${sortedMatchPlayers.map(p=>`<option value="${p.id}" ${m.mvp_player_id===p.id?'selected':''}>#${p.jersey_number} ${p.full_name}</option>`).join('')}
           </select>
         </div>
         <div class="row">
@@ -2451,6 +2661,7 @@ window.__saveMatch = async (matchId)=>{
     youtube_url: ytUrl || null,
     youtube_video_id: extractYouTubeId(ytUrl),
     youtube_url_2: ytUrl2 || null,
+    mvp_player_id: $('#em-mvp').value || null,
   };
   const { error } = await supabase.from('matches').update(payload).eq('id', matchId);
   if(error){ toast(error.message, true); return; }
