@@ -392,6 +392,12 @@ function canManage(){ return isAdmin() || isMaster(); } // todo excepto finanzas
 // permiso individual "can_manage_finance" desde Usuarios — no es un rol
 // nuevo, es un permiso puntual sobre una cuenta específica.
 function canManageFinance(){ return isMaster() || profile?.can_manage_finance === true; }
+// Acceso a administrar Entrenamientos y Partidos (crear, editar, eliminar,
+// cargar minutos/calificaciones, fotos, etc.): igual que Finanzas, es un
+// permiso puntual sobre una cuenta de jugador/fichaje específica —
+// "can_manage_events" — además de siempre estar disponible para el cuerpo
+// técnico y el usuario maestro.
+function canManageEvents(){ return canManage() || profile?.can_manage_events === true; }
 
 function fmtDate(d){ if(!d) return '-'; return new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtMoney(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0); }
@@ -1272,7 +1278,7 @@ async function renderUsuarios(){
       <p id="nu-error" class="muted" style="color:#f66"></p>
     </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Finanzas</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Finanzas</th><th>Partidos/Entrenos</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
@@ -1282,6 +1288,7 @@ async function renderUsuarios(){
             <td>${ROLE_LABELS[p.role] || p.role}</td>
             <td>${p.players ? `#${p.players.jersey_number} ${p.players.full_name}` : '-'}</td>
             <td>${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="finance-permission-cb" data-uid="${p.id}" ${p.can_manage_finance ? 'checked' : ''} /> Puede editar</label>` : '<span class="muted">—</span>'}</td>
+            <td>${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="events-permission-cb" data-uid="${p.id}" ${p.can_manage_events ? 'checked' : ''} /> Puede administrar</label>` : '<span class="muted">—</span>'}</td>
             <td>${fmtDate(p.created_at?.slice(0,10))}</td>
             <td>
               <input type="text" class="rp-password" data-uid="${p.id}" placeholder="Nueva contraseña" style="width:140px;margin-bottom:0;display:inline-block" />
@@ -1289,7 +1296,7 @@ async function renderUsuarios(){
             </td>
             <td>${p.id === session.user.id ? '' : `<button class="small danger" onclick="window.__deleteUser('${p.id}', '${p.full_name.replace(/'/g, "\\'")}', this)">Eliminar</button>`}</td>
           </tr>
-        `).join('') || '<tr><td colspan="9" class="muted">Sin usuarios registrados todavía</td></tr>'}
+        `).join('') || '<tr><td colspan="10" class="muted">Sin usuarios registrados todavía</td></tr>'}
       </tbody>
     </table>
   `;
@@ -1301,6 +1308,16 @@ async function renderUsuarios(){
       cb.disabled = false;
       if(error){ toast(error.message, true); cb.checked = !cb.checked; return; }
       toast(cb.checked ? 'Ahora puede editar Finanzas' : 'Ya no puede editar Finanzas');
+    });
+  });
+
+  $$('.events-permission-cb').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      cb.disabled = true;
+      const { error } = await supabase.from('profiles').update({ can_manage_events: cb.checked }).eq('id', cb.dataset.uid);
+      cb.disabled = false;
+      if(error){ toast(error.message, true); cb.checked = !cb.checked; return; }
+      toast(cb.checked ? 'Ahora puede administrar Entrenamientos y Partidos' : 'Ya no puede administrar Entrenamientos y Partidos');
     });
   });
 
@@ -1384,7 +1401,7 @@ async function renderEntrenamientos(){
   const { data: trainings } = await supabase.from('trainings').select('*').order('session_date', {ascending:true});
   main.innerHTML = `
     <h2 class="section-title">Entrenamientos y asistencia</h2>
-    ${canManage() ? `
+    ${canManageEvents() ? `
     <div class="panel">
       <h3>Nuevo entrenamiento</h3>
       <div class="row">
@@ -1398,14 +1415,14 @@ async function renderEntrenamientos(){
       </div>
       <button id="nt-save">Crear entrenamiento</button>
     </div>` : ''}
-    ${canManage() ? `<button id="nt-export" class="secondary" style="margin-bottom:16px">⬇️ Exportar asistencia a Excel</button>` : ''}
+    ${canManageEvents() ? `<button id="nt-export" class="secondary" style="margin-bottom:16px">⬇️ Exportar asistencia a Excel</button>` : ''}
     <div id="trainings-list"></div>
   `;
   const list = $('#trainings-list');
   // Resumen rápido de asistencia (X/Y presentes) para no tener que desplegar cada
   // entrenamiento para saber cómo fue — con el roster completo la lista es larga.
   let presentesByTraining = {};
-  if(canManage() && (trainings||[]).length){
+  if(canManageEvents() && (trainings||[]).length){
     const { data: allAttendance } = await supabase.from('attendance')
       .select('training_id, status').in('training_id', trainings.map(t=>t.id));
     (allAttendance||[]).forEach(a=>{
@@ -1417,7 +1434,7 @@ async function renderEntrenamientos(){
   // Cada entrenamiento va colapsado por defecto y se despliega al hacer clic — con el
   // roster completo, mostrar todos abiertos a la vez hace la lista interminable.
   const trainingCard = t => {
-    const summary = canManage() ? `<span class="muted" style="margin-left:8px">${presentesByTraining[t.id]||0}/${totalActive} presentes</span>` : '';
+    const summary = canManageEvents() ? `<span class="muted" style="margin-left:8px">${presentesByTraining[t.id]||0}/${totalActive} presentes</span>` : '';
     return `
     <div class="panel">
       <details>
@@ -1427,7 +1444,7 @@ async function renderEntrenamientos(){
         </summary>
         ${t.location_url ? `<div style="margin-top:4px">${mapsLink(t.location_url)}</div>` : ''}
         ${t.notes ? `<div class="muted" style="margin-top:6px">${t.notes}</div>` : ''}
-        ${canManage() ? `
+        ${canManageEvents() ? `
         <div class="panel" style="background:var(--panel2);margin-top:10px">
           <p class="muted" style="margin-top:0">Editar entrenamiento (por ejemplo, si cambia la fecha) o eliminarlo si se canceló.</p>
           <div class="row">
@@ -1462,7 +1479,7 @@ async function renderEntrenamientos(){
 
   for(const t of (trainings||[])) renderAttendanceForTraining(t.id, t.session_date);
 
-  if(canManage()){
+  if(canManageEvents()){
     $('#nt-export').addEventListener('click', ()=> exportAttendanceToExcel(trainings||[]));
     $('#nt-save').addEventListener('click', async ()=>{
       const payload = {
@@ -1526,7 +1543,7 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
   const { data: att } = await supabase.from('attendance').select('*').eq('training_id', trainingId);
   const byPlayer = Object.fromEntries((att||[]).map(a=>[a.player_id, a]));
 
-  if(canManage()){
+  if(canManageEvents()){
     const { data: evals } = await supabase.from('evaluations').select('*').eq('training_id', trainingId);
     const evalByPlayer = Object.fromEntries((evals||[]).map(e=>[e.player_id, e]));
     container.innerHTML = `
@@ -2337,7 +2354,7 @@ async function renderPartidos(){
   main.innerHTML = `
     <h2 class="section-title">Partidos</h2>
     <div id="partidos-list-view">
-      ${canManage() ? `
+      ${canManageEvents() ? `
       <div class="panel">
         <h3>Nuevo partido</h3>
         <div class="row">
@@ -2392,7 +2409,7 @@ async function renderPartidos(){
     ${jugados.map(matchCard).join('') || '<p class="muted">Todavía no se ha jugado ningún partido.</p>'}
   `;
 
-  if(canManage()){
+  if(canManageEvents()){
     $('#nm-search-yt').addEventListener('click', searchYouTube);
     $('#nm-search-ig').addEventListener('click', searchInstagram);
     $('#nm-save').addEventListener('click', async ()=>{
@@ -2517,7 +2534,7 @@ window.__openMatch = async (matchId)=>{
         ${m.photo_url_2 ? `<a href="${m.photo_url_2}" target="_blank" rel="noopener"><img src="${m.photo_url_2}" alt="Foto del partido" style="max-width:160px;max-height:160px;border-radius:8px;object-fit:cover" /></a>` : ''}
       </div>` : ''}
 
-      ${canManage() ? `
+      ${canManageEvents() ? `
       <div class="panel" style="background:var(--panel2)">
         <h4 style="margin-top:0">Editar partido</h4>
         <p class="muted">Ajusta la fecha, el resultado, etc., o elimina el partido si se canceló.</p>
@@ -2575,7 +2592,7 @@ window.__openMatch = async (matchId)=>{
       </div>` : ''}
 
       <h4>Minutos, estadísticas y calificación</h4>
-      ${canManage() ? `
+      ${canManageEvents() ? `
       <p class="muted">Registra minutos, goles, tarjetas y la calificación (1-5) de cada jugador que participó. Todo se guarda junto con el botón "Guardar". Máximo 11 titulares por partido. Los titulares aparecen primero.</p>
       <table><thead><tr><th>#</th><th>Jugador</th><th>Titular</th><th>Min.</th><th>Goles</th><th>Asist.</th><th>TA</th><th>TR</th><th>Téc.</th><th>Fís.</th><th>Tác.</th><th>Men.</th><th></th></tr></thead>
       <tbody>
@@ -2637,7 +2654,7 @@ window.__openMatch = async (matchId)=>{
   // Máximo 11 titulares a la vez: si ya hay 11 marcados, desmarca el que se acaba de
   // intentar marcar y avisa. Es una validación en pantalla; cada fila igual se guarda
   // por separado con su botón "Guardar".
-  if(canManage()){
+  if(canManageEvents()){
     $$('.f-started').forEach(cb=> cb.addEventListener('change', ()=>{
       if(cb.checked && $$('.f-started:checked').length > 11){
         cb.checked = false;
