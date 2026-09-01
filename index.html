@@ -667,6 +667,7 @@ async function renderPatrocinadores(){
     let logo_url = null;
     const file = $('#sp-logo').files[0];
     if(file){
+      if(!file.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); btn.disabled = false; return; }
       const ext = (file.name.split('.').pop() || 'png').toLowerCase();
       const path = `sponsors/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
       const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
@@ -707,6 +708,7 @@ window.__replaceSponsorLogo = async (id, btn)=>{
   const input = row.querySelector('.sp-edit-logo');
   const file = input.files[0];
   if(!file){ toast('Selecciona una imagen primero', true); return; }
+  if(!file.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const path = `sponsors/${id}-${Date.now()}.${ext}`;
   const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
