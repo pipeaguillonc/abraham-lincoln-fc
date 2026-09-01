@@ -280,7 +280,6 @@
     <button class="nav-btn" data-view="partidos">Partidos</button>
     <button class="nav-btn" data-view="convocatoria">Convocatoria</button>
     <button class="nav-btn" data-view="mensajes">Mensajes</button>
-    <button class="nav-btn" data-view="ejercicios">Ejercicios y Estiramientos</button>
     <button class="nav-btn" data-view="recomendaciones">Recomendaciones</button>
     <button class="nav-btn" data-view="finanzas">Finanzas</button>
     <button class="nav-btn" data-view="temporadas">Temporadas</button>
@@ -428,7 +427,7 @@ async function afterLogin(sess){
   session = sess;
   const { data: prof, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
   if(error || !prof){
-    toast('No se encontró un perfil para este usuario. Pide al Comité ALS que lo cree.', true);
+    toast('No se encontró un perfil para este usuario. Pide al usuario maestro que lo cree.', true);
     return;
   }
   profile = prof;
@@ -443,12 +442,7 @@ async function afterLogin(sess){
 async function enterApp(){
   $('#force-password-screen').style.display = 'none';
   $('#app').classList.add('active');
-  // El usuario maestro se identifica solo como "Comité ALS" (sin mostrar el
-  // nombre de la persona detrás de la cuenta) — para el resto de roles sí se
-  // muestra "Nombre · Rol" como siempre.
-  $('#who-am-i').textContent = profile.role === 'usuario_maestro'
-    ? (ROLE_LABELS[profile.role] || profile.role)
-    : `${profile.full_name} · ${ROLE_LABELS[profile.role] || profile.role}`;
+  $('#who-am-i').textContent = `${profile.full_name} · ${ROLE_LABELS[profile.role] || profile.role}`;
   buildNav();
   await loadPlayersCache();
   await loadCurrentSeason();
@@ -473,16 +467,17 @@ $('#fp-save-btn').addEventListener('click', async ()=>{
   $('#fp-save-btn').disabled = false;
 });
 
-const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Comité ALS', fichaje: 'Fichaje' };
+const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Usuario maestro', fichaje: 'Fichaje' };
 const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Lateral derecho','Volante defensivo','Mediocampista','Volante creativo','Extremo izquierdo','Extremo derecho','Delantero'];
 
 function buildNav(){
   const itemsByRole = {
-    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','ejercicios','recomendaciones'],
-    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','ejercicios','evalrecom','perfil'],
-    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','ejercicios','finanzas','temporadas','usuarios'],
+    cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
+    jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
+    // "Mensajes" es el canal directo con el cuerpo técnico — el usuario maestro no participa de él.
+    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','finanzas','temporadas','usuarios'],
     // Igual que "jugador" pero sin "Resumen financiero".
-    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','ejercicios','evalrecom','perfil'],
+    fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
   const items = itemsByRole[profile.role] || itemsByRole.jugador;
   $$('.nav-btn').forEach(b=>{
@@ -515,7 +510,6 @@ function navigate(view){
     entrenamientos: renderEntrenamientos,
     convocatoria: renderConvocatoria,
     mensajes: renderMensajes,
-    ejercicios: renderEjercicios,
     finanzas: renderFinanzas,
     partidos: renderPartidos,
     recomendaciones: renderRecomendaciones,
@@ -548,6 +542,15 @@ function mapsLink(url, label){
   return `<a href="${safeUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label || '📍 Cómo llegar'}</a>`;
 }
 
+// Link "Cómo llegar" con respaldo automático: si el cuerpo técnico solo
+// escribió el nombre del lugar (campo "Lugar") pero no pegó un link de Google
+// Maps/Waze, se arma un link de búsqueda de Google Maps con ese texto para
+// que el pin siempre quede clickeable en vez de mostrar solo el nombre suelto.
+function mapsLinkAuto(location, location_url){
+  const url = location_url || (location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}` : '');
+  return url ? mapsLink(url) : '';
+}
+
 // Tarjeta "próximo entrenamiento": fecha, horario y lugar juntos.
 async function fetchNextTrainingCard(){
   const { data } = await supabase.from('trainings').select('*').gte('session_date', new Date().toISOString().slice(0,10)).order('session_date').limit(1);
@@ -558,7 +561,7 @@ async function fetchNextTrainingCard(){
       <div class="label">Próximo entrenamiento</div>
       <div class="num" style="font-size:18px">${fmtDate(t.session_date)}</div>
       <div class="muted">${t.start_time ? '🕒 '+t.start_time.slice(0,5) : ''}${t.location ? ' · 📍 '+t.location : ''}</div>
-      ${t.location_url ? `<div style="margin-top:4px">${mapsLink(t.location_url)}</div>` : ''}
+      ${(t.location || t.location_url) ? `<div style="margin-top:4px">${mapsLinkAuto(t.location, t.location_url)}</div>` : ''}
     </div>
   `;
 }
@@ -576,15 +579,16 @@ async function fetchNextMatchCard(){
       <div class="muted">${fmtDate(m.match_date)}${m.match_time ? ' · 🕒 '+m.match_time.slice(0,5) : ''}</div>
       ${m.location ? `<div class="muted">📍 ${m.location}</div>` : ''}
       ${cu?.uniform ? `<div class="muted">👕 ${UNIFORM_LABELS[cu.uniform]||cu.uniform}</div>` : ''}
-      ${m.location_url ? `<div style="margin-top:4px">${mapsLink(m.location_url)}</div>` : ''}
+      ${(m.location || m.location_url) ? `<div style="margin-top:4px">${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
     </div>
   `;
 }
 
 // Tarjeta única con el próximo evento del equipo (partido o entrenamiento, lo
 // que caiga primero) — usada en el Dashboard de TODOS los roles, en vez de dos
-// tarjetas separadas. Solo se muestra desde 3 días antes del evento; si falta
-// más que eso (o no hay nada programado), no se renderiza nada.
+// tarjetas separadas. Se muestra siempre que haya un partido o entreno
+// programado a futuro (sin límite de días), para que la ubicación quede
+// visible con anticipación.
 async function fetchNextEventCard(){
   const today = new Date().toISOString().slice(0,10);
   const [{ data: trainings }, { data: matches }] = await Promise.all([
@@ -594,9 +598,6 @@ async function fetchNextEventCard(){
   const t = trainings?.[0], m = matches?.[0];
   if(!t && !m) return '';
   const matchIsNext = m && (!t || m.match_date <= t.session_date);
-  const nextDate = matchIsNext ? m.match_date : t.session_date;
-  const daysUntil = Math.round((new Date(nextDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
-  if(daysUntil > 3) return '';
   return matchIsNext ? await fetchNextMatchCard() : await fetchNextTrainingCard();
 }
 
@@ -713,7 +714,7 @@ async function renderDashboard(){
     const today = new Date().toISOString().slice(0,10);
     const [{data: att}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, nextEventCard] = await Promise.all([
       supabase.from('attendance').select('status').eq('player_id', pid),
-      supabase.from('player_match_stats').select('started,minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
+      supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
       supabase.from('player_recommendations').select('*', {count:'exact', head:true}).eq('player_id', pid),
@@ -723,12 +724,7 @@ async function renderDashboard(){
     const total = att?.length || 0;
     const presentes = att?.filter(a=>a.status!=='ausente').length || 0;
     const pctEntrenos = total ? Math.round((presentes/total)*100) : 0;
-    // "Partidos jugados" cuenta solo los partidos en los que el jugador
-    // REALMENTE participó (fue titular o entró con minutos), no cualquier
-    // partido que tenga una fila guardada en player_match_stats — el cuerpo
-    // técnico puede guardar la fila de un jugador con 0 minutos para dejar
-    // constancia de que no jugó, y eso no debe contar como participación.
-    const partidosJugados = (stats||[]).filter(s => s.started || (s.minutes_played||0) > 0).length;
+    const partidosJugados = stats?.length || 0;
     const pctPartidos = totalMatches ? Math.round((partidosJugados/totalMatches)*100) : 0;
     const minutosTotales = (stats||[]).reduce((a,s)=>a+s.minutes_played,0);
     const minutosPromedio = partidosJugados ? Math.round(minutosTotales/partidosJugados) : 0;
@@ -810,6 +806,41 @@ async function loadPlayerRatings(){
   });
 }
 
+// Exporta un .xlsx con nombre, teléfono y correo de todos los jugadores
+// (activos e inactivos), para tener el listado del equipo fuera de la app.
+async function exportPlayersToExcel(){
+  toast('Generando Excel…');
+  const { data: players, error } = await supabase.from('players').select('*').order('jersey_number');
+  if(error){ toast(error.message, true); return; }
+  if(!players || !players.length){ toast('No hay jugadores para exportar', true); return; }
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Jugadores');
+  ws.columns = [
+    { header: '#', key: 'num', width: 6 },
+    { header: 'Nombre', key: 'nombre', width: 28 },
+    { header: 'Posición', key: 'posicion', width: 16 },
+    { header: 'Teléfono', key: 'telefono', width: 16 },
+    { header: 'Correo', key: 'correo', width: 28 },
+    { header: 'Estado', key: 'estado', width: 12 },
+  ];
+  styleHeaderRow(ws);
+
+  players.forEach(p=>{
+    ws.addRow({
+      num: p.jersey_number,
+      nombre: p.full_name,
+      posicion: p.position || '-',
+      telefono: p.phone || '-',
+      correo: p.email || '-',
+      estado: p.injured ? 'Lesionado' : (p.active ? 'Activo' : 'Inactivo'),
+    });
+  });
+
+  await downloadWorkbook(wb, `jugadores_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Excel de jugadores descargado');
+}
+
 async function renderJugadores(){
   await loadPlayersCache();
   await loadPlayerRatings();
@@ -828,6 +859,7 @@ async function renderJugadores(){
       </div>
       <button id="np-save">Guardar jugador</button>
     </div>` : ''}
+    ${canManage() ? `<button id="players-export" class="secondary" style="margin-bottom:16px">⬇️ Exportar jugadores a Excel</button>` : ''}
     <table>
       <thead><tr><th>#</th><th>Nombre</th><th>Posición</th><th>Teléfono</th><th>Correo</th><th>Calificación promedio</th><th>Estado</th>${canManage()?'<th></th>':''}</tr></thead>
       <tbody id="players-tbody"></tbody>
@@ -835,6 +867,7 @@ async function renderJugadores(){
   `;
   renderPlayersRows();
   if(canManage()){
+    $('#players-export').addEventListener('click', ()=> exportPlayersToExcel());
     $('#np-save').addEventListener('click', async ()=>{
       const payload = {
         full_name: $('#np-name').value.trim(),
@@ -1015,7 +1048,7 @@ async function renderUsuarios(){
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
-            <td>${p.role === 'usuario_maestro' ? 'Comité ALS' : p.full_name}</td>
+            <td>${p.full_name}</td>
             <td>${p.email || '<span class="muted">—</span>'}</td>
             <td>${p.must_change_password && p.temp_password ? `<code>${p.temp_password}</code>` : '<span class="muted">Cambiada por el usuario</span>'}</td>
             <td>${ROLE_LABELS[p.role] || p.role}</td>
@@ -1817,13 +1850,13 @@ async function loadFinanceDetail(){
     </div>
     <div class="panel">
       <h3>Pagos registrados</h3>
-      <table><thead><tr><th>Jugador</th><th>Monto</th><th>Fecha</th><th>Método</th>${isMaster()?'<th></th>':''}</tr></thead>
-      <tbody>${(pays||[]).map(p=>`<tr><td>#${p.players.jersey_number} ${p.players.full_name}</td><td>${fmtMoney(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${p.method}</td>${isMaster()?`<td><button class="small danger" onclick="window.__deletePayment('${p.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${isMaster()?5:4}" class="muted">Sin pagos</td></tr>`}</tbody></table>
+      <table><thead><tr><th>Jugador</th><th>Monto</th><th>Fecha</th><th>Método</th></tr></thead>
+      <tbody>${(pays||[]).map(p=>`<tr><td>#${p.players.jersey_number} ${p.players.full_name}</td><td>${fmtMoney(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${p.method}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin pagos</td></tr>'}</tbody></table>
     </div>
     <div class="panel">
       <h3>Gastos del equipo</h3>
-      <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th>${isMaster()?'<th></th>':''}</tr></thead>
-      <tbody>${(expenses||[]).map(e=>`<tr><td>${fmtDate(e.expense_date)}</td><td>${e.expense_categories?.name || '-'}</td><td>${e.description||'-'}</td><td>${fmtMoney(e.amount)}</td>${isMaster()?`<td><button class="small danger" onclick="window.__deleteExpense('${e.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${isMaster()?5:4}" class="muted">Sin gastos</td></tr>`}</tbody></table>
+      <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th></tr></thead>
+      <tbody>${(expenses||[]).map(e=>`<tr><td>${fmtDate(e.expense_date)}</td><td>${e.expense_categories?.name || '-'}</td><td>${e.description||'-'}</td><td>${fmtMoney(e.amount)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin gastos</td></tr>'}</tbody></table>
     </div>
   `;
 }
@@ -1841,32 +1874,6 @@ window.__deleteDue = async (dueId, btn)=>{
   toast('Cuota eliminada');
   renderPlayerHealthRows();
   loadFinanceDetail();
-};
-
-// Solo el usuario maestro puede borrar un pago (por ejemplo, si se registró por
-// error o duplicado). No afecta la cuota asociada, que queda intacta; solo
-// cambia cuánto aparece pagado contra ella.
-window.__deletePayment = async (paymentId, btn)=>{
-  if(!confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')) return;
-  btn.disabled = true;
-  const { error } = await supabase.from('payments').delete().eq('id', paymentId);
-  if(error){ btn.disabled = false; toast(error.message, true); return; }
-  toast('Pago eliminado');
-  renderPlayerHealthRows();
-  loadFinanceDetail();
-};
-
-// Solo el usuario maestro puede borrar un gasto (por ejemplo, si se registró por
-// error, duplicado, o por un monto equivocado). Al borrarlo, el presupuesto de
-// la temporada recalcula automáticamente lo "ejecutado" de esa categoría, por
-// eso se refresca toda la vista de Finanzas y no solo la tabla de gastos.
-window.__deleteExpense = async (expenseId, btn)=>{
-  if(!confirm('¿Eliminar este gasto? Esta acción no se puede deshacer.')) return;
-  btn.disabled = true;
-  const { error } = await supabase.from('team_expenses').delete().eq('id', expenseId);
-  if(error){ btn.disabled = false; toast(error.message, true); return; }
-  toast('Gasto eliminado');
-  renderFinanzas();
 };
 
 // Exporta un .xlsx con 4 hojas: Presupuesto, Cuotas, Pagos y Gastos.
@@ -2248,7 +2255,7 @@ window.__openMatch = async (matchId)=>{
     <div class="panel">
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
-      ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${m.location_url ? mapsLink(m.location_url) : ''}</div>` : ''}
+      ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -2613,80 +2620,6 @@ async function renderEvalRecom(){
   `;
 }
 
-// ---------------- EJERCICIOS Y ESTIRAMIENTOS ----------------
-// Contenido informativo fijo (no depende de la base de datos): calentamiento,
-// estiramientos y cuidados pensados para el perfil real del equipo — papás,
-// la mayoría mayores de 40 años, jugando fútbol amateur. Es información
-// general, no reemplaza la valoración de un médico o fisioterapeuta.
-async function renderEjercicios(){
-  main.innerHTML = `
-    <h2 class="section-title">Ejercicios y Estiramientos</h2>
-    <div class="panel">
-      <p class="muted" style="margin:0">Esta sección es información general para prevenir lesiones y recuperarse mejor entre partidos — pensada para jugadores adultos (muchos de nosotros por encima de los 40). No reemplaza la valoración de un médico o fisioterapeuta: si tienes una condición de salud, dolor persistente o una lesión previa, consulta antes de exigirte en cancha.</p>
-    </div>
-
-    <div class="panel">
-      <details open>
-        <summary style="cursor:pointer"><strong>🔥 Calentamiento antes de jugar o entrenar (8-10 min)</strong></summary>
-        <p class="muted">Después de los 40, el calentamiento debe ser más largo y progresivo que cuando éramos jugadores más jóvenes — el cuerpo tarda más en "encender". Nunca empieces con sprints o cambios de dirección en frío.</p>
-        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
-          <li><strong>Trote suave (3-4 min):</strong> ritmo cómodo, solo para subir la temperatura del cuerpo.</li>
-          <li><strong>Movilidad articular (2 min):</strong> círculos de tobillo, rodilla, cadera y hombros, de a poco.</li>
-          <li><strong>Zancadas caminando (1 min):</strong> paso largo, bajando la cadera, alternando piernas.</li>
-          <li><strong>Elevación de talones y rodillas (1 min):</strong> skipping suave, sin exigir velocidad todavía.</li>
-          <li><strong>Aceleraciones progresivas (1-2 min):</strong> 3 a 4 trotes cortos aumentando la velocidad de a poco, el último sí a ritmo de partido.</li>
-        </ul>
-      </details>
-    </div>
-
-    <div class="panel">
-      <details>
-        <summary style="cursor:pointer"><strong>🧘 Estiramientos después de jugar o entrenar</strong></summary>
-        <p class="muted">Al terminar, con el músculo caliente, es el mejor momento para estirar de forma estática: sostener cada posición 20-30 segundos, sin rebotar, respirando con calma, 2 veces por lado.</p>
-        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
-          <li><strong>Isquiotibiales (parte de atrás del muslo):</strong> pierna estirada apoyada en un banco o el piso, bajar el torso hacia la punta del pie sin doblar mucho la espalda.</li>
-          <li><strong>Cuádriceps (parte de adelante del muslo):</strong> de pie, llevar el talón hacia el glúteo sosteniendo el tobillo, rodillas juntas.</li>
-          <li><strong>Gemelos / pantorrilla:</strong> apoyado contra una pared, una pierna atrás con el talón pegado al piso, empujar la cadera hacia adelante.</li>
-          <li><strong>Aductores (ingle):</strong> sentado, plantas de los pies juntas, bajar suavemente las rodillas hacia el piso.</li>
-          <li><strong>Glúteos:</strong> acostado boca arriba, cruzar un tobillo sobre la rodilla contraria y llevar la pierna hacia el pecho.</li>
-          <li><strong>Flexores de cadera:</strong> en posición de zancada baja (una rodilla en el piso), empujar la cadera hacia adelante manteniendo la espalda recta.</li>
-          <li><strong>Espalda baja:</strong> acostado boca arriba, llevar ambas rodillas al pecho y abrazarlas.</li>
-          <li><strong>Hombros y pecho:</strong> llevar un brazo cruzado al pecho sosteniéndolo con el otro brazo; para el pecho, entrelazar las manos detrás de la espalda y abrir el pecho.</li>
-        </ul>
-      </details>
-    </div>
-
-    <div class="panel">
-      <details>
-        <summary style="cursor:pointer"><strong>👨 Cuidados especiales para jugadores +40</strong></summary>
-        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
-          <li>Calienta más tiempo y con más calma que un jugador joven — el cuerpo necesita más minutos para estar listo para sprints o cambios de dirección.</li>
-          <li>Hidrátate antes, durante y después del partido, no solo cuando ya sientes sed.</li>
-          <li>Si quedaste con alguna molestia, descansa al menos 48 horas antes de volver a exigirte fuerte.</li>
-          <li>Usa guayos o tenis en buen estado y adecuados a la cancha donde vas a jugar.</li>
-          <li>Ante un golpe o torcedura: hielo envuelto en un paño (nunca directo sobre la piel), 15-20 minutos, y mantener la zona elevada si es posible.</li>
-          <li>No sigas jugando con dolor agudo o inflamación visible — una molestia leve ignorada puede convertirse en una lesión larga.</li>
-          <li>Fortalecer piernas y core 1-2 veces por semana (fuera del fútbol) ayuda mucho a prevenir lesiones de isquiotibiales, rodilla y tobillo, que son las más comunes en jugadores adultos.</li>
-          <li>Dormir bien y cuidar la alimentación en los días cercanos al partido mejora la recuperación.</li>
-          <li>Si tienes antecedentes cardíacos, hipertensión, o cualquier condición médica, consulta con tu médico antes de exigirte en partidos competitivos.</li>
-        </ul>
-      </details>
-    </div>
-
-    <div class="panel">
-      <details>
-        <summary style="cursor:pointer"><strong>🚨 Señales de alarma — deja de jugar y consulta a un médico</strong></summary>
-        <ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
-          <li>Dolor en el pecho, falta de aire fuera de lo normal, mareo intenso o desmayo.</li>
-          <li>Dolor articular o muscular que no mejora después de 2-3 días de descanso.</li>
-          <li>Inflamación importante, o no poder apoyar el pie o la pierna con normalidad.</li>
-          <li>Sensación de "chasquido" o "trueno" en una articulación seguida de dolor intenso o inestabilidad.</li>
-        </ul>
-      </details>
-    </div>
-  `;
-}
-
 // ---------------- CONVOCATORIA (a entrenamiento o a partido) ----------------
 const UNIFORM_LABELS = { uniforme_1: 'Uniforme 1 (negro y amarillo)', uniforme_2: 'Uniforme 2 (blanco y azul)' };
 
@@ -2862,18 +2795,33 @@ async function renderConvocatoria(){
 async function loadCallUpsList(){
   // Del más reciente (próximo o recién realizado) al más lejano en el tiempo.
   const { data: callUps, error: callUpsError } = await supabase.from('call_ups')
-    .select('*, trainings(session_date,start_time,location,location_url), matches(match_date,match_time,opponent,location,location_url)')
+    .select('*')
     .order('event_date', {ascending:true});
 
   const list = $('#callups-list');
-  // Si la consulta falla (por ejemplo, porque la columna location_url todavía
-  // no existe en la base de datos porque falta correr esa migración), se
-  // muestra el error en pantalla en vez de dejar la lista vacía en silencio.
-  if(callUpsError){
-    list.innerHTML = `<p class="muted" style="color:var(--danger)">No se pudo cargar la convocatoria: ${callUpsError.message}</p>`;
-    return;
-  }
+  // Antes esto se trataba en silencio como "no hay convocatorias" cuando en
+  // realidad Supabase devolvía un error (p. ej. de permisos/RLS) — ahora se
+  // muestra el mensaje real para poder diagnosticarlo sin abrir la consola.
+  if(callUpsError){ list.innerHTML = `<p class="muted">No se pudieron cargar las convocatorias: ${callUpsError.message}</p>`; return; }
   if(!callUps || !callUps.length){ list.innerHTML = '<p class="muted">No hay convocatorias registradas.</p>'; return; }
+
+  // Los datos de entrenamiento/partido se traen aparte (en vez de con el embed
+  // automático de PostgREST: trainings(...), matches(...)) porque ese embed
+  // fallaba con "column trainings_1.location_url does not exist" — algo
+  // ambiguo en cómo Supabase resuelve la relación entre call_ups y trainings.
+  // Trayendo cada tabla por separado y uniéndolas aquí se evita el problema.
+  const trainingIds = [...new Set(callUps.filter(c=>c.training_id).map(c=>c.training_id))];
+  const matchIds = [...new Set(callUps.filter(c=>c.match_id).map(c=>c.match_id))];
+  const [{ data: trainingsData }, { data: matchesData }] = await Promise.all([
+    trainingIds.length ? supabase.from('trainings').select('id,session_date,start_time,location,location_url').in('id', trainingIds) : Promise.resolve({ data: [] }),
+    matchIds.length ? supabase.from('matches').select('id,match_date,match_time,opponent,location,location_url').in('id', matchIds) : Promise.resolve({ data: [] }),
+  ]);
+  const trainingsById = Object.fromEntries((trainingsData||[]).map(t=>[t.id, t]));
+  const matchesById = Object.fromEntries((matchesData||[]).map(m=>[m.id, m]));
+  callUps.forEach(c=>{
+    c.trainings = c.training_id ? trainingsById[c.training_id] : null;
+    c.matches = c.match_id ? matchesById[c.match_id] : null;
+  });
 
   // El cuerpo técnico y el usuario maestro ven el historial completo. El
   // jugador (y "fichaje") solo necesita ver la convocatoria más próxima —
@@ -2933,7 +2881,7 @@ async function loadCallUpsList(){
             ${summary}
           </summary>
           <div class="muted" style="margin-top:8px">Responder antes de: ${fmtDeadline(c)}</div>
-          ${(eventLocation || eventLocationUrl) ? `<div style="margin-top:6px">${eventLocation ? '📍 '+eventLocation+' ' : ''}${eventLocationUrl ? mapsLink(eventLocationUrl) : ''}</div>` : ''}
+          ${(eventLocation || eventLocationUrl) ? `<div style="margin-top:6px">${eventLocation ? '📍 '+eventLocation+' ' : ''}${mapsLinkAuto(eventLocation, eventLocationUrl)}</div>` : ''}
           ${c.type==='partido' && c.uniform ? `<div style="margin-top:6px">Uniforme: <strong>${UNIFORM_LABELS[c.uniform]||c.uniform}</strong></div>` : ''}
           ${c.notes ? `<div class="muted" style="margin-top:6px">${c.notes}</div>` : ''}
           <div style="margin-top:8px">
@@ -3020,22 +2968,14 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
   loadCallUpsList();
 };
 
-// ---------------- MENSAJES (directos, jugador/fichaje <-> cuerpo técnico / usuario maestro) ----------------
-// Canal 1 a 1: un jugador (o fichaje) elige a qué miembro del cuerpo técnico o
-// al usuario maestro escribirle, y el cuerpo técnico / usuario maestro elige a
-// qué jugador/fichaje responderle o escribirle. El cuerpo técnico y el usuario
-// maestro no se escriben entre sí por este módulo.
+// ---------------- MENSAJES (directos, jugador/fichaje <-> cuerpo técnico) ----------------
+// Canal 1 a 1: un jugador (o fichaje) elige a qué miembro del cuerpo técnico
+// escribirle, y el cuerpo técnico elige a qué jugador/fichaje responderle.
+// El usuario maestro no tiene acceso a este módulo.
 async function renderMensajes(){
-  const isStaffSide = profile.role === 'cuerpo_tecnico' || profile.role === 'usuario_maestro';
+  const isStaffSide = profile.role === 'cuerpo_tecnico';
   main.innerHTML = `
     <h2 class="section-title">Mensajes</h2>
-    ${isStaffSide ? `
-    <div class="panel">
-      <h3>📢 Mensaje masivo a todo el equipo</h3>
-      <p class="muted">Se envía como un mensaje individual a cada jugador y fichaje con cuenta creada, además de (no en vez de) los mensajes personalizados de abajo.</p>
-      <textarea id="bcast-body" placeholder="Escribe el mensaje para todo el equipo…" style="width:100%;min-height:60px"></textarea>
-      <button id="bcast-send" style="margin-top:8px">Enviar a todo el equipo</button>
-    </div>` : ''}
     <div class="panel">
       <div class="row">
         <select id="msg-contact" style="flex:1"><option value="">Cargando contactos…</option></select>
@@ -3048,7 +2988,7 @@ async function renderMensajes(){
     </div>
   `;
 
-  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico','usuario_maestro'];
+  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico'];
   const [{ data: contacts }, { data: unread }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
@@ -3072,43 +3012,18 @@ async function renderMensajes(){
   contactSel.innerHTML = sorted.length
     ? sorted.map(c=>{
         const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
-        // Del lado de jugador/fichaje ahora hay dos tipos de contacto posibles
-        // (cuerpo técnico y usuario maestro) — se marca el rol para distinguirlos.
-        const roleTag = !isStaffSide ? ` (${ROLE_LABELS[c.role]||c.role})` : '';
         const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
-        return `<option value="${c.id}">${tag}${c.full_name}${roleTag}${unreadTag}</option>`;
+        return `<option value="${c.id}">${tag}${c.full_name}${unreadTag}</option>`;
       }).join('')
     : '<option value="">No hay contactos disponibles todavía</option>';
 
   if(sorted.length){
     await loadMessageThread(sorted[0].id);
   } else {
-    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico ni de Comité ALS creadas.'}</p>`;
+    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
   }
 
   contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
-
-  // Mensaje masivo: inserta el mismo texto como un mensaje individual a cada
-  // jugador/fichaje con cuenta creada (uno por destinatario), reutilizando el
-  // mismo canal 1 a 1 ya existente — cada quien lo ve mezclado con su propia
-  // conversación con el cuerpo técnico, marcado con 📢 para distinguirlo.
-  if(isStaffSide){
-    $('#bcast-send').addEventListener('click', async ()=>{
-      const body = $('#bcast-body').value.trim();
-      if(!body){ toast('Escribe el mensaje', true); return; }
-      if(!sorted.length){ toast('Todavía no hay jugadores ni fichajes con cuenta creada', true); return; }
-      if(!confirm(`¿Enviar este mensaje a los ${sorted.length} jugadores/fichajes con cuenta creada?`)) return;
-      const btn = $('#bcast-send');
-      btn.disabled = true;
-      const rows = sorted.map(c => ({ sender_id: profile.id, recipient_id: c.id, body: `📢 Mensaje para todo el equipo:\n${body}` }));
-      const { error } = await supabase.from('messages').insert(rows);
-      btn.disabled = false;
-      if(error){ toast(error.message, true); return; }
-      $('#bcast-body').value = '';
-      toast(`Mensaje enviado a ${sorted.length} jugadores/fichajes`);
-      if(contactSel.value) loadMessageThread(contactSel.value);
-    });
-  }
 
   $('#msg-send').addEventListener('click', async ()=>{
     const recipientId = contactSel.value;
@@ -3158,7 +3073,7 @@ async function refreshMensajesBadge(){
   if(!btn) return;
   const existing = btn.querySelector('.nav-badge');
   if(existing) existing.remove();
-  if(!['cuerpo_tecnico','usuario_maestro','jugador','fichaje'].includes(profile.role)) return;
+  if(!['cuerpo_tecnico','jugador','fichaje'].includes(profile.role)) return;
   const { count } = await supabase.from('messages')
     .select('*', { count: 'exact', head: true })
     .eq('recipient_id', profile.id)
