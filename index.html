@@ -474,8 +474,7 @@ function buildNav(){
   const itemsByRole = {
     cuerpo_tecnico: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones'],
     jugador: ['dashboard','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
-    // "Mensajes" es el canal directo con el cuerpo técnico — el usuario maestro no participa de él.
-    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','finanzas','temporadas','usuarios'],
+    usuario_maestro: ['dashboard','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios'],
     // Igual que "jugador" pero sin "Resumen financiero".
     fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
@@ -2974,6 +2973,11 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
 // El usuario maestro no tiene acceso a este módulo.
 async function renderMensajes(){
   const isStaffSide = profile.role === 'cuerpo_tecnico';
+  // El usuario maestro puede escribirle tanto al cuerpo técnico como a
+  // jugadores/fichajes — no tiene el mensaje masivo a "compañeros" (eso es
+  // solo para jugador/fichaje), pero sí ve a todo el mundo como contacto.
+  const isMaestro = profile.role === 'usuario_maestro';
+  const isPlayerSide = profile.role === 'jugador' || profile.role === 'fichaje';
   main.innerHTML = `
     <h2 class="section-title">Mensajes</h2>
     <div class="panel">
@@ -2988,10 +2992,10 @@ async function renderMensajes(){
     </div>
   `;
 
-  const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico'];
+  const contactRoles = isMaestro ? ['cuerpo_tecnico','jugador','fichaje'] : (isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico']);
   // Los compañeros de equipo (otros jugadores/fichajes) se cargan aparte —
   // solo se usan para armar la opción de "mensaje masivo", no como contactos
-  // de chat 1 a 1 individuales.
+  // de chat 1 a 1 individuales. Esa opción es exclusiva de jugador/fichaje.
   const [{ data: contacts }, { data: unread }, { data: teammates }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
@@ -3001,7 +3005,7 @@ async function renderMensajes(){
     // Mensajes sin leer que me han mandado, agrupados por quién los mandó —
     // para mostrar un aviso junto al nombre de cada contacto.
     supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
-    !isStaffSide ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
+    isPlayerSide ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
   const unreadBySender = {};
   (unread||[]).forEach(m=>{ unreadBySender[m.sender_id] = (unreadBySender[m.sender_id]||0) + 1; });
@@ -3016,7 +3020,7 @@ async function renderMensajes(){
   const teammateIds = (teammates||[]).map(t=>t.id);
 
   const contactSel = $('#msg-contact');
-  const massOption = (!isStaffSide && teammateIds.length)
+  const massOption = (isPlayerSide && teammateIds.length)
     ? `<option value="${MASS_MESSAGE_VALUE}">📣 Enviar a todos mis compañeros (${teammateIds.length})</option>`
     : '';
   contactSel.innerHTML = massOption + (sorted.length
@@ -3036,7 +3040,7 @@ async function renderMensajes(){
     } else if(value){
       await loadMessageThread(value);
     } else {
-      $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
+      $('#msg-thread').innerHTML = `<p class="muted">${isPlayerSide ? 'Todavía no hay cuentas de cuerpo técnico creadas.' : 'Todavía no hay contactos disponibles.'}</p>`;
     }
   };
   await showThreadFor(contactSel.value);
@@ -3102,7 +3106,7 @@ async function refreshMensajesBadge(){
   if(!btn) return;
   const existing = btn.querySelector('.nav-badge');
   if(existing) existing.remove();
-  if(!['cuerpo_tecnico','jugador','fichaje'].includes(profile.role)) return;
+  if(!['cuerpo_tecnico','jugador','fichaje','usuario_maestro'].includes(profile.role)) return;
   const { count } = await supabase.from('messages')
     .select('*', { count: 'exact', head: true })
     .eq('recipient_id', profile.id)
