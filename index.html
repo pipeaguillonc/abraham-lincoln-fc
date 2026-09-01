@@ -2992,11 +2992,18 @@ async function renderMensajes(){
     </div>
   `;
 
-  const contactRoles = isMaestro ? ['cuerpo_tecnico','jugador','fichaje'] : (isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico']);
+  // El usuario maestro se agrega como contacto posible para todos los demás
+  // roles (antes solo era al revés: el maestro veía a todos, pero nadie
+  // podía verlo a él ni encontrar su conversación).
+  const contactRoles = isMaestro
+    ? ['cuerpo_tecnico','jugador','fichaje']
+    : isStaffSide
+      ? ['jugador','fichaje','usuario_maestro']
+      : ['cuerpo_tecnico','usuario_maestro'];
   // Los compañeros de equipo (otros jugadores/fichajes) se cargan aparte —
   // solo se usan para armar la opción de "mensaje masivo", no como contactos
   // de chat 1 a 1 individuales. Esa opción es exclusiva de jugador/fichaje.
-  const [{ data: contacts }, { data: unread }, { data: teammates }] = await Promise.all([
+  const [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
       .in('role', contactRoles)
@@ -3007,6 +3014,10 @@ async function renderMensajes(){
     supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
     isPlayerSide ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
+  // Si la consulta de compañeros falla (p. ej. por un permiso/RLS que
+  // bloquea a un jugador leer los perfiles de otros jugadores), se avisa en
+  // vez de simplemente no mostrar la opción de mensaje masivo sin explicación.
+  if(teammatesError) toast('No se pudo cargar la lista de compañeros para el mensaje masivo: ' + teammatesError.message, true);
   const unreadBySender = {};
   (unread||[]).forEach(m=>{ unreadBySender[m.sender_id] = (unreadBySender[m.sender_id]||0) + 1; });
 
