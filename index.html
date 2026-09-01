@@ -2989,7 +2989,10 @@ async function renderMensajes(){
   `;
 
   const contactRoles = isStaffSide ? ['jugador','fichaje'] : ['cuerpo_tecnico'];
-  const [{ data: contacts }, { data: unread }] = await Promise.all([
+  // Los compañeros de equipo (otros jugadores/fichajes) se cargan aparte —
+  // solo se usan para armar la opción de "mensaje masivo", no como contactos
+  // de chat 1 a 1 individuales.
+  const [{ data: contacts }, { data: unread }, { data: teammates }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
       .in('role', contactRoles)
@@ -2998,6 +3001,7 @@ async function renderMensajes(){
     // Mensajes sin leer que me han mandado, agrupados por quién los mandó —
     // para mostrar un aviso junto al nombre de cada contacto.
     supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
+    !isStaffSide ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
   const unreadBySender = {};
   (unread||[]).forEach(m=>{ unreadBySender[m.sender_id] = (unreadBySender[m.sender_id]||0) + 1; });
@@ -3008,28 +3012,53 @@ async function renderMensajes(){
     return a.full_name.localeCompare(b.full_name);
   });
 
+  const MASS_MESSAGE_VALUE = '__todos_mis_companeros__';
+  const teammateIds = (teammates||[]).map(t=>t.id);
+
   const contactSel = $('#msg-contact');
-  contactSel.innerHTML = sorted.length
+  const massOption = (!isStaffSide && teammateIds.length)
+    ? `<option value="${MASS_MESSAGE_VALUE}">📣 Enviar a todos mis compañeros (${teammateIds.length})</option>`
+    : '';
+  contactSel.innerHTML = massOption + (sorted.length
     ? sorted.map(c=>{
         const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
         const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
         return `<option value="${c.id}">${tag}${c.full_name}${unreadTag}</option>`;
       }).join('')
-    : '<option value="">No hay contactos disponibles todavía</option>';
+    : '<option value="">No hay contactos disponibles todavía</option>');
 
-  if(sorted.length){
-    await loadMessageThread(sorted[0].id);
-  } else {
-    $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
-  }
+  // Con la opción de mensaje masivo agregada, ese queda seleccionado por
+  // defecto (es la primera opción del <select>) — así que el hilo inicial
+  // que se muestra depende de cuál sea la selección real, no de "sorted[0]".
+  const showThreadFor = async (value)=>{
+    if(value === MASS_MESSAGE_VALUE){
+      $('#msg-thread').innerHTML = `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de tus ${teammateIds.length} compañeros (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`;
+    } else if(value){
+      await loadMessageThread(value);
+    } else {
+      $('#msg-thread').innerHTML = `<p class="muted">${isStaffSide ? 'Todavía no hay jugadores ni fichajes con cuenta creada.' : 'Todavía no hay cuentas de cuerpo técnico creadas.'}</p>`;
+    }
+  };
+  await showThreadFor(contactSel.value);
 
-  contactSel.addEventListener('change', ()=> loadMessageThread(contactSel.value));
+  contactSel.addEventListener('change', ()=> showThreadFor(contactSel.value));
 
   $('#msg-send').addEventListener('click', async ()=>{
     const recipientId = contactSel.value;
     const body = $('#msg-body').value.trim();
     if(!recipientId){ toast('Elige un contacto primero', true); return; }
     if(!body){ toast('Escribe un mensaje', true); return; }
+
+    if(recipientId === MASS_MESSAGE_VALUE){
+      const rows = teammateIds.map(id => ({ sender_id: profile.id, recipient_id: id, body }));
+      const { error } = await supabase.from('messages').insert(rows);
+      if(error){ toast(error.message, true); return; }
+      $('#msg-body').value = '';
+      toast(`Mensaje enviado a ${teammateIds.length} compañeros`);
+      await showThreadFor(recipientId);
+      return;
+    }
+
     const { error } = await supabase.from('messages').insert({ sender_id: profile.id, recipient_id: recipientId, body });
     if(error){ toast(error.message, true); return; }
     $('#msg-body').value = '';
