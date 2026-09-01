@@ -367,6 +367,11 @@ function toast(msg, isError=false){
 function isAdmin(){ return profile?.role === 'cuerpo_tecnico'; }
 function isMaster(){ return profile?.role === 'usuario_maestro'; }
 function canManage(){ return isAdmin() || isMaster(); } // todo excepto finanzas, que es exclusivo del usuario maestro
+// Acceso al módulo de Finanzas: el usuario maestro (Comité ALS) siempre lo
+// tiene, y además cualquier jugador/fichaje al que se le haya activado el
+// permiso individual "can_manage_finance" desde Usuarios — no es un rol
+// nuevo, es un permiso puntual sobre una cuenta específica.
+function canManageFinance(){ return isMaster() || profile?.can_manage_finance === true; }
 
 function fmtDate(d){ if(!d) return '-'; return new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtMoney(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0); }
@@ -467,7 +472,7 @@ $('#fp-save-btn').addEventListener('click', async ()=>{
   $('#fp-save-btn').disabled = false;
 });
 
-const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Usuario maestro', fichaje: 'Fichaje' };
+const ROLE_LABELS = { cuerpo_tecnico: 'Cuerpo técnico', jugador: 'Jugador', usuario_maestro: 'Comité ALS', fichaje: 'Fichaje' };
 const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Lateral derecho','Volante defensivo','Mediocampista','Volante creativo','Extremo izquierdo','Extremo derecho','Delantero'];
 
 function buildNav(){
@@ -478,7 +483,11 @@ function buildNav(){
     // Igual que "jugador" pero sin "Resumen financiero".
     fichaje: ['dashboard','entrenamientos','partidos','convocatoria','mensajes','evalrecom','perfil'],
   };
-  const items = itemsByRole[profile.role] || itemsByRole.jugador;
+  const items = (itemsByRole[profile.role] || itemsByRole.jugador).slice();
+  // "Finanzas" no depende solo del rol: si a este jugador/fichaje le
+  // activaron el permiso individual, se le agrega el ítem de menú aunque su
+  // rol normalmente no lo incluya (ver canManageFinance()).
+  if(canManageFinance() && !items.includes('finanzas')) items.push('finanzas');
   $$('.nav-btn').forEach(b=>{
     b.style.display = items.includes(b.dataset.view) ? 'block' : 'none';
     b.addEventListener('click', ()=> navigate(b.dataset.view));
@@ -1043,7 +1052,7 @@ async function renderUsuarios(){
       <p id="nu-error" class="muted" style="color:#f66"></p>
     </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Finanzas</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
@@ -1052,6 +1061,7 @@ async function renderUsuarios(){
             <td>${p.must_change_password && p.temp_password ? `<code>${p.temp_password}</code>` : '<span class="muted">Cambiada por el usuario</span>'}</td>
             <td>${ROLE_LABELS[p.role] || p.role}</td>
             <td>${p.players ? `#${p.players.jersey_number} ${p.players.full_name}` : '-'}</td>
+            <td>${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="finance-permission-cb" data-uid="${p.id}" ${p.can_manage_finance ? 'checked' : ''} /> Puede editar</label>` : '<span class="muted">—</span>'}</td>
             <td>${fmtDate(p.created_at?.slice(0,10))}</td>
             <td>
               <input type="text" class="rp-password" data-uid="${p.id}" placeholder="Nueva contraseña" style="width:140px;margin-bottom:0;display:inline-block" />
@@ -1059,10 +1069,20 @@ async function renderUsuarios(){
             </td>
             <td>${p.id === session.user.id ? '' : `<button class="small danger" onclick="window.__deleteUser('${p.id}', '${p.full_name.replace(/'/g, "\\'")}', this)">Eliminar</button>`}</td>
           </tr>
-        `).join('') || '<tr><td colspan="8" class="muted">Sin usuarios registrados todavía</td></tr>'}
+        `).join('') || '<tr><td colspan="9" class="muted">Sin usuarios registrados todavía</td></tr>'}
       </tbody>
     </table>
   `;
+
+  $$('.finance-permission-cb').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      cb.disabled = true;
+      const { error } = await supabase.from('profiles').update({ can_manage_finance: cb.checked }).eq('id', cb.dataset.uid);
+      cb.disabled = false;
+      if(error){ toast(error.message, true); cb.checked = !cb.checked; return; }
+      toast(cb.checked ? 'Ahora puede editar Finanzas' : 'Ya no puede editar Finanzas');
+    });
+  });
 
   const typeSel = $('#nu-type');
   const playerSel = $('#nu-player');
@@ -1563,6 +1583,12 @@ function renderFinancialSummaryHTML(s){
 }
 
 async function renderFinanzas(){
+  // Por si alguien llega aquí sin el permiso (el menú ya lo oculta, esto es
+  // el respaldo si se navegara directo a la vista).
+  if(!canManageFinance()){
+    main.innerHTML = '<p class="muted">No tienes acceso al módulo de Finanzas.</p>';
+    return;
+  }
   await loadCurrentSeason();
   await loadExpenseCategories();
   await ensureSancionesCategory();
@@ -1844,8 +1870,8 @@ async function loadFinanceDetail(){
   $('#fin-detail').innerHTML = `
     <div class="panel">
       <h3>Cuotas (compromisos de pago)</h3>
-      <table><thead><tr><th>Jugador</th><th>Periodo</th><th>Monto</th><th>Fecha de compromiso</th>${isMaster()?'<th></th>':''}</tr></thead>
-      <tbody>${(dues||[]).map(d=>`<tr><td>#${d.players.jersey_number} ${d.players.full_name}</td><td>${d.period_label}</td><td>${fmtMoney(d.amount_due)}</td><td>${fmtDate(d.due_date)}</td>${isMaster()?`<td><button class="small danger" onclick="window.__deleteDue('${d.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${isMaster()?5:4}" class="muted">Sin cuotas</td></tr>`}</tbody></table>
+      <table><thead><tr><th>Jugador</th><th>Periodo</th><th>Monto</th><th>Fecha de compromiso</th>${canManageFinance()?'<th></th>':''}</tr></thead>
+      <tbody>${(dues||[]).map(d=>`<tr><td>#${d.players.jersey_number} ${d.players.full_name}</td><td>${d.period_label}</td><td>${fmtMoney(d.amount_due)}</td><td>${fmtDate(d.due_date)}</td>${canManageFinance()?`<td><button class="small danger" onclick="window.__deleteDue('${d.id}', this)">Eliminar</button></td>`:''}</tr>`).join('') || `<tr><td colspan="${canManageFinance()?5:4}" class="muted">Sin cuotas</td></tr>`}</tbody></table>
     </div>
     <div class="panel">
       <h3>Pagos registrados</h3>
