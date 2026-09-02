@@ -1311,15 +1311,19 @@ async function renderPerfil(){
     <h2 class="section-title">Mi perfil</h2>
     ${p.injured ? `<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>` : ''}
     <div class="panel">
-      <div style="display:flex;align-items:center;gap:14px">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         ${p.photo_url ? `<img src="${p.photo_url}" alt="${(p.full_name||'').replace(/"/g,'&quot;')}" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />` : ''}
         <div>
           <h3 style="margin:0">#${p.jersey_number} ${p.full_name}</h3>
           ${calcAge(p.birth_date)!=null ? `<span class="muted">${calcAge(p.birth_date)} años</span>` : ''}
           ${p.document_number ? `<span class="muted"> · Doc. ${p.document_number}</span>` : ''}
         </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <input type="file" id="mp-photo" accept="image/*" style="font-size:11px;width:150px;margin-bottom:0;padding:2px" />
+          <button class="small secondary" id="mp-photo-save">${p.photo_url ? 'Cambiar foto' : 'Subir foto'}</button>
+        </div>
       </div>
-      <p class="muted" style="margin-top:12px">Puedes actualizar tus datos de contacto y tu número de camiseta. La posición, el nombre, la foto y el número de documento solo los edita el cuerpo técnico, desde Jugadores.</p>
+      <p class="muted" style="margin-top:12px">Puedes actualizar tu foto, tus datos de contacto y tu número de camiseta. La posición, el nombre y el número de documento solo los edita el cuerpo técnico, desde Jugadores.</p>
       <div class="row">
         <label style="flex:1">N° de camiseta<input id="mp-jersey" type="number" value="${p.jersey_number}"></label>
         <label style="flex:1">Fecha de nacimiento<input id="mp-birth" type="date" value="${p.birth_date||''}"></label>
@@ -1343,6 +1347,21 @@ async function renderPerfil(){
     const { error } = await supabase.from('players').update(payload).eq('id', p.id);
     if(error){ toast(error.message, true); return; }
     toast('Perfil actualizado');
+    await loadPlayersCache();
+    renderPerfil();
+  });
+  $('#mp-photo-save').addEventListener('click', async ()=>{
+    const file = $('#mp-photo').files[0];
+    if(!file){ toast('Selecciona una imagen primero', true); return; }
+    if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `players/${p.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+    if(upErr){ toast(upErr.message, true); return; }
+    const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+    const { error } = await supabase.from('players').update({ photo_url: pub.publicUrl }).eq('id', p.id);
+    if(error){ toast(error.message, true); return; }
+    toast('Foto actualizada');
     await loadPlayersCache();
     renderPerfil();
   });
