@@ -2011,6 +2011,14 @@ async function renderFinanzas(){
       </table>
       <button id="fin-export-overdue" class="secondary" style="margin-top:12px">⬇️ Exportar morosos y pendientes a Excel</button>
     </div>
+    <div class="panel">
+      <h3>📨 Recordatorios automáticos enviados</h3>
+      <p class="muted">Historial de los mensajes de recordatorio de pago que se le mandan automáticamente (cada 5 días) a quien esté en mora — se resume por jugador: cuántas veces se le ha mandado y cuándo fue la última vez. Cada mensaje se puede ver completo en el módulo Mensajes, en la conversación con ese jugador.</p>
+      <table>
+        <thead><tr><th>Jugador</th><th>Veces enviado</th><th>Último envío</th></tr></thead>
+        <tbody id="reminder-log-tbody">Cargando…</tbody>
+      </table>
+    </div>
     <div class="row">
       <div class="panel" style="flex:1">
         <h3>Nueva cuota (individual o grupal)</h3>
@@ -2068,6 +2076,7 @@ async function renderFinanzas(){
   `;
   renderBudgetRows();
   renderPlayerHealthRows();
+  renderReminderLog();
   await renderSancionesPanel();
   await renderIncomeList();
   await loadFinancialSummaryReadOnly('#fin-summary');
@@ -2248,6 +2257,40 @@ async function renderPlayerHealthRows(){
       <td><span class="badge ${r.badgeClass}">${r.estado}</span></td>
     </tr>
   `).join('') || '<tr><td colspan="8" class="muted">Sin jugadores activos</td></tr>';
+}
+
+// Resume, por jugador, los recordatorios automáticos de pago que se le han
+// mandado (los inserta directo en 'messages' la función de Supabase
+// send_payment_reminders(), identificados por el prefijo fijo del mensaje).
+// Esto es solo un resumen de lectura — el mensaje completo se ve en el
+// módulo Mensajes, en la conversación con ese jugador.
+async function renderReminderLog(){
+  const el = $('#reminder-log-tbody');
+  if(!el) return;
+  const [{ data: msgs }, { data: profs }] = await Promise.all([
+    supabase.from('messages').select('recipient_id, created_at').like('body', '⏰ Recordatorio de pago%').order('created_at', {ascending:false}),
+    supabase.from('profiles').select('id, full_name, player_id, players(jersey_number)').in('role', ['jugador','fichaje']),
+  ]);
+  const profById = {};
+  (profs||[]).forEach(p=> profById[p.id] = p);
+  const summary = {};
+  (msgs||[]).forEach(m=>{
+    if(!summary[m.recipient_id]) summary[m.recipient_id] = { count: 0, last: m.created_at };
+    summary[m.recipient_id].count++;
+    if(m.created_at > summary[m.recipient_id].last) summary[m.recipient_id].last = m.created_at;
+  });
+  const rows = Object.entries(summary).map(([recipientId, s])=>{
+    const prof = profById[recipientId];
+    return { name: prof?.full_name || 'Jugador eliminado', jersey: prof?.players?.jersey_number, ...s };
+  }).sort((a,b)=> new Date(b.last) - new Date(a.last));
+
+  el.innerHTML = rows.length ? rows.map(r=>`
+    <tr>
+      <td>${r.jersey ? '#'+r.jersey+' ' : ''}${r.name}</td>
+      <td>${r.count}</td>
+      <td>${new Date(r.last).toLocaleString('es-ES')}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="3" class="muted">Todavía no se ha enviado ningún recordatorio automático</td></tr>';
 }
 
 async function loadFinanceDetail(){
