@@ -3671,9 +3671,10 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
 // El usuario maestro no tiene acceso a este módulo.
 async function renderMensajes(){
   const isStaffSide = profile.role === 'cuerpo_tecnico';
-  // El usuario maestro puede escribirle tanto al cuerpo técnico como a
-  // jugadores/fichajes — no tiene el mensaje masivo a "compañeros" (eso es
-  // solo para jugador/fichaje), pero sí ve a todo el mundo como contacto.
+  // El usuario maestro (Comité ALS) puede escribirle tanto al cuerpo
+  // técnico como a jugadores/fichajes, ve a todo el mundo como contacto, y
+  // también tiene su propia opción de mensaje masivo (a todos los
+  // jugadores/fichajes del equipo, en vez de "a mis compañeros").
   const isMaestro = profile.role === 'usuario_maestro';
   const isPlayerSide = profile.role === 'jugador' || profile.role === 'fichaje';
   main.innerHTML = `
@@ -3698,9 +3699,11 @@ async function renderMensajes(){
     : isStaffSide
       ? ['jugador','fichaje','usuario_maestro']
       : ['cuerpo_tecnico','usuario_maestro'];
-  // Los compañeros de equipo (otros jugadores/fichajes) se cargan aparte —
-  // solo se usan para armar la opción de "mensaje masivo", no como contactos
-  // de chat 1 a 1 individuales. Esa opción es exclusiva de jugador/fichaje.
+  // Los jugadores/fichajes se cargan aparte — solo se usan para armar la
+  // opción de "mensaje masivo", no como contactos de chat 1 a 1
+  // individuales. Jugador/fichaje la usan para escribirle a "todos mis
+  // compañeros"; el Comité ALS (usuario_maestro) la usa para escribirle a
+  // "todos los jugadores/fichajes" del equipo de una sola vez.
   const [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
@@ -3710,7 +3713,7 @@ async function renderMensajes(){
     // Mensajes sin leer que me han mandado, agrupados por quién los mandó —
     // para mostrar un aviso junto al nombre de cada contacto.
     supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
-    isPlayerSide ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
+    (isPlayerSide || isMaestro) ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
   // Si la consulta de compañeros falla (p. ej. por un permiso/RLS que
   // bloquea a un jugador leer los perfiles de otros jugadores), se avisa en
@@ -3729,8 +3732,8 @@ async function renderMensajes(){
   const teammateIds = (teammates||[]).map(t=>t.id);
 
   const contactSel = $('#msg-contact');
-  const massOption = (isPlayerSide && teammateIds.length)
-    ? `<option value="${MASS_MESSAGE_VALUE}">📣 Enviar a todos mis compañeros (${teammateIds.length})</option>`
+  const massOption = ((isPlayerSide || isMaestro) && teammateIds.length)
+    ? `<option value="${MASS_MESSAGE_VALUE}">📣 ${isMaestro ? `Enviar a todos los jugadores/fichajes (${teammateIds.length})` : `Enviar a todos mis compañeros (${teammateIds.length})`}</option>`
     : '';
   contactSel.innerHTML = massOption + (sorted.length
     ? sorted.map(c=>{
@@ -3745,7 +3748,9 @@ async function renderMensajes(){
   // que se muestra depende de cuál sea la selección real, no de "sorted[0]".
   const showThreadFor = async (value)=>{
     if(value === MASS_MESSAGE_VALUE){
-      $('#msg-thread').innerHTML = `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de tus ${teammateIds.length} compañeros (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`;
+      $('#msg-thread').innerHTML = isMaestro
+        ? `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de los ${teammateIds.length} jugadores/fichajes del equipo (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`
+        : `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de tus ${teammateIds.length} compañeros (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`;
     } else if(value){
       await loadMessageThread(value);
     } else {
@@ -3767,7 +3772,7 @@ async function renderMensajes(){
       const { error } = await supabase.from('messages').insert(rows);
       if(error){ toast(error.message, true); return; }
       $('#msg-body').value = '';
-      toast(`Mensaje enviado a ${teammateIds.length} compañeros`);
+      toast(isMaestro ? `Mensaje enviado a ${teammateIds.length} jugadores/fichajes` : `Mensaje enviado a ${teammateIds.length} compañeros`);
       await showThreadFor(recipientId);
       return;
     }
