@@ -154,6 +154,20 @@
   .highlight-name{font-size:18px;font-weight:700;margin:4px 0 2px}
   .mvp-badge{display:inline-block;background:var(--warn);color:#241a03;font-weight:700;padding:4px 12px;border-radius:999px;font-size:12px;margin:6px 0}
 
+  /* Pizarrón de "Formación": cancha (proporción vertical, arco/portería
+     arriba y abajo) con fichas de jugadores arrastrables, y a un lado la
+     banca de jugadores disponibles todavía sin ubicar. */
+  .lineup-wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .lineup-pitch{position:relative;width:300px;max-width:100%;aspect-ratio:2/3;background:linear-gradient(180deg,#1f8a54,#166339);border-radius:10px;border:2px solid #0d4024;overflow:hidden;flex:0 0 auto;touch-action:none}
+  .lineup-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .lineup-chip{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:grab;touch-action:none;width:58px;z-index:2}
+  .lineup-chip .num{width:32px;height:32px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  .lineup-chip .name{font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);margin-top:2px;text-align:center;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis}
+  .lineup-bench{flex:1;min-width:200px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;background:var(--panel2);border-radius:10px;padding:10px;min-height:80px}
+  .lineup-bench-chip{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 4px;cursor:grab;touch-action:none;font-size:12px;user-select:none}
+  .lineup-bench-chip .num{width:22px;height:22px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:11px;flex:0 0 auto}
+  .lineup-drag-ghost{position:fixed;left:0;top:0;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:none;z-index:999}
+
   /* ============= RESPONSIVE (celular / tablet) ============= */
   /* #menu-toggle y #nav-overlay quedan del diseño anterior (menú lateral
      oculto); en celular ya no se usan — el menú pasó a ser una barra
@@ -348,6 +362,8 @@ let profile = null; // { id, full_name, role, player_id }
 let currentView = 'dashboard';
 let playersCache = [];
 let currentSeasonCache = null; // temporada marcada is_current, se carga al iniciar sesión y se refresca en "Temporadas"
+let currentLineupMatchId = null; // partido cuya "Formación" está abierta en este momento
+let lineupDragState = null; // { playerId, ghost } mientras se arrastra una ficha del pizarrón
 async function loadCurrentSeason(){
   const { data } = await supabase.from('seasons').select('*').eq('is_current', true).maybeSingle();
   currentSeasonCache = data || null;
@@ -401,6 +417,19 @@ function canManageEvents(){ return canManage() || profile?.can_manage_events ===
 
 function fmtDate(d){ if(!d) return '-'; return new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtMoney(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0); }
+// Edad calculada a partir de la fecha de nacimiento — así nunca queda
+// desactualizada (en vez de guardar un número fijo que hay que ir corrigiendo
+// cada cumpleaños).
+function calcAge(birthDate){
+  if(!birthDate) return null;
+  const b = new Date(birthDate+'T00:00:00');
+  if(isNaN(b.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if(m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+}
 
 // ---------------- EXPORTAR A EXCEL (ExcelJS) ----------------
 // Descarga el workbook generado como archivo .xlsx en el navegador.
@@ -1088,6 +1117,7 @@ async function renderJugadores(){
         <input id="np-number" type="number" placeholder="N° camiseta" />
         <select id="np-position">${PLAYER_POSITIONS.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
         <input id="np-birth" type="date" />
+        <input id="np-document" placeholder="N° de documento" />
         <input id="np-phone" placeholder="Teléfono" />
         <input id="np-email" type="email" placeholder="Correo (para recordatorios)" />
       </div>
@@ -1095,7 +1125,7 @@ async function renderJugadores(){
     </div>` : ''}
     ${canManage() ? `<button id="players-export" class="secondary" style="margin-bottom:16px">⬇️ Exportar jugadores a Excel</button>` : ''}
     <table>
-      <thead><tr><th>#</th><th>Nombre</th><th>Posición</th><th>Teléfono</th><th>Correo</th><th>Calificación promedio</th><th>Estado</th>${canManage()?'<th></th>':''}</tr></thead>
+      <thead><tr><th>#</th><th>Foto</th><th>Nombre</th><th>Posición</th><th>Edad</th><th>Documento</th><th>Teléfono</th><th>Correo</th><th>Calificación promedio</th><th>Estado</th>${canManage()?'<th></th>':''}</tr></thead>
       <tbody id="players-tbody"></tbody>
     </table>
   `;
@@ -1108,6 +1138,7 @@ async function renderJugadores(){
         jersey_number: Number($('#np-number').value),
         position: $('#np-position').value.trim(),
         birth_date: $('#np-birth').value || null,
+        document_number: $('#np-document').value.trim() || null,
         phone: $('#np-phone').value.trim(),
         email: $('#np-email').value.trim() || null,
       };
@@ -1123,18 +1154,27 @@ async function renderJugadores(){
 
 function renderPlayersRows(){
   // playersCache ya viene ordenado por número de camiseta (ver loadPlayersCache).
-  $('#players-tbody').innerHTML = playersCache.map(p=>`
+  $('#players-tbody').innerHTML = playersCache.map(p=>{
+    const age = calcAge(p.birth_date);
+    return `
     <tr>
       <td>${canManage() ? `<input type="number" class="jersey-input" style="width:70px" value="${p.jersey_number}">` : '#'+p.jersey_number}</td>
+      <td>
+        ${p.photo_url ? `<img src="${p.photo_url}" alt="${(p.full_name||'').replace(/"/g,'&quot;')}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;display:block;margin-bottom:4px" />` : '<span class="muted">Sin foto</span>'}
+        ${canManage() ? `<input type="file" class="photo-input" accept="image/*" style="font-size:10px;width:110px;padding:2px;margin-bottom:4px" /><button class="small secondary" onclick="window.__updatePhoto('${p.id}', this)">Cambiar foto</button>` : ''}
+      </td>
       <td>${p.full_name}</td>
       <td>${p.position||'-'}</td>
+      <td>${canManage() ? `<input type="date" class="birth-input" style="width:150px" value="${p.birth_date||''}"><div class="muted" style="margin-top:2px">${age!=null ? age+' años' : 'Sin fecha de nacimiento'}</div>` : (age!=null ? age+' años' : '-')}</td>
+      <td>${canManage() ? `<input type="text" class="document-input" style="width:130px" value="${p.document_number||''}" placeholder="N° documento">` : (p.document_number||'-')}</td>
       <td>${canManage() ? `<input type="tel" class="phone-input" style="width:130px" value="${p.phone||''}" placeholder="Teléfono">` : (p.phone||'-')}</td>
       <td>${canManage() ? `<input type="email" class="email-input" style="width:160px" value="${p.email||''}" placeholder="correo@ejemplo.com">` : (p.email||'-')}</td>
       <td>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : '<span class="muted">Sin calificar</span>'}</td>
       <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</td>
-      ${canManage() ? `<td><button class="small" onclick="window.__updateJersey('${p.id}', this)">Guardar #</button> <button class="small secondary" onclick="window.__updatePhone('${p.id}', this)">Guardar teléfono</button> <button class="small secondary" onclick="window.__updateEmail('${p.id}', this)">Guardar correo</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button> <button class="small secondary" onclick="window.__toggleInjured('${p.id}', ${p.injured})">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button></td>` : ''}
+      ${canManage() ? `<td><button class="small" onclick="window.__savePlayerRow('${p.id}', this)">Guardar cambios</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button> <button class="small secondary" onclick="window.__toggleInjured('${p.id}', ${p.injured})">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button></td>` : ''}
     </tr>
-  `).join('') || '<tr><td colspan="7" class="muted">Sin jugadores registrados</td></tr>';
+  `;
+  }).join('') || '<tr><td colspan="11" class="muted">Sin jugadores registrados</td></tr>';
 }
 
 window.__toggleActive = async (id, active)=>{
@@ -1156,33 +1196,42 @@ window.__toggleInjured = async (id, injured)=>{
   renderPlayersRows();
 };
 
-window.__updateJersey = async (id, btn)=>{
+// Un solo botón "Guardar cambios" para número, fecha de nacimiento, documento,
+// teléfono y correo — antes eran 3 botones separados en la misma fila y era
+// fácil llenar un campo y darle clic al botón equivocado (nos pasó justo con
+// eso en Patrocinadores), así que ahora un único clic guarda todo junto.
+window.__savePlayerRow = async (id, btn)=>{
   const tr = btn.closest('tr');
-  const newNumber = Number(tr.querySelector('.jersey-input').value);
-  if(!newNumber){ toast('Número inválido', true); return; }
-  const { error } = await supabase.from('players').update({ jersey_number: newNumber }).eq('id', id);
+  const jersey_number = Number(tr.querySelector('.jersey-input').value);
+  if(!jersey_number){ toast('Número inválido', true); return; }
+  const payload = {
+    jersey_number,
+    birth_date: tr.querySelector('.birth-input').value || null,
+    document_number: tr.querySelector('.document-input').value.trim() || null,
+    phone: tr.querySelector('.phone-input').value.trim() || null,
+    email: tr.querySelector('.email-input').value.trim() || null,
+  };
+  const { error } = await supabase.from('players').update(payload).eq('id', id);
   if(error){ toast(error.message, true); return; }
-  toast('Número de camiseta actualizado');
+  toast('Jugador actualizado');
   await loadPlayersCache();
   renderPlayersRows();
 };
 
-window.__updatePhone = async (id, btn)=>{
+window.__updatePhoto = async (id, btn)=>{
   const tr = btn.closest('tr');
-  const phone = tr.querySelector('.phone-input').value.trim() || null;
-  const { error } = await supabase.from('players').update({ phone }).eq('id', id);
+  const input = tr.querySelector('.photo-input');
+  const file = input?.files[0];
+  if(!file){ toast('Selecciona una imagen primero', true); return; }
+  if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `players/${id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  if(upErr){ toast(upErr.message, true); return; }
+  const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+  const { error } = await supabase.from('players').update({ photo_url: pub.publicUrl }).eq('id', id);
   if(error){ toast(error.message, true); return; }
-  toast('Teléfono actualizado');
-  await loadPlayersCache();
-  renderPlayersRows();
-};
-
-window.__updateEmail = async (id, btn)=>{
-  const tr = btn.closest('tr');
-  const email = tr.querySelector('.email-input').value.trim() || null;
-  const { error } = await supabase.from('players').update({ email }).eq('id', id);
-  if(error){ toast(error.message, true); return; }
-  toast('Correo actualizado');
+  toast('Foto actualizada');
   await loadPlayersCache();
   renderPlayersRows();
 };
@@ -1198,8 +1247,15 @@ async function renderPerfil(){
     <h2 class="section-title">Mi perfil</h2>
     ${p.injured ? `<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>` : ''}
     <div class="panel">
-      <h3>#${p.jersey_number} ${p.full_name}</h3>
-      <p class="muted">Puedes actualizar tus datos de contacto y tu número de camiseta. La posición y el nombre solo los edita el cuerpo técnico.</p>
+      <div style="display:flex;align-items:center;gap:14px">
+        ${p.photo_url ? `<img src="${p.photo_url}" alt="${(p.full_name||'').replace(/"/g,'&quot;')}" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />` : ''}
+        <div>
+          <h3 style="margin:0">#${p.jersey_number} ${p.full_name}</h3>
+          ${calcAge(p.birth_date)!=null ? `<span class="muted">${calcAge(p.birth_date)} años</span>` : ''}
+          ${p.document_number ? `<span class="muted"> · Doc. ${p.document_number}</span>` : ''}
+        </div>
+      </div>
+      <p class="muted" style="margin-top:12px">Puedes actualizar tus datos de contacto y tu número de camiseta. La posición, el nombre, la foto y el número de documento solo los edita el cuerpo técnico, desde Jugadores.</p>
       <div class="row">
         <label style="flex:1">N° de camiseta<input id="mp-jersey" type="number" value="${p.jersey_number}"></label>
         <label style="flex:1">Fecha de nacimiento<input id="mp-birth" type="date" value="${p.birth_date||''}"></label>
@@ -2591,6 +2647,14 @@ window.__openMatch = async (matchId)=>{
         </div>
       </div>` : ''}
 
+      ${canManage() ? `
+      <div class="panel" style="background:var(--panel2)">
+        <h4 style="margin-top:0">⚽ Formación</h4>
+        <p class="muted">Pizarrón táctico solo para cuerpo técnico y Comité ALS — arma la alineación de este partido arrastrando a los jugadores disponibles hacia la cancha.</p>
+        <button class="small secondary" id="lineup-toggle-btn" onclick="window.__openLineup('${matchId}')">Ver/editar formación</button>
+        <div id="lineup-panel" style="margin-top:12px"></div>
+      </div>` : ''}
+
       <h4>Minutos, estadísticas y calificación</h4>
       ${canManageEvents() ? `
       <p class="muted">Registra minutos, goles, tarjetas y la calificación (1-5) de cada jugador que participó. Todo se guarda junto con el botón "Guardar". Máximo 11 titulares por partido. Los titulares aparecen primero.</p>
@@ -2783,6 +2847,169 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
     if(evalError) return toast(evalError.message, true);
   }
   toast('Estadísticas y calificación guardadas');
+};
+
+// ---------------- FORMACIÓN (pizarrón táctico por partido) ----------------
+// Solo cuerpo técnico y Comité ALS (canManage(), no canManageEvents()): es
+// una herramienta táctica interna, los jugadores no la ven. Una fila en
+// "lineups" por partido, y una fila en "lineup_players" por cada jugador ya
+// ubicado en la cancha (con su posición en % de ancho/alto). Los jugadores
+// "disponibles" (banca, todavía sin ubicar) salen de quién confirmó
+// asistencia en la Convocatoria de ese partido; si todavía nadie ha
+// respondido, se muestra el plantel activo completo como respaldo.
+async function ensureLineup(matchId){
+  const { data: existing } = await supabase.from('lineups').select('*').eq('match_id', matchId).maybeSingle();
+  if(existing) return existing;
+  const { data: created, error } = await supabase.from('lineups').insert({ match_id: matchId, created_by: profile.id }).select().single();
+  if(error){ toast(error.message, true); return null; }
+  return created;
+}
+
+window.__openLineup = async (matchId)=>{
+  const panel = $('#lineup-panel');
+  if(!panel) return;
+  currentLineupMatchId = matchId;
+  panel.innerHTML = '<p class="muted">Cargando formación…</p>';
+
+  const [{ data: lineup }, { data: callUp }] = await Promise.all([
+    supabase.from('lineups').select('*').eq('match_id', matchId).maybeSingle(),
+    supabase.from('call_ups').select('id').eq('match_id', matchId).maybeSingle(),
+  ]);
+
+  let confirmedIds = [];
+  if(callUp){
+    const { data: responses } = await supabase.from('call_up_responses').select('player_id').eq('call_up_id', callUp.id).eq('response', 'asiste');
+    confirmedIds = (responses||[]).map(r=>r.player_id);
+  }
+
+  let placed = [];
+  if(lineup){
+    const { data: lp } = await supabase.from('lineup_players').select('*').eq('lineup_id', lineup.id);
+    placed = lp || [];
+  }
+
+  const poolIds = new Set(confirmedIds.length ? confirmedIds : playersCache.filter(p=>p.active && !p.injured).map(p=>p.id));
+  // Un jugador ya ubicado en la cancha se sigue mostrando aunque después haya
+  // dejado de estar en el "pool" (por ejemplo, si cambió su respuesta).
+  placed.forEach(pp=> poolIds.add(pp.player_id));
+  const placedIds = new Set(placed.map(pp=>pp.player_id));
+  const bench = [...poolIds]
+    .filter(id=>!placedIds.has(id))
+    .map(id=>playersCache.find(p=>p.id===id))
+    .filter(Boolean)
+    .sort((a,b)=>(a.jersey_number||0)-(b.jersey_number||0));
+
+  const firstName = (fullName)=> (fullName||'').split(' ')[0];
+
+  panel.innerHTML = `
+    <div class="row">
+      <input id="lu-formation" placeholder="Esquema (ej. 4-4-2)" value="${(lineup?.formation_label||'').replace(/"/g,'&quot;')}" style="max-width:220px" />
+      <button class="small secondary" onclick="window.__saveFormationLabel('${matchId}')">Guardar nombre</button>
+      <button class="small danger" onclick="window.__clearLineup('${matchId}')">Vaciar cancha</button>
+    </div>
+    <p class="muted">Arrastra a un jugador de "Disponibles" hacia la cancha para ubicarlo. Arrástralo desde la cancha hacia afuera para quitarlo. ${confirmedIds.length ? 'Los disponibles son quienes confirmaron asistencia en Convocatoria.' : 'Todavía nadie confirmó asistencia en Convocatoria — por ahora se muestra todo el plantel activo.'}</p>
+    <div class="muted" style="margin-bottom:6px">${placed.length}/11 en la cancha</div>
+    <div class="lineup-wrap">
+      <div class="lineup-pitch" id="lineup-pitch">
+        <svg class="lineup-lines" viewBox="0 0 300 450" preserveAspectRatio="none">
+          <rect x="4" y="4" width="292" height="442" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+          <line x1="4" y1="225" x2="296" y2="225" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+          <circle cx="150" cy="225" r="40" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+          <rect x="70" y="4" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+          <rect x="70" y="386" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        </svg>
+        ${placed.map(pp=>{
+          const p = playersCache.find(pl=>pl.id===pp.player_id);
+          if(!p) return '';
+          return `<div class="lineup-chip" style="left:${pp.pos_x}%;top:${pp.pos_y}%" data-pid="${p.id}">
+            <div class="num">${p.jersey_number}</div>
+            <div class="name">${firstName(p.full_name)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="lineup-bench" id="lineup-bench">
+        ${bench.length ? bench.map(p=>`
+          <div class="lineup-bench-chip" data-pid="${p.id}"><div class="num">${p.jersey_number}</div>${firstName(p.full_name)}</div>
+        `).join('') : '<span class="muted">No hay jugadores disponibles por ubicar.</span>'}
+      </div>
+    </div>
+  `;
+
+  $$('.lineup-chip', panel).forEach(chip=> chip.addEventListener('pointerdown', e=> startLineupDrag(e, chip.dataset.pid)));
+  $$('.lineup-bench-chip', panel).forEach(chip=> chip.addEventListener('pointerdown', e=> startLineupDrag(e, chip.dataset.pid)));
+};
+
+function startLineupDrag(e, playerId){
+  e.preventDefault();
+  const p = playersCache.find(pl=>pl.id===playerId);
+  const ghost = document.createElement('div');
+  ghost.className = 'lineup-drag-ghost';
+  ghost.textContent = p ? p.jersey_number : '';
+  document.body.appendChild(ghost);
+  lineupDragState = { playerId, ghost };
+  moveLineupGhost(e);
+  document.addEventListener('pointermove', onLineupDragMove);
+  document.addEventListener('pointerup', onLineupDragEnd, { once: true });
+}
+function moveLineupGhost(e){
+  if(!lineupDragState) return;
+  lineupDragState.ghost.style.left = e.clientX + 'px';
+  lineupDragState.ghost.style.top = e.clientY + 'px';
+}
+function onLineupDragMove(e){ moveLineupGhost(e); }
+async function onLineupDragEnd(e){
+  document.removeEventListener('pointermove', onLineupDragMove);
+  if(!lineupDragState) return;
+  const { playerId, ghost } = lineupDragState;
+  ghost.remove();
+  lineupDragState = null;
+  const pitch = document.getElementById('lineup-pitch');
+  const matchId = currentLineupMatchId;
+  if(!pitch || !matchId) return;
+  const rect = pitch.getBoundingClientRect();
+  const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+  if(inside){
+    const x = Math.max(3, Math.min(97, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
+    await window.__placeLineupPlayer(matchId, playerId, x, y);
+  } else {
+    await window.__removeLineupPlayer(matchId, playerId);
+  }
+}
+
+window.__placeLineupPlayer = async (matchId, playerId, x, y)=>{
+  const lineup = await ensureLineup(matchId);
+  if(!lineup) return;
+  const { error } = await supabase.from('lineup_players')
+    .upsert({ lineup_id: lineup.id, player_id: playerId, pos_x: x, pos_y: y }, { onConflict: 'lineup_id,player_id' });
+  if(error){ toast(error.message, true); return; }
+  window.__openLineup(matchId);
+};
+
+window.__removeLineupPlayer = async (matchId, playerId)=>{
+  const lineup = await ensureLineup(matchId);
+  if(!lineup) return;
+  await supabase.from('lineup_players').delete().eq('lineup_id', lineup.id).eq('player_id', playerId);
+  window.__openLineup(matchId);
+};
+
+window.__clearLineup = async (matchId)=>{
+  const lineup = await ensureLineup(matchId);
+  if(!lineup) return;
+  const { error } = await supabase.from('lineup_players').delete().eq('lineup_id', lineup.id);
+  if(error){ toast(error.message, true); return; }
+  toast('Cancha vaciada');
+  window.__openLineup(matchId);
+};
+
+window.__saveFormationLabel = async (matchId)=>{
+  const lineup = await ensureLineup(matchId);
+  if(!lineup) return;
+  const { error } = await supabase.from('lineups')
+    .update({ formation_label: $('#lu-formation').value.trim() || null, updated_at: new Date().toISOString() })
+    .eq('id', lineup.id);
+  if(error){ toast(error.message, true); return; }
+  toast('Nombre de formación guardado');
 };
 
 // ---------------- EVALUACIONES (solo lectura para el jugador; el cuerpo   ----------------
