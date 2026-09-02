@@ -2009,6 +2009,7 @@ async function renderFinanzas(){
         <thead><tr><th>#</th><th>Jugador</th><th>Cuotas</th><th>Multas (tarjetas)</th><th>Total a deber</th><th>Pagado</th><th>Saldo pendiente</th><th>Estado</th></tr></thead>
         <tbody id="player-health-tbody">Cargando…</tbody>
       </table>
+      <button id="fin-export-overdue" class="secondary" style="margin-top:12px">⬇️ Exportar morosos y pendientes a Excel</button>
     </div>
     <div class="row">
       <div class="panel" style="flex:1">
@@ -2104,6 +2105,7 @@ async function renderFinanzas(){
   });
 
   $('#fin-export').addEventListener('click', exportFinanzasToExcel);
+  $('#fin-export-overdue').addEventListener('click', exportOverdueToExcel);
   $('#bc-save').addEventListener('click', async ()=>{
     const name = $('#bc-name').value.trim();
     const estimated_amount = Number($('#bc-amount').value) || 0;
@@ -2378,6 +2380,67 @@ async function exportFinanzasToExcel(){
 
   await downloadWorkbook(wb, `finanzas_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Excel de finanzas descargado');
+}
+
+// Exporta un .xlsx de una sola hoja, solo con los jugadores que tienen saldo
+// pendiente (Vencido o Pendiente) — pensado para hacer seguimiento/cobro,
+// por eso incluye teléfono y correo (que la hoja "Salud financiera" no trae).
+// Reusa exactamente el mismo cálculo de cuotas/multas/saldo/estado que la
+// tabla "Salud financiera de los jugadores" para que los números coincidan.
+async function exportOverdueToExcel(){
+  toast('Generando Excel…');
+  const [{data: allDues}, {data: allPays}, {data: stats}] = await Promise.all([
+    supabase.from('payment_dues').select('player_id, amount_due, due_date'),
+    supabase.from('payments').select('player_id, amount'),
+    supabase.from('player_match_stats').select('player_id, yellow_cards, red_cards'),
+  ]);
+  const todayISO = new Date().toISOString().slice(0,10);
+  const rows = (playersCache||[]).filter(p=>p.active).map(p=>{
+    const playerDues = (allDues||[]).filter(d=>d.player_id===p.id);
+    const cuotas = playerDues.reduce((a,d)=>a+Number(d.amount_due),0);
+    const pagado = (allPays||[]).filter(x=>x.player_id===p.id).reduce((a,x)=>a+Number(x.amount),0);
+    const yellow = (stats||[]).filter(s=>s.player_id===p.id).reduce((a,s)=>a+(s.yellow_cards||0),0);
+    const red = (stats||[]).filter(s=>s.player_id===p.id).reduce((a,s)=>a+(s.red_cards||0),0);
+    const multas = yellow*Number(fineSettings.yellow_card_fine||0) + red*Number(fineSettings.red_card_fine||0);
+    const total = cuotas + multas;
+    const saldo = total - pagado;
+    const hayVencida = playerDues.some(d=>d.due_date && d.due_date < todayISO);
+    const estado = saldo <= 0 ? 'Al día' : (hayVencida ? 'Vencido' : 'Pendiente');
+    return { p, cuotas, multas, total, pagado, saldo, estado, hayVencida };
+  }).filter(r=>r.saldo > 0);
+
+  if(!rows.length){
+    toast('No hay jugadores en mora ni con pagos pendientes 🎉');
+    return;
+  }
+
+  // Vencidos primero, luego por mayor saldo dentro de cada grupo.
+  rows.sort((a,b)=>{
+    if(a.hayVencida !== b.hayVencida) return a.hayVencida ? -1 : 1;
+    return b.saldo - a.saldo;
+  });
+
+  const wb = new ExcelJS.Workbook();
+  const moneyFmt = '"$"#,##0';
+  const ws = wb.addWorksheet('Morosos y pendientes');
+  ws.columns = [
+    { header: '#', key: 'num', width: 6 }, { header: 'Jugador', key: 'jugador', width: 26 },
+    { header: 'Teléfono', key: 'telefono', width: 16 }, { header: 'Correo', key: 'correo', width: 26 },
+    { header: 'Cuotas', key: 'cuotas', width: 14, style: { numFmt: moneyFmt } },
+    { header: 'Multas', key: 'multas', width: 14, style: { numFmt: moneyFmt } },
+    { header: 'Total a deber', key: 'total', width: 16, style: { numFmt: moneyFmt } },
+    { header: 'Pagado', key: 'pagado', width: 14, style: { numFmt: moneyFmt } },
+    { header: 'Saldo pendiente', key: 'saldo', width: 16, style: { numFmt: moneyFmt } },
+    { header: 'Estado', key: 'estado', width: 12 },
+  ];
+  styleHeaderRow(ws);
+  rows.forEach(r=> ws.addRow({
+    num: r.p.jersey_number, jugador: r.p.full_name, telefono: r.p.phone || '-', correo: r.p.email || '-',
+    cuotas: r.cuotas, multas: r.multas, total: r.total, pagado: r.pagado, saldo: r.saldo, estado: r.estado,
+  }));
+
+  await downloadWorkbook(wb, `morosos_pendientes_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Excel de morosos y pendientes descargado');
 }
 
 // ---------------- TEMPORADAS (histórico semestral) ----------------
