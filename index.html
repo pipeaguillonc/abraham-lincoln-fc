@@ -1155,19 +1155,36 @@ async function renderDashboard(){
     // este jugador) — si el cuerpo técnico nunca le registró la asistencia en
     // alguno, ese entreno cuenta igual en el denominador y baja el % (no se
     // "salta"), en vez de desaparecer del cálculo como pasaba antes.
+    //
+    // Si el jugador respondió "Asiste" en la convocatoria de un entrenamiento
+    // y el cuerpo técnico todavía no le registró la asistencia real (fila en
+    // 'attendance'), esa confirmación de convocatoria cuenta como presente
+    // para el promedio — así no se le "castiga" solo porque nadie pasó lista
+    // todavía. Si SÍ existe una fila de attendance para ese entreno, esa fila
+    // manda siempre (incluye el caso en que confirmó pero no llegó).
     const today = new Date().toISOString().slice(0,10);
-    const [{data: att}, {count: totalTrainings}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, nextEventCard] = await Promise.all([
-      supabase.from('attendance').select('status, trainings!inner(session_date)').eq('player_id', pid).lte('trainings.session_date', today),
-      supabase.from('trainings').select('*', {count:'exact', head:true}).lte('session_date', today),
+    const [{data: att}, {data: trainingsData}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, {data: myCallUpConfirms}, nextEventCard] = await Promise.all([
+      supabase.from('attendance').select('training_id, status, trainings!inner(session_date)').eq('player_id', pid).lte('trainings.session_date', today),
+      supabase.from('trainings').select('id').lte('session_date', today),
       supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
       supabase.from('player_recommendations').select('*', {count:'exact', head:true}).eq('player_id', pid),
       supabase.from('matches').select('*', {count:'exact', head:true}).lte('match_date', today),
       supabase.from('matches').select('*', {count:'exact', head:true}).eq('mvp_player_id', pid).lte('match_date', today),
+      supabase.from('call_up_responses').select('call_ups!inner(training_id, event_date)').eq('player_id', pid).eq('response', 'asiste').not('call_ups.training_id', 'is', null).lte('call_ups.event_date', today),
       fetchNextEventCard(),
     ]);
-    const presentes = (att||[]).filter(a=>a.status!=='ausente').length;
+    const totalTrainings = (trainingsData||[]).length;
+    const attStatusByTraining = Object.fromEntries((att||[]).map(a=>[a.training_id, a.status]));
+    const confirmedTrainingIds = new Set((myCallUpConfirms||[]).map(r=>r.call_ups?.training_id).filter(Boolean));
+    const presentes = (trainingsData||[]).filter(t=>{
+      const status = attStatusByTraining[t.id];
+      // Fila real de asistencia registrada por el cuerpo técnico: manda siempre.
+      if(status) return status !== 'ausente';
+      // Sin registro todavía: si confirmó "Asiste" en la convocatoria, cuenta como presente.
+      return confirmedTrainingIds.has(t.id);
+    }).length;
     const pctEntrenos = totalTrainings ? Math.round((presentes/totalTrainings)*100) : 0;
     // "Partidos jugados" cuenta solo los partidos con minutos_played > 0 — el
     // cuerpo técnico puede guardar una fila de player_match_stats con 0
@@ -1814,23 +1831,32 @@ window.__deleteTraining = async (trainingId)=>{
 async function renderAttendanceForTraining(trainingId, sessionDate){
   const container = $(`#att-${trainingId}`);
   if(!container) return;
-  const { data: att } = await supabase.from('attendance').select('*').eq('training_id', trainingId);
+  const [{ data: att }, { data: callUp }] = await Promise.all([
+    supabase.from('attendance').select('*').eq('training_id', trainingId),
+    supabase.from('call_ups').select('id').eq('training_id', trainingId).maybeSingle(),
+  ]);
   const byPlayer = Object.fromEntries((att||[]).map(a=>[a.player_id, a]));
+  let confirmedIds = new Set();
+  if(callUp){
+    const { data: responses } = await supabase.from('call_up_responses').select('player_id').eq('call_up_id', callUp.id).eq('response', 'asiste');
+    confirmedIds = new Set((responses||[]).map(r=>r.player_id));
+  }
 
   if(canManageEvents()){
     const { data: evals } = await supabase.from('evaluations').select('*').eq('training_id', trainingId);
     const evalByPlayer = Object.fromEntries((evals||[]).map(e=>[e.player_id, e]));
     container.innerHTML = `
-      <p class="muted">Registra asistencia y, opcionalmente, la calificación (1-5) del desempeño de cada jugador en este entrenamiento.</p>
+      <p class="muted">Registra asistencia y, opcionalmente, la calificación (1-5) del desempeño de cada jugador en este entrenamiento. Si un jugador confirmó "Asiste" en la convocatoria y aún no le registras la asistencia aquí, esa confirmación ya cuenta como presente en su promedio.</p>
       <table>
         <thead><tr><th>#</th><th>Jugador</th><th>Estado</th><th>Llegada</th><th>Motivo (si ausente)</th><th>Notas</th><th>Téc.</th><th>Fís.</th><th>Tác.</th><th>Men.</th><th></th></tr></thead>
         <tbody>
           ${playersCache.filter(p=>p.active).map(p=>{
             const a = byPlayer[p.id] || {};
             const e = evalByPlayer[p.id] || {};
+            const confirmedNoRecord = !a.status && confirmedIds.has(p.id);
             return `<tr data-pid="${p.id}" data-session-date="${sessionDate}">
               <td>#${p.jersey_number}</td>
-              <td>${p.full_name}</td>
+              <td>${p.full_name}${confirmedNoRecord ? ' <span class="badge presente" title="Confirmó Asiste en la convocatoria; ya cuenta como presente en su promedio">✅ confirmó</span>' : ''}</td>
               <td><select class="f-status">
                 <option value="presente" ${a.status==='presente'?'selected':''}>Presente</option>
                 <option value="tarde" ${a.status==='tarde'?'selected':''}>Tarde</option>
