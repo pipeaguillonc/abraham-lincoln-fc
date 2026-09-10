@@ -1062,7 +1062,12 @@ async function renderDashboard(){
     const total = att?.length || 0;
     const presentes = att?.filter(a=>a.status!=='ausente').length || 0;
     const pctEntrenos = total ? Math.round((presentes/total)*100) : 0;
-    const partidosJugados = stats?.length || 0;
+    // "Partidos jugados" cuenta solo los partidos con minutos_played > 0 — el
+    // cuerpo técnico puede guardar una fila de player_match_stats con 0
+    // minutos (p. ej. para marcar tarjetas/calificación de alguien que no
+    // participó, o al guardar toda la tabla de una vez), y esas filas NO
+    // cuentan como partido jugado aunque exista el registro en la tabla.
+    const partidosJugados = (stats||[]).filter(s=>s.minutes_played > 0).length;
     const pctPartidos = totalMatches ? Math.round((partidosJugados/totalMatches)*100) : 0;
     const minutosTotales = (stats||[]).reduce((a,s)=>a+s.minutes_played,0);
     const minutosPromedio = partidosJugados ? Math.round(minutosTotales/partidosJugados) : 0;
