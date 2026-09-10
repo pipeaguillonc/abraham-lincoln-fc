@@ -1042,15 +1042,22 @@ async function renderDashboard(){
   } else {
     renderPlayerNotifications();
     const pid = profile.player_id;
-    // El % de participación (y el resto de estadísticas de partidos) se calculan solo
-    // sobre partidos que YA se jugaron a la fecha — así el numerador (partidos jugados)
-    // y el denominador (partidos ya disputados por el equipo) quedan en la misma base.
-    // Si no se filtrara también el numerador (con el join a matches), un partido
-    // reprogramado a futuro después de haber guardado sus estadísticas podía inflar
-    // el % por encima de 100%.
+    // El % de participación (y el resto de estadísticas de partidos/entrenos) se
+    // calculan solo sobre eventos que YA pasaron a la fecha — así el numerador
+    // (a los que asistió/jugó) y el denominador (los que ya tuvo el equipo) quedan
+    // en la misma base. Si no se filtrara también el numerador (con el join a
+    // matches/trainings), un evento reprogramado a futuro después de haber
+    // guardado su registro podía inflar el % por encima de 100%.
+    //
+    // El denominador de entrenamientos es "cuántos entrenamientos ya tuvo el
+    // equipo" (tabla trainings, no cuántas filas de 'attendance' existan para
+    // este jugador) — si el cuerpo técnico nunca le registró la asistencia en
+    // alguno, ese entreno cuenta igual en el denominador y baja el % (no se
+    // "salta"), en vez de desaparecer del cálculo como pasaba antes.
     const today = new Date().toISOString().slice(0,10);
-    const [{data: att}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, nextEventCard] = await Promise.all([
-      supabase.from('attendance').select('status').eq('player_id', pid),
+    const [{data: att}, {count: totalTrainings}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, nextEventCard] = await Promise.all([
+      supabase.from('attendance').select('status, trainings!inner(session_date)').eq('player_id', pid).lte('trainings.session_date', today),
+      supabase.from('trainings').select('*', {count:'exact', head:true}).lte('session_date', today),
       supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
@@ -1059,9 +1066,8 @@ async function renderDashboard(){
       supabase.from('matches').select('*', {count:'exact', head:true}).eq('mvp_player_id', pid).lte('match_date', today),
       fetchNextEventCard(),
     ]);
-    const total = att?.length || 0;
-    const presentes = att?.filter(a=>a.status!=='ausente').length || 0;
-    const pctEntrenos = total ? Math.round((presentes/total)*100) : 0;
+    const presentes = (att||[]).filter(a=>a.status!=='ausente').length;
+    const pctEntrenos = totalTrainings ? Math.round((presentes/totalTrainings)*100) : 0;
     // "Partidos jugados" cuenta solo los partidos con minutos_played > 0 — el
     // cuerpo técnico puede guardar una fila de player_match_stats con 0
     // minutos (p. ej. para marcar tarjetas/calificación de alguien que no
