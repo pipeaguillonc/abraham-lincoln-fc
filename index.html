@@ -949,8 +949,13 @@ async function renderMonthlyHighlights(){
   const today = new Date().toISOString().slice(0,10);
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  // Ojo: se busca el partido ya jugado MÁS RECIENTE QUE TENGA figura elegida
+  // (not mvp_player_id is null), no simplemente "el último partido jugado" —
+  // si el DT todavía no le puso figura al partido más reciente pero sí a uno
+  // anterior, igual se muestra esa (la más reciente con figura), en vez de
+  // no mostrar nada solo porque el partido más nuevo quedó sin elegir.
   const [{ data: lastMatches }, { data: monthMatches }] = await Promise.all([
-    supabase.from('matches').select('id,opponent,match_date,mvp_player_id').lte('match_date', today).order('match_date', {ascending:false}).limit(1),
+    supabase.from('matches').select('id,opponent,match_date,mvp_player_id').lte('match_date', today).not('mvp_player_id', 'is', null).order('match_date', {ascending:false}).limit(1),
     supabase.from('matches').select('mvp_player_id').gte('match_date', monthStart).lte('match_date', today).not('mvp_player_id', 'is', null),
   ]);
   const lastMatch = lastMatches?.[0];
