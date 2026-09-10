@@ -194,6 +194,15 @@
   .lineup-bench-chip .num{width:22px;height:22px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:11px;flex:0 0 auto}
   .lineup-drag-ghost{position:fixed;left:0;top:0;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:none;z-index:999}
 
+  /* Lista de convocados junto a la cancha del Dashboard (mini formación de
+     solo lectura) — aprovecha el espacio horizontal en vez de dejarlo vacío
+     al lado de una cancha angosta, con el mismo # de camiseta que se ve en
+     la ficha del jugador dentro de la cancha, en orden de arriba hacia abajo. */
+  .lineup-roster{flex:1;min-width:200px;max-width:280px}
+  .lineup-roster-list{list-style:none;margin:0 0 12px;padding:0}
+  .lineup-roster-list li{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px solid var(--border);font-size:14px}
+  .lineup-roster-num{width:26px;height:26px;border-radius:50%;background:var(--brand);color:var(--brand-dark);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
   /* ============= RESPONSIVE (celular / tablet) ============= */
   /* #menu-toggle y #nav-overlay quedan del diseño anterior (menú lateral
      oculto); en celular ya no se usan — el menú pasó a ser una barra
@@ -1022,6 +1031,9 @@ async function renderDashboardLineup(){
     placed = lp || [];
   }
   const firstName = (fullName)=> (fullName||'').split(' ')[0];
+  // Mismo orden en la cancha y en la lista de al lado: de arriba (ataque)
+  // hacia abajo (arquero), según la posición vertical (pos_y) de cada ficha.
+  const placedSorted = placed.slice().sort((a,b)=> a.pos_y - b.pos_y);
   container.innerHTML = `
     <h3 class="section-title" style="margin-top:8px">⚽ Formación · vs ${nextMatch.opponent} · ${fmtDate(nextMatch.match_date)}</h3>
     ${placed.length ? `
@@ -1043,7 +1055,16 @@ async function renderDashboardLineup(){
             </div>`;
           }).join('')}
         </div>
-        ${canManage() ? `<div><button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button></div>` : ''}
+        <div class="lineup-roster">
+          <ul class="lineup-roster-list">
+            ${placedSorted.map(pp=>{
+              const p = playersCache.find(pl=>pl.id===pp.player_id);
+              if(!p) return '';
+              return `<li><span class="lineup-roster-num">${p.jersey_number}</span> ${p.full_name}</li>`;
+            }).join('')}
+          </ul>
+          ${canManage() ? `<button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button>` : ''}
+        </div>
       </div>
     ` : `<p class="muted">Todavía no hay formación armada para este partido.${canManage() ? ' Entra a Partidos para armarla.' : ''}</p>`}
   `;
