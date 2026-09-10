@@ -1030,6 +1030,23 @@ async function renderDashboardLineup(){
     const { data: lp } = await supabase.from('lineup_players').select('*').eq('lineup_id', lineup.id);
     placed = lp || [];
   }
+  // Suplentes: mismo criterio que en el pizarrón editable (window.__openLineup)
+  // — quienes confirmaron asistencia en Convocatoria (o, si nadie ha
+  // respondido todavía, todo el plantel activo como respaldo) y no están ya
+  // ubicados en la cancha.
+  let suplentes = [];
+  if(placed.length){
+    const { data: callUp } = await supabase.from('call_ups').select('id').eq('match_id', nextMatch.id).maybeSingle();
+    let confirmedIds = [];
+    if(callUp){
+      const { data: responses } = await supabase.from('call_up_responses').select('player_id').eq('call_up_id', callUp.id).eq('response', 'asiste');
+      confirmedIds = (responses||[]).map(r=>r.player_id);
+    }
+    const poolIds = new Set(confirmedIds.length ? confirmedIds : playersCache.filter(p=>p.active && !p.injured).map(p=>p.id));
+    const placedIds = new Set(placed.map(pp=>pp.player_id));
+    suplentes = [...poolIds].filter(id=>!placedIds.has(id)).map(id=>playersCache.find(p=>p.id===id)).filter(Boolean)
+      .sort((a,b)=>(a.jersey_number||0)-(b.jersey_number||0));
+  }
   const firstName = (fullName)=> (fullName||'').split(' ')[0];
   // Mismo orden en la cancha y en la lista de al lado: de arriba (ataque)
   // hacia abajo (arquero), según la posición vertical (pos_y) de cada ficha.
@@ -1056,6 +1073,7 @@ async function renderDashboardLineup(){
           }).join('')}
         </div>
         <div class="lineup-roster">
+          <div class="muted" style="font-weight:700;margin-bottom:4px">👕 Titulares</div>
           <ul class="lineup-roster-list">
             ${placedSorted.map(pp=>{
               const p = playersCache.find(pl=>pl.id===pp.player_id);
@@ -1063,6 +1081,12 @@ async function renderDashboardLineup(){
               return `<li><span class="lineup-roster-num">${p.jersey_number}</span> ${p.full_name}</li>`;
             }).join('')}
           </ul>
+          ${suplentes.length ? `
+            <div class="muted" style="font-weight:700;margin-bottom:4px">🔄 Suplentes</div>
+            <ul class="lineup-roster-list">
+              ${suplentes.map(p=>`<li><span class="lineup-roster-num">${p.jersey_number}</span> ${p.full_name}</li>`).join('')}
+            </ul>
+          ` : ''}
           ${canManage() ? `<button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button>` : ''}
         </div>
       </div>
@@ -3238,30 +3262,35 @@ window.__openLineup = async (matchId)=>{
       <button class="small secondary" onclick="window.__saveFormationLabel('${matchId}')">Guardar nombre</button>
       <button class="small danger" onclick="window.__clearLineup('${matchId}')">Vaciar cancha</button>
     </div>
-    <p class="muted">Arrastra a un jugador de "Disponibles" hacia la cancha para ubicarlo. Arrástralo desde la cancha hacia afuera para quitarlo. ${confirmedIds.length ? 'Los disponibles son quienes confirmaron asistencia en Convocatoria.' : 'Todavía nadie confirmó asistencia en Convocatoria — por ahora se muestra todo el plantel activo.'}</p>
-    <div class="muted" style="margin-bottom:6px">${placed.length}/11 en la cancha</div>
+    <p class="muted">Arrastra a un jugador de "Suplentes" hacia la cancha para ponerlo de titular. Arrástralo desde la cancha hacia afuera para devolverlo a suplentes. ${confirmedIds.length ? 'Los suplentes son quienes confirmaron asistencia en Convocatoria y todavía no están en la cancha.' : 'Todavía nadie confirmó asistencia en Convocatoria — por ahora se muestra todo el plantel activo.'}</p>
     <div class="lineup-wrap">
-      <div class="lineup-pitch" id="lineup-pitch">
-        <svg class="lineup-lines" viewBox="0 0 300 450" preserveAspectRatio="none">
-          <rect x="4" y="4" width="292" height="442" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-          <line x1="4" y1="225" x2="296" y2="225" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-          <circle cx="150" cy="225" r="40" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-          <rect x="70" y="4" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-          <rect x="70" y="386" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
-        </svg>
-        ${placed.map(pp=>{
-          const p = playersCache.find(pl=>pl.id===pp.player_id);
-          if(!p) return '';
-          return `<div class="lineup-chip" style="left:${pp.pos_x}%;top:${pp.pos_y}%" data-pid="${p.id}">
-            <div class="num">${p.jersey_number}</div>
-            <div class="name">${firstName(p.full_name)}</div>
-          </div>`;
-        }).join('')}
+      <div>
+        <div class="muted" style="margin-bottom:6px;font-weight:700">👕 Titulares — ${placed.length}/11 en la cancha</div>
+        <div class="lineup-pitch" id="lineup-pitch">
+          <svg class="lineup-lines" viewBox="0 0 300 450" preserveAspectRatio="none">
+            <rect x="4" y="4" width="292" height="442" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+            <line x1="4" y1="225" x2="296" y2="225" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+            <circle cx="150" cy="225" r="40" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+            <rect x="70" y="4" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+            <rect x="70" y="386" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+          </svg>
+          ${placed.map(pp=>{
+            const p = playersCache.find(pl=>pl.id===pp.player_id);
+            if(!p) return '';
+            return `<div class="lineup-chip" style="left:${pp.pos_x}%;top:${pp.pos_y}%" data-pid="${p.id}">
+              <div class="num">${p.jersey_number}</div>
+              <div class="name">${firstName(p.full_name)}</div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
-      <div class="lineup-bench" id="lineup-bench">
-        ${bench.length ? bench.map(p=>`
-          <div class="lineup-bench-chip" data-pid="${p.id}"><div class="num">${p.jersey_number}</div>${firstName(p.full_name)}</div>
-        `).join('') : '<span class="muted">No hay jugadores disponibles por ubicar.</span>'}
+      <div>
+        <div class="muted" style="margin-bottom:6px;font-weight:700">🔄 Suplentes</div>
+        <div class="lineup-bench" id="lineup-bench">
+          ${bench.length ? bench.map(p=>`
+            <div class="lineup-bench-chip" data-pid="${p.id}"><div class="num">${p.jersey_number}</div>${firstName(p.full_name)}</div>
+          `).join('') : '<span class="muted">No hay suplentes por ubicar.</span>'}
+        </div>
       </div>
     </div>
   `;
