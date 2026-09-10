@@ -1163,13 +1163,12 @@ async function renderDashboard(){
     // todavía. Si SÍ existe una fila de attendance para ese entreno, esa fila
     // manda siempre (incluye el caso en que confirmó pero no llegó).
     const today = new Date().toISOString().slice(0,10);
-    const [{data: att}, {data: trainingsData}, {data: stats}, {data: dues}, {data: pays}, {count: recCount}, {count: totalMatches}, {count: mvpCount}, {data: myCallUpConfirms}, nextEventCard] = await Promise.all([
+    const [{data: att}, {data: trainingsData}, {data: stats}, {data: dues}, {data: pays}, {count: totalMatches}, {count: mvpCount}, {data: myCallUpConfirms}, nextEventCard] = await Promise.all([
       supabase.from('attendance').select('training_id, status, trainings!inner(session_date)').eq('player_id', pid).lte('trainings.session_date', today),
       supabase.from('trainings').select('id').lte('session_date', today),
       supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
       supabase.from('payment_dues').select('amount_due').eq('player_id', pid),
       supabase.from('payments').select('amount').eq('player_id', pid),
-      supabase.from('player_recommendations').select('*', {count:'exact', head:true}).eq('player_id', pid),
       supabase.from('matches').select('*', {count:'exact', head:true}).lte('match_date', today),
       supabase.from('matches').select('*', {count:'exact', head:true}).eq('mvp_player_id', pid).lte('match_date', today),
       supabase.from('call_up_responses').select('call_ups!inner(training_id, event_date)').eq('player_id', pid).eq('response', 'asiste').not('call_ups.training_id', 'is', null).lte('call_ups.event_date', today),
@@ -1216,7 +1215,6 @@ async function renderDashboard(){
       <div class="card"><div class="num">${amarillas}</div><div class="label">Tarjetas amarillas</div></div>
       <div class="card"><div class="num">${rojas}</div><div class="label">Tarjetas rojas</div></div>
       <div class="card highlight-card"><div class="num">🏅 ${mvpCount ?? 0}</div><div class="label">Veces figura del partido</div></div>
-      <div class="card"><div class="num">${recCount ?? 0}</div><div class="label">Recomendaciones del técnico</div></div>
     `;
     // "fichaje" es igual a "jugador" pero sin nada del módulo financiero —
     // ni el ítem de menú "Resumen financiero" (ver buildNav) ni este resumen
