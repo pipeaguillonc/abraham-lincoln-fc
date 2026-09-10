@@ -150,9 +150,13 @@
 
   /* Tarjetas "Figura del partido" / "Jugador del mes" del dashboard, y el
      distintivo que se muestra en el detalle de un partido con figura elegida. */
-  .highlight-card{border-top-color:var(--warn)}
+  .highlight-card{border-top-color:var(--warn);display:flex;align-items:center;gap:12px}
+  .highlight-photo{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--warn);flex-shrink:0}
+  .highlight-photo-placeholder{width:52px;height:52px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
   .highlight-name{font-size:18px;font-weight:700;margin:4px 0 2px}
-  .mvp-badge{display:inline-block;background:var(--warn);color:#241a03;font-weight:700;padding:4px 12px;border-radius:999px;font-size:12px;margin:6px 0}
+  .mvp-badge{display:flex;align-items:center;gap:8px;background:var(--warn);color:#241a03;font-weight:700;padding:4px 12px 4px 4px;border-radius:999px;font-size:12px;margin:6px 0;width:fit-content}
+  .mvp-badge-photo{width:26px;height:26px;border-radius:50%;object-fit:cover}
+  .mvp-badge-photo-placeholder{width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:14px}
 
   /* Pizarrón de "Formación": cancha (proporción vertical, arco/portería
      arriba y abajo) con fichas de jugadores arrastrables, y a un lado la
@@ -562,6 +566,14 @@ async function loadPlayersCache(){
 }
 
 function playerName(id){ return playersCache.find(p=>p.id===id)?.full_name || '—'; }
+function playerPhoto(id){ return playersCache.find(p=>p.id===id)?.photo_url || null; }
+// Devuelve un <img> o un círculo con un ícono, según si el jugador tiene foto cargada.
+function playerAvatarHtml(id, cls){
+  const url = playerPhoto(id);
+  return url
+    ? `<img class="${cls}" src="${url}" alt="" />`
+    : `<div class="${cls}-placeholder">🏅</div>`;
+}
 
 // check existing session on load
 supabase.auth.getSession().then(({data})=>{
@@ -927,10 +939,10 @@ async function renderMonthlyHighlights(){
   const monthName = now.toLocaleDateString('es-ES', {month:'long'});
   const cards = [];
   if(lastMatch?.mvp_player_id){
-    cards.push(`<div class="card highlight-card"><div class="label">🏅 Figura del último partido</div><div class="highlight-name">${playerName(lastMatch.mvp_player_id)}</div><div class="muted">vs ${lastMatch.opponent}</div></div>`);
+    cards.push(`<div class="card highlight-card">${playerAvatarHtml(lastMatch.mvp_player_id,'highlight-photo')}<div><div class="label">🏅 Figura del último partido</div><div class="highlight-name">${playerName(lastMatch.mvp_player_id)}</div><div class="muted">vs ${lastMatch.opponent}</div></div></div>`);
   }
   if(playerOfMonth){
-    cards.push(`<div class="card highlight-card"><div class="label">⭐ Jugador del mes de ${monthName}</div><div class="highlight-name">${playerName(playerOfMonth[0])}</div><div class="muted">${playerOfMonth[1]} figura${playerOfMonth[1]>1?'s':''} del partido este mes</div></div>`);
+    cards.push(`<div class="card highlight-card">${playerAvatarHtml(playerOfMonth[0],'highlight-photo')}<div><div class="label">⭐ Jugador del mes de ${monthName}</div><div class="highlight-name">${playerName(playerOfMonth[0])}</div><div class="muted">${playerOfMonth[1]} figura${playerOfMonth[1]>1?'s':''} del partido este mes</div></div></div>`);
   }
   container.innerHTML = cards.length ? `<div class="cards">${cards.join('')}</div>` : '';
 }
@@ -2745,6 +2757,20 @@ window.__openMatch = async (matchId)=>{
   const { data: matchCallUp } = await supabase.from('call_ups').select('*').eq('match_id', matchId).maybeSingle();
   const byPlayer = Object.fromEntries((stats||[]).map(s=>[s.player_id, s]));
   const evalByPlayer = Object.fromEntries((evals||[]).map(e=>[e.player_id, e]));
+
+  // Sugerencia automática de "Figura del partido" según la calificación que
+  // le puso el DT (promedio de técnica/física/táctica/mental): el jugador
+  // con el promedio más alto queda pre-seleccionado en el select de abajo
+  // si todavía no se ha elegido ninguno a mano — el DT siempre puede
+  // cambiarlo antes de guardar (su elección manual manda sobre la sugerencia).
+  const ratingAvg = (e)=>{
+    const vals = [e?.technique, e?.physical, e?.tactical, e?.mental].map(Number).filter(v=>!isNaN(v) && v>0);
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  };
+  const suggestedMvp = Object.entries(evalByPlayer)
+    .map(([pid, e])=> ({ pid, avg: ratingAvg(e) }))
+    .filter(x=>x.avg !== null)
+    .sort((a,b)=> b.avg - a.avg || (playersCache.find(p=>p.id===a.pid)?.jersey_number||0) - (playersCache.find(p=>p.id===b.pid)?.jersey_number||0))[0];
   // Organización en 3 grupos, igual en la tabla de carga del cuerpo técnico que
   // en la vista de solo lectura del jugador: 1) titulares (arrancaron el
   // partido), 2) suplentes que sí jugaron (entraron pero no fueron titulares),
@@ -2774,7 +2800,7 @@ window.__openMatch = async (matchId)=>{
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
       ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
-      ${m.mvp_player_id ? `<div class="mvp-badge">🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
+      ${m.mvp_player_id ? `<div class="mvp-badge">${playerAvatarHtml(m.mvp_player_id,'mvp-badge-photo')} 🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -2838,9 +2864,13 @@ window.__openMatch = async (matchId)=>{
         <div class="row">
           <select id="em-mvp">
             <option value="">🏅 Figura del partido — sin elegir</option>
-            ${sortedMatchPlayers.map(p=>`<option value="${p.id}" ${m.mvp_player_id===p.id?'selected':''}>#${p.jersey_number} ${p.full_name}</option>`).join('')}
+            ${sortedMatchPlayers.map(p=>{
+              const isSelected = m.mvp_player_id ? m.mvp_player_id===p.id : suggestedMvp?.pid===p.id;
+              return `<option value="${p.id}" ${isSelected?'selected':''}>#${p.jersey_number} ${p.full_name}${(!m.mvp_player_id && suggestedMvp?.pid===p.id) ? ' — sugerido según calificación' : ''}</option>`;
+            }).join('')}
           </select>
         </div>
+        ${(!m.mvp_player_id && suggestedMvp) ? `<p class="muted" style="margin:-4px 0 10px">💡 Sugerido automáticamente según la calificación más alta (${suggestedMvp.avg.toFixed(1)}/5) — puedes dejarlo así o elegir a otro jugador antes de guardar.</p>` : ''}
         <div class="row">
           <button class="small" onclick="window.__saveMatch('${matchId}')">Guardar cambios</button>
           <button class="small danger" onclick="window.__deleteMatch('${matchId}')">Eliminar partido</button>
