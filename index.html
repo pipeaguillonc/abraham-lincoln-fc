@@ -158,6 +158,28 @@
   .mvp-badge-photo{width:26px;height:26px;border-radius:50%;object-fit:cover}
   .mvp-badge-photo-placeholder{width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:14px}
 
+  /* Banner destacado ("enmarcado") de la Figura del último partido, visible
+     en el Dashboard de todos los roles — foto grande con marco dorado,
+     nombre y calificación promedio (si el DT la cargó). */
+  .mvp-spotlight{
+    display:flex;align-items:center;gap:16px;background:var(--brand-dark);
+    border:3px solid var(--brand);border-radius:10px;padding:14px 20px;margin-bottom:18px;
+  }
+  .mvp-spotlight-frame{
+    width:84px;height:84px;border-radius:50%;border:4px solid var(--brand);
+    overflow:hidden;flex-shrink:0;background:var(--panel2);
+    display:flex;align-items:center;justify-content:center;font-size:36px;
+  }
+  .mvp-spotlight-frame img{width:100%;height:100%;object-fit:cover}
+  .mvp-spotlight-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--brand);font-weight:700}
+  .mvp-spotlight-name{font-size:22px;font-weight:800;color:#fff;margin:3px 0 2px}
+  .mvp-spotlight-meta{font-size:13px;color:var(--brand)}
+  @media (max-width:520px){
+    .mvp-spotlight{gap:12px;padding:12px}
+    .mvp-spotlight-frame{width:64px;height:64px;font-size:28px}
+    .mvp-spotlight-name{font-size:18px}
+  }
+
   /* Pizarrón de "Formación": cancha (proporción vertical, arco/portería
      arriba y abajo) con fichas de jugadores arrastrables, y a un lado la
      banca de jugadores disponibles todavía sin ubicar. */
@@ -928,23 +950,52 @@ async function renderMonthlyHighlights(){
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
   const [{ data: lastMatches }, { data: monthMatches }] = await Promise.all([
-    supabase.from('matches').select('opponent,match_date,mvp_player_id').lte('match_date', today).order('match_date', {ascending:false}).limit(1),
+    supabase.from('matches').select('id,opponent,match_date,mvp_player_id').lte('match_date', today).order('match_date', {ascending:false}).limit(1),
     supabase.from('matches').select('mvp_player_id').gte('match_date', monthStart).lte('match_date', today).not('mvp_player_id', 'is', null),
   ]);
   const lastMatch = lastMatches?.[0];
+
+  // Calificación promedio (técnica/física/táctica/mental) que le puso el DT
+  // a la figura del último partido, para mostrarla junto a su foto y nombre.
+  let mvpRatingAvg = null;
+  if(lastMatch?.mvp_player_id){
+    const { data: mvpEval } = await supabase.from('evaluations').select('technique,physical,tactical,mental')
+      .eq('match_id', lastMatch.id).eq('player_id', lastMatch.mvp_player_id).maybeSingle();
+    if(mvpEval){
+      const vals = [mvpEval.technique, mvpEval.physical, mvpEval.tactical, mvpEval.mental].map(Number).filter(v=>!isNaN(v) && v>0);
+      if(vals.length) mvpRatingAvg = vals.reduce((a,b)=>a+b,0)/vals.length;
+    }
+  }
+
   const mvpCounts = {};
   (monthMatches||[]).forEach(m=>{ mvpCounts[m.mvp_player_id] = (mvpCounts[m.mvp_player_id]||0) + 1; });
   const ranked = Object.entries(mvpCounts).sort((a,b)=> b[1]-a[1] || playerName(a[0]).localeCompare(playerName(b[0])));
   const playerOfMonth = ranked[0];
   const monthName = now.toLocaleDateString('es-ES', {month:'long'});
-  const cards = [];
+
+  // Banner "enmarcado" grande con la Figura del último partido: foto, nombre
+  // y calificación — visible en el Dashboard de todos los roles (Comité ALS,
+  // cuerpo técnico, jugadores y fichajes), no solo dentro del partido.
+  let spotlightHtml = '';
   if(lastMatch?.mvp_player_id){
-    cards.push(`<div class="card highlight-card">${playerAvatarHtml(lastMatch.mvp_player_id,'highlight-photo')}<div><div class="label">🏅 Figura del último partido</div><div class="highlight-name">${playerName(lastMatch.mvp_player_id)}</div><div class="muted">vs ${lastMatch.opponent}</div></div></div>`);
+    const photo = playerPhoto(lastMatch.mvp_player_id);
+    spotlightHtml = `
+      <div class="mvp-spotlight">
+        <div class="mvp-spotlight-frame">${photo ? `<img src="${photo}" alt="" />` : '🏅'}</div>
+        <div>
+          <div class="mvp-spotlight-eyebrow">🏅 Figura del último partido · vs ${lastMatch.opponent}</div>
+          <div class="mvp-spotlight-name">${playerName(lastMatch.mvp_player_id)}</div>
+          <div class="mvp-spotlight-meta">${mvpRatingAvg ? `⭐ Calificación: ${mvpRatingAvg.toFixed(1)} / 5` : 'Sin calificación registrada'}</div>
+        </div>
+      </div>
+    `;
   }
+
+  const cards = [];
   if(playerOfMonth){
     cards.push(`<div class="card highlight-card">${playerAvatarHtml(playerOfMonth[0],'highlight-photo')}<div><div class="label">⭐ Jugador del mes de ${monthName}</div><div class="highlight-name">${playerName(playerOfMonth[0])}</div><div class="muted">${playerOfMonth[1]} figura${playerOfMonth[1]>1?'s':''} del partido este mes</div></div></div>`);
   }
-  container.innerHTML = cards.length ? `<div class="cards">${cards.join('')}</div>` : '';
+  container.innerHTML = spotlightHtml + (cards.length ? `<div class="cards">${cards.join('')}</div>` : '');
 }
 
 // Mini cancha de solo lectura en el Dashboard con la Formación del próximo
