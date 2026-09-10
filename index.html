@@ -2928,6 +2928,7 @@ window.__openMatch = async (matchId)=>{
             <option value="uniforme_2" ${matchCallUp?.uniform==='uniforme_2'?'selected':''}>Uniforme 2 (blanco y azul)</option>
           </select>
         </div>
+        ${canManage() ? `
         <div class="row">
           <select id="em-mvp">
             <option value="">🏅 Figura del partido — sin elegir</option>
@@ -2938,6 +2939,13 @@ window.__openMatch = async (matchId)=>{
           </select>
         </div>
         ${(!m.mvp_player_id && suggestedMvp) ? `<p class="muted" style="margin:-4px 0 10px">💡 Sugerido automáticamente según la calificación más alta (${suggestedMvp.avg.toFixed(1)}/5) — puedes dejarlo así o elegir a otro jugador antes de guardar.</p>` : ''}
+        ` : `
+        <!-- "Figura del partido" es exclusiva de cuerpo técnico/Comité ALS (canManage()) —
+             a un jugador con el permiso individual "Partidos/Entrenos" (canManageEvents())
+             no se le muestra el selector, para que solo el cuerpo técnico decida quién fue
+             la figura. Ver window.__saveMatch: si este select no existe, no se toca el
+             valor ya guardado. -->
+        `}
         <div class="row">
           <button class="small" onclick="window.__saveMatch('${matchId}')">Guardar cambios</button>
           <button class="small danger" onclick="window.__deleteMatch('${matchId}')">Eliminar partido</button>
@@ -3056,8 +3064,13 @@ window.__saveMatch = async (matchId)=>{
     youtube_url: ytUrl || null,
     youtube_video_id: extractYouTubeId(ytUrl),
     youtube_url_2: ytUrl2 || null,
-    mvp_player_id: $('#em-mvp').value || null,
   };
+  // El selector de "Figura del partido" solo existe para cuerpo técnico/Comité
+  // ALS (canManage()) — si no está en pantalla (p. ej. un jugador con el
+  // permiso individual de Partidos/Entrenos editando el resto del partido),
+  // no se toca el valor que ya estaba guardado.
+  const mvpEl = $('#em-mvp');
+  if(mvpEl) payload.mvp_player_id = mvpEl.value || null;
   const { error } = await supabase.from('matches').update(payload).eq('id', matchId);
   if(error){ toast(error.message, true); return; }
   // Mantiene sincronizada la fecha y el uniforme de la convocatoria asociada.
