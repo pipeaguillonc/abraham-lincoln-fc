@@ -1163,7 +1163,7 @@ async function renderDashboard(){
     // todavía. Si SÍ existe una fila de attendance para ese entreno, esa fila
     // manda siempre (incluye el caso en que confirmó pero no llegó).
     const today = new Date().toISOString().slice(0,10);
-    const [{data: att}, {data: trainingsData}, {data: stats}, {data: dues}, {data: pays}, {count: totalMatches}, {count: mvpCount}, {data: myCallUpConfirms}, nextEventCard] = await Promise.all([
+    const [{data: att}, {data: trainingsData}, {data: stats}, {data: dues}, {data: pays}, {count: totalMatches}, {count: mvpCount}, {data: myCallUpConfirms}, {data: fineSettingsRow}, nextEventCard] = await Promise.all([
       supabase.from('attendance').select('training_id, status, trainings!inner(session_date)').eq('player_id', pid).lte('trainings.session_date', today),
       supabase.from('trainings').select('id').lte('session_date', today),
       supabase.from('player_match_stats').select('minutes_played,goals,assists,yellow_cards,red_cards, matches!inner(match_date)').eq('player_id', pid).lte('matches.match_date', today).order('created_at', {ascending:false}),
@@ -1172,6 +1172,7 @@ async function renderDashboard(){
       supabase.from('matches').select('*', {count:'exact', head:true}).lte('match_date', today),
       supabase.from('matches').select('*', {count:'exact', head:true}).eq('mvp_player_id', pid).lte('match_date', today),
       supabase.from('call_up_responses').select('call_ups!inner(training_id, event_date)').eq('player_id', pid).eq('response', 'asiste').not('call_ups.training_id', 'is', null).lte('call_ups.event_date', today),
+      supabase.from('fine_settings').select('*').limit(1).maybeSingle(),
       fetchNextEventCard(),
     ]);
     const totalTrainings = (trainingsData||[]).length;
@@ -1199,7 +1200,13 @@ async function renderDashboard(){
     const asistencias = (stats||[]).reduce((a,s)=>a+s.assists,0);
     const amarillas = (stats||[]).reduce((a,s)=>a+s.yellow_cards,0);
     const rojas = (stats||[]).reduce((a,s)=>a+s.red_cards,0);
-    const totalDue = (dues||[]).reduce((a,d)=>a+Number(d.amount_due),0);
+    // El saldo pendiente del jugador incluye tanto sus cuotas como las multas
+    // por tarjetas amarillas/rojas (mismo cálculo que usa el cuerpo técnico
+    // en Finanzas) — antes solo sumaba cuotas y las multas nunca aparecían
+    // en el saldo que ve el propio jugador en su Dashboard.
+    const cuotas = (dues||[]).reduce((a,d)=>a+Number(d.amount_due),0);
+    const multas = amarillas*Number(fineSettingsRow?.yellow_card_fine||0) + rojas*Number(fineSettingsRow?.red_card_fine||0);
+    const totalDue = cuotas + multas;
     const totalPaid = (pays||[]).reduce((a,p)=>a+Number(p.amount),0);
     const me = playersCache.find(p=>p.id===pid);
     $('#dash-cards').innerHTML = `
@@ -1223,7 +1230,9 @@ async function renderDashboard(){
       $('#dash-cards').insertAdjacentHTML('afterend', `
         <h3 class="section-title" style="margin-top:8px">Módulo financiero</h3>
         <div class="cards">
-          <div class="card"><div class="num">${fmtMoney(totalDue)}</div><div class="label">Total en cuotas</div></div>
+          <div class="card"><div class="num">${fmtMoney(cuotas)}</div><div class="label">Cuotas</div></div>
+          <div class="card"><div class="num">${fmtMoney(multas)}</div><div class="label">Multas (tarjetas)</div></div>
+          <div class="card"><div class="num">${fmtMoney(totalDue)}</div><div class="label">Total a deber</div></div>
           <div class="card"><div class="num">${fmtMoney(totalPaid)}</div><div class="label">Total pagado</div></div>
           <div class="card"><div class="num">${fmtMoney(totalDue-totalPaid)}</div><div class="label">Saldo pendiente</div></div>
         </div>
