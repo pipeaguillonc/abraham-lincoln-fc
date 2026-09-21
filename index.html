@@ -3929,6 +3929,12 @@ async function renderMensajes(){
       <div class="row">
         <textarea id="msg-body" placeholder="Escribe un mensaje…" style="flex:1;min-height:60px"></textarea>
       </div>
+      <div class="row" style="align-items:center;margin-bottom:12px">
+        <label class="muted" style="flex:1;font-size:12px">
+          📎 Adjuntar archivo (opcional — PDF, imagen, Word, Excel; máx. 15 MB)
+          <input id="msg-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" style="margin-top:4px" />
+        </label>
+      </div>
       <button id="msg-send">Enviar</button>
     </div>
   `;
@@ -3946,7 +3952,7 @@ async function renderMensajes(){
   // individuales. Jugador/fichaje la usan para escribirle a "todos mis
   // compañeros"; Comité ALS y cuerpo técnico (canMassMessageTeam) la usan
   // para escribirle a "todos los jugadores/fichajes" del equipo de una sola vez.
-  const [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }] = await Promise.all([
+  const [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }, { data: soloJugadores }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
       .in('role', contactRoles)
@@ -3956,6 +3962,9 @@ async function renderMensajes(){
     // para mostrar un aviso junto al nombre de cada contacto.
     supabase.from('messages').select('sender_id').eq('recipient_id', profile.id).is('read_at', null),
     (isPlayerSide || canMassMessageTeam) ? supabase.from('profiles').select('id').in('role', ['jugador','fichaje']).neq('id', profile.id) : Promise.resolve({ data: [] }),
+    // Solo para Comité ALS: lista de "jugador" puro (sin fichajes ni cuerpo
+    // técnico) para el "Comunicado oficial" con archivo adjunto.
+    isMaestro ? supabase.from('profiles').select('id').eq('role', 'jugador').neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
   // Si la consulta de compañeros falla (p. ej. por un permiso/RLS que
   // bloquea a un jugador leer los perfiles de otros jugadores), se avisa en
@@ -3971,13 +3980,21 @@ async function renderMensajes(){
   });
 
   const MASS_MESSAGE_VALUE = '__todos_mis_companeros__';
+  const COMUNICADO_VALUE = '__comunicado_oficial_jugadores__';
   const teammateIds = (teammates||[]).map(t=>t.id);
+  const soloJugadorIds = (soloJugadores||[]).map(t=>t.id);
 
   const contactSel = $('#msg-contact');
   const massOption = ((isPlayerSide || canMassMessageTeam) && teammateIds.length)
     ? `<option value="${MASS_MESSAGE_VALUE}">📣 ${canMassMessageTeam ? `Enviar a todos los jugadores/fichajes (${teammateIds.length})` : `Enviar a todos mis compañeros (${teammateIds.length})`}</option>`
     : '';
-  contactSel.innerHTML = massOption + (sorted.length
+  // Solo Comité ALS ve esta opción: comunicado oficial únicamente a
+  // jugadores (sin fichajes ni cuerpo técnico), pensado para mandar
+  // circulares/PDFs adjuntos.
+  const comunicadoOption = (isMaestro && soloJugadorIds.length)
+    ? `<option value="${COMUNICADO_VALUE}">📄 Comunicado oficial — solo jugadores, sin fichajes ni cuerpo técnico (${soloJugadorIds.length})</option>`
+    : '';
+  contactSel.innerHTML = massOption + comunicadoOption + (sorted.length
     ? sorted.map(c=>{
         const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
         const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
@@ -3993,6 +4010,8 @@ async function renderMensajes(){
       $('#msg-thread').innerHTML = canMassMessageTeam
         ? `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de los ${teammateIds.length} jugadores/fichajes del equipo (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`
         : `<p class="muted">Este mensaje se enviará como mensaje privado a cada uno de tus ${teammateIds.length} compañeros (aparecerá en el chat de cada uno contigo, no en un canal grupal aparte).</p>`;
+    } else if(value === COMUNICADO_VALUE){
+      $('#msg-thread').innerHTML = `<p class="muted">📄 Este comunicado se enviará como mensaje privado a cada uno de los ${soloJugadorIds.length} jugadores del equipo — <strong>no</strong> a fichajes ni al cuerpo técnico. Adjunta el PDF (u otro archivo) abajo si quieres incluirlo.</p>`;
     } else if(value){
       await loadMessageThread(value);
     } else {
@@ -4003,25 +4022,56 @@ async function renderMensajes(){
 
   contactSel.addEventListener('change', ()=> showThreadFor(contactSel.value));
 
+  // Sube el archivo adjunto (si se eligió uno) al mismo bucket que ya usa la
+  // app para fotos/logos, bajo su propia carpeta "message-attachments/". Se
+  // sube una sola vez y la misma URL se reutiliza en todas las filas cuando
+  // el mensaje es masivo (mensaje a todos / comunicado oficial).
+  const uploadMsgAttachment = async ()=>{
+    const file = $('#msg-file')?.files?.[0];
+    if(!file) return { attachment_url: null, attachment_name: null };
+    if(file.size > 15 * 1024 * 1024){ throw new Error('El archivo adjunto no puede pesar más de 15 MB'); }
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const path = `message-attachments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file);
+    if(upErr) throw upErr;
+    const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+    return { attachment_url: pub.publicUrl, attachment_name: file.name };
+  };
+
   $('#msg-send').addEventListener('click', async ()=>{
     const recipientId = contactSel.value;
     const body = $('#msg-body').value.trim();
+    const hasFile = !!$('#msg-file')?.files?.length;
     if(!recipientId){ toast('Elige un contacto primero', true); return; }
-    if(!body){ toast('Escribe un mensaje', true); return; }
+    if(!body && !hasFile){ toast('Escribe un mensaje o adjunta un archivo', true); return; }
 
-    if(recipientId === MASS_MESSAGE_VALUE){
-      const rows = teammateIds.map(id => ({ sender_id: profile.id, recipient_id: id, body }));
+    const sendBtn = $('#msg-send');
+    sendBtn.disabled = true;
+    let attachment;
+    try{
+      attachment = await uploadMsgAttachment();
+    }catch(err){
+      toast(err.message, true); sendBtn.disabled = false; return;
+    }
+
+    if(recipientId === MASS_MESSAGE_VALUE || recipientId === COMUNICADO_VALUE){
+      const targetIds = recipientId === COMUNICADO_VALUE ? soloJugadorIds : teammateIds;
+      const rows = targetIds.map(id => ({ sender_id: profile.id, recipient_id: id, body, ...attachment }));
       const { error } = await supabase.from('messages').insert(rows);
+      sendBtn.disabled = false;
       if(error){ toast(error.message, true); return; }
-      $('#msg-body').value = '';
-      toast(canMassMessageTeam ? `Mensaje enviado a ${teammateIds.length} jugadores/fichajes` : `Mensaje enviado a ${teammateIds.length} compañeros`);
+      $('#msg-body').value = ''; if($('#msg-file')) $('#msg-file').value = '';
+      toast(recipientId === COMUNICADO_VALUE
+        ? `Comunicado enviado a ${targetIds.length} jugadores`
+        : (canMassMessageTeam ? `Mensaje enviado a ${targetIds.length} jugadores/fichajes` : `Mensaje enviado a ${targetIds.length} compañeros`));
       await showThreadFor(recipientId);
       return;
     }
 
-    const { error } = await supabase.from('messages').insert({ sender_id: profile.id, recipient_id: recipientId, body });
+    const { error } = await supabase.from('messages').insert({ sender_id: profile.id, recipient_id: recipientId, body, ...attachment });
+    sendBtn.disabled = false;
     if(error){ toast(error.message, true); return; }
-    $('#msg-body').value = '';
+    $('#msg-body').value = ''; if($('#msg-file')) $('#msg-file').value = '';
     await loadMessageThread(recipientId);
   });
 }
@@ -4039,10 +4089,14 @@ async function loadMessageThread(contactId){
     ? msgs.map(m=>{
         const mine = m.sender_id === profile.id;
         const safeBody = (m.body||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const safeName = (m.attachment_name||'archivo adjunto').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const attachmentHtml = m.attachment_url
+          ? `<div style="margin-top:${safeBody?'6px':'0'}"><a href="${m.attachment_url}" target="_blank" rel="noopener" style="color:${mine?'#fff':'var(--brand)'};text-decoration:underline">📎 ${safeName}</a></div>`
+          : '';
         return `
           <div style="margin-bottom:10px;text-align:${mine?'right':'left'}">
             <div class="muted" style="font-size:11px">${mine?'Tú':'Ellos'} · ${new Date(m.created_at).toLocaleString('es-ES')}</div>
-            <div style="display:inline-block;background:${mine?'var(--accent2)':'var(--panel2)'};color:${mine?'#fff':'var(--text)'};padding:6px 10px;border-radius:8px;max-width:80%;text-align:left;white-space:pre-wrap">${safeBody}</div>
+            <div style="display:inline-block;background:${mine?'var(--accent2)':'var(--panel2)'};color:${mine?'#fff':'var(--text)'};padding:6px 10px;border-radius:8px;max-width:80%;text-align:left;white-space:pre-wrap">${safeBody}${attachmentHtml}</div>
           </div>
         `;
       }).join('')
