@@ -787,6 +787,27 @@
   .order-card small{color:var(--muted);font-size:13px}
   .order-card button{margin-left:auto;background:#fff;border:1.5px solid #111214;font-size:17px}
 
+  /* Selectores de uniforme (Partidos) */
+  .uni-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .uni-opt{flex-direction:column;gap:2px;background:#fff!important;border:2px solid var(--border);border-radius:14px;padding:12px 8px;color:var(--text);font-size:20px}
+  .uni-opt.active{border-color:var(--brand);box-shadow:0 0 0 3px rgba(255,210,31,.35)}
+  .uni-opt small{font-family:var(--font-body);font-weight:500;font-size:13px;color:var(--muted)}
+  .uni-jersey{width:84px;height:76px}
+  .rival-picker{display:flex;gap:16px;align-items:center;border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:14px;background:#fff}
+  .rival-preview{width:84px;height:76px;flex-shrink:0}
+  .rival-body{flex:1;min-width:0}
+  .rival-current{font-family:var(--font-display);font-weight:700;font-size:19px;margin-bottom:8px}
+  .rival-swatches{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .swatch{width:30px;height:30px;min-height:0!important;padding:0!important;border-radius:50%;border:2px solid #D5D7DB;box-shadow:inset 0 0 0 2px #fff;cursor:pointer}
+  .swatch.active{border-color:#111214;box-shadow:inset 0 0 0 2px #fff,0 0 0 2px var(--brand)}
+  .swatch-custom{display:inline-flex;align-items:center;justify-content:center;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);color:#fff;font-weight:800;position:relative;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .swatch-custom input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;margin:0;padding:0}
+  .swatch-clear{background:transparent!important;color:var(--muted);font-family:var(--font-body);font-size:13px;font-weight:600;padding:4px 6px!important;min-height:0!important;text-decoration:underline}
+  .match-kits{display:flex;align-items:center;gap:14px;background:var(--panel2);border-radius:14px;padding:10px 14px;margin:10px 0}
+  .match-kits .kit{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:17px;font-weight:600}
+  .match-kits .kit span.j{width:52px;height:48px}
+  .match-kits .vs{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--muted)}
+
   /* Pie de patrocinadores */
   .sponsors-footer{border-top:1px solid var(--border)}
 
@@ -936,26 +957,90 @@ function ic(name, cls){ return `<svg class="ic${cls ? ' '+cls : ''}" aria-hidden
 
 // Camiseta del equipo (negra con franjas amarillas) con el número o texto
 // encima. variant 'rival' = camiseta gris lisa para el equipo contrario.
-function jerseySvg(label, variant){
+// Colores disponibles para la camiseta del rival (se guardan como hex).
+const RIVAL_COLORS = [
+  ['#FFFFFF','Blanco'],['#8A8D92','Gris'],['#111214','Negro'],['#D62828','Rojo'],['#8B1E3F','Vinotinto'],
+  ['#1D4ED8','Azul'],['#5BC0EB','Celeste'],['#1E9E55','Verde'],['#F77F00','Naranja'],['#FFD21F','Amarillo'],['#7B2CBF','Morado'],
+];
+function rivalColorName(hex){
+  if(!hex) return '';
+  const f = RIVAL_COLORS.find(c=>c[0].toLowerCase()===String(hex).toLowerCase());
+  return f ? f[1] : 'Color personalizado';
+}
+function isLightColor(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex||''); if(!m) return false;
+  const n = parseInt(m[1],16), r=n>>16, g=(n>>8)&255, b=n&255;
+  return (0.299*r + 0.587*g + 0.114*b) > 170;
+}
+
+// Camiseta (SVG) con número o texto encima.
+//  variant ''      = Uniforme 1 de Abraham Lincoln (negro con amarillo)
+//  variant 'u2'    = Uniforme 2 de Abraham Lincoln (blanco con azul)
+//  variant 'rival' = camiseta lisa del rival, del color indicado (gris si no hay)
+function jerseySvg(label, variant, color){
   const txt = (label === null || label === undefined) ? '' : String(label);
+  const shape = 'M38 8 14 20 4 46l18 7 4-10v61h68V43l4 10 18-7-10-26L82 8c-4 9-12 13-22 13S42 17 38 8z';
   if(variant === 'rival'){
+    const fill = color || '#8A8D92';
+    const trim = isLightColor(fill) ? '#9AA0A6' : '#fff';
     return `<svg class="jersey" viewBox="0 0 120 110" aria-hidden="true">
-      <path d="M38 8 14 20 4 46l18 7 4-10v61h68V43l4 10 18-7-10-26L82 8c-4 9-12 13-22 13S42 17 38 8z" fill="#8A8D92" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M38 8c4 9 12 13 22 13s18-4 22-13" fill="none" stroke="#fff" stroke-width="4"/>
-      <path d="M14 20 4 46l18 7" fill="none" stroke="#fff" stroke-width="6"/><path d="M106 20l10 26-18 7" fill="none" stroke="#fff" stroke-width="6"/>
-      <circle cx="78" cy="38" r="5" fill="#fff"/><circle cx="78" cy="38" r="2" fill="#8A8D92"/>
+      <path d="${shape}" fill="${fill}" stroke="${trim}" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M38 8c4 9 12 13 22 13s18-4 22-13" fill="none" stroke="${trim}" stroke-width="4"/>
+      <path d="M14 20 4 46l18 7" fill="none" stroke="${trim}" stroke-width="6"/><path d="M106 20l10 26-18 7" fill="none" stroke="${trim}" stroke-width="6"/>
+      <circle cx="78" cy="38" r="5" fill="${trim}"/><circle cx="78" cy="38" r="2" fill="${fill}"/>
     </svg>`;
   }
+  const u2 = variant === 'u2';
+  const body = u2 ? '#F4F5F7' : '#121315', accent = u2 ? '#1D4ED8' : '#FFD21F', edge = u2 ? '#C9CCD2' : '#121315';
   const size = txt.length >= 3 ? 30 : (txt.length === 2 ? 40 : 44);
   return `<svg class="jersey" viewBox="0 0 120 110" aria-hidden="true">
-    <path d="M38 8 14 20 4 46l18 7 4-10v61h68V43l4 10 18-7-10-26L82 8c-4 9-12 13-22 13S42 17 38 8z" fill="#121315" stroke="#121315" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M38 8c4 9 12 13 22 13s18-4 22-13" fill="none" stroke="#FFD21F" stroke-width="4"/>
-    <path d="M6.5 40.5l17 6.8M113.5 40.5l-17 6.8" stroke="#FFD21F" stroke-width="4"/>
-    <path d="M70 104 94 62v-7L62 104zM79 104l15-26v8L87 104zM74 52l10-14 2 6-9 13z" fill="#FFD21F" opacity=".95"/>
-    <path d="M90 30l4 4-2 6zM86 72l8-9v4z" fill="#FFD21F" opacity=".6"/>
-    ${txt ? `<text x="60" y="${txt.length>=3?72:76}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="${size}" fill="#FFD21F">${txt}</text>` : ''}
+    <path d="${shape}" fill="${body}" stroke="${edge}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M38 8c4 9 12 13 22 13s18-4 22-13" fill="none" stroke="${accent}" stroke-width="4"/>
+    <path d="M6.5 40.5l17 6.8M113.5 40.5l-17 6.8" stroke="${accent}" stroke-width="4"/>
+    <path d="M70 104 94 62v-7L62 104zM79 104l15-26v8L87 104zM74 52l10-14 2 6-9 13z" fill="${accent}" opacity=".95"/>
+    <path d="M90 30l4 4-2 6zM86 72l8-9v4z" fill="${accent}" opacity=".6"/>
+    ${txt ? `<text x="60" y="${txt.length>=3?72:76}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="${size}" fill="${accent}">${txt}</text>` : ''}
   </svg>`;
 }
+
+// Selector visual del uniforme de Abraham Lincoln (Uniforme 1 / Uniforme 2).
+// Escribe en el <select id=selectId> de siempre, que es el que lee la app al guardar.
+function uniformPickerHtml(selectId, current){
+  const cur = current === 'uniforme_2' ? 'uniforme_2' : 'uniforme_1';
+  const opt = (v, name, desc) => `<button type="button" class="uni-opt ${v===cur?'active':''}" data-val="${v}" onclick="window.__pickUniform(this)"><span class="uni-jersey">${jerseySvg('AL', v==='uniforme_2'?'u2':'')}</span><b>${name}</b><small>${desc}</small></button>`;
+  return `<div class="uni-picker" data-for="${selectId}">${opt('uniforme_1','Uniforme 1','Negro y amarillo')}${opt('uniforme_2','Uniforme 2','Blanco y azul')}</div>
+    <select id="${selectId}" style="display:none"><option value="uniforme_1" ${cur==='uniforme_1'?'selected':''}>Uniforme 1 (negro y amarillo)</option><option value="uniforme_2" ${cur==='uniforme_2'?'selected':''}>Uniforme 2 (blanco y azul)</option></select>`;
+}
+window.__pickUniform = function(btn){
+  const wrap = btn.closest('.uni-picker');
+  wrap.querySelectorAll('.uni-opt').forEach(b=> b.classList.toggle('active', b===btn));
+  document.getElementById(wrap.dataset.for).value = btn.dataset.val;
+};
+
+// Selector del color de la camiseta del rival: muestras rápidas + color libre.
+// El valor queda en <input type="hidden" id=inputId> ('' = sin definir).
+function rivalColorPickerHtml(inputId, current){
+  const cur = current || '';
+  return `<div class="rival-picker" data-for="${inputId}">
+    <div class="rival-preview">${jerseySvg('', 'rival', cur)}</div>
+    <div class="rival-body">
+      <div class="rival-current">${cur ? rivalColorName(cur) : 'Sin definir'}</div>
+      <div class="rival-swatches">
+        ${RIVAL_COLORS.map(([hex,name])=>`<button type="button" class="swatch ${hex.toLowerCase()===cur.toLowerCase()?'active':''}" style="background:${hex}" title="${name}" aria-label="${name}" onclick="window.__pickRivalColor('${inputId}','${hex}')"></button>`).join('')}
+        <label class="swatch swatch-custom" title="Otro color">+<input type="color" value="${cur || '#8A8D92'}" oninput="window.__pickRivalColor('${inputId}', this.value)" /></label>
+        <button type="button" class="swatch-clear" onclick="window.__pickRivalColor('${inputId}','')">Quitar</button>
+      </div>
+    </div>
+    <input type="hidden" id="${inputId}" value="${cur}" />
+  </div>`;
+}
+window.__pickRivalColor = function(inputId, hex){
+  const wrap = document.querySelector(`.rival-picker[data-for="${inputId}"]`);
+  document.getElementById(inputId).value = hex || '';
+  wrap.querySelector('.rival-preview').innerHTML = jerseySvg('', 'rival', hex);
+  wrap.querySelector('.rival-current').textContent = hex ? rivalColorName(hex) : 'Sin definir';
+  wrap.querySelectorAll('.swatch:not(.swatch-custom)').forEach(s=> s.classList.toggle('active', !!hex && s.title && RIVAL_COLORS.some(c=>c[1]===s.title && c[0].toLowerCase()===hex.toLowerCase())));
+};
 
 // Fecha corta estilo mockup: "18 OCT"
 function fmtDayMon(d){
@@ -3973,12 +4058,10 @@ async function renderPartidos(){
           <input id="nm-youtube" placeholder="Link de YouTube - Primer tiempo" />
           <input id="nm-youtube2" placeholder="Link de YouTube - Segundo tiempo" />
         </div>
-        <div class="row">
-          <select id="nm-uniform">
-            <option value="uniforme_1">Uniforme 1 (negro y amarillo)</option>
-            <option value="uniforme_2">Uniforme 2 (blanco y azul)</option>
-          </select>
-        </div>
+        <label class="field-label">Uniforme de Abraham Lincoln</label>
+        ${uniformPickerHtml('nm-uniform', 'uniforme_1')}
+        <label class="field-label">Color de la camiseta del rival</label>
+        ${rivalColorPickerHtml('nm-rival-color', '')}
         <div class="row">
           <button id="nm-search-yt" class="secondary">Buscar en YouTube del canal</button>
           <button id="nm-search-ig" class="secondary">Buscar en Instagram</button>
@@ -4002,10 +4085,11 @@ async function renderPartidos(){
       <div class="fx-top">${ic('trophy')} <span>${m.competition || 'Partido'}</span></div>
       <div class="fx-date">${fmtDayMon(m.match_date)}${m.match_time ? ' · '+m.match_time.slice(0,5) : ''}</div>
       <div class="fx-teams">
-        <div class="fx-team"><div class="jersey-wrap">${jerseySvg('AL')}</div><div class="fx-team-name">Abraham Lincoln FC</div>${m.location ? `<div class="fx-meta">${ic('pin')} ${m.location}</div>` : ''}</div>
+        <div class="fx-team"><div class="jersey-wrap">${jerseySvg('AL', uni==='uniforme_2' ? 'u2' : '')}</div><div class="fx-team-name">Abraham Lincoln FC</div><div class="fx-meta">${ic('shirt')} ${uni==='uniforme_2' ? 'Uniforme 2' : 'Uniforme 1'}</div></div>
         <div class="fx-vs">VS</div>
-        <div class="fx-team"><div class="jersey-wrap">${jerseySvg('', 'rival')}</div><div class="fx-team-name">${m.opponent}</div>${uni ? `<div class="fx-meta">${ic('shirt')} ${(UNIFORM_LABELS[uni]||uni).replace(/\s*\(.*\)/,'')}</div>` : ''}</div>
+        <div class="fx-team"><div class="jersey-wrap">${jerseySvg('', 'rival', m.rival_color)}</div><div class="fx-team-name">${m.opponent}</div>${m.rival_color ? `<div class="fx-meta">${ic('shirt')} ${rivalColorName(m.rival_color)}</div>` : ''}</div>
       </div>
+      ${m.location ? `<div class="fx-meta" style="margin:-4px 0 14px">${ic('pin')} ${m.location}</div>` : ''}
       <div class="fx-actions">
         <button type="button" onclick="event.stopPropagation();window.__navigate('convocatoria')">Ver convocatoria</button>
         <a class="${mapUrl ? '' : 'disabled'}" href="${mapUrl ? normalizeUrl(mapUrl) : '#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('pin')} Cómo llegar</a>
@@ -4076,8 +4160,17 @@ async function renderPartidos(){
         youtube_url_2: ytUrl2 || null,
         season_id: currentSeasonId(),
       };
+      const rivalColor = $('#nm-rival-color')?.value || '';
+      if(rivalColor) payload.rival_color = rivalColor;
       if(!payload.match_date || !payload.opponent){ toast('Fecha y rival son obligatorios', true); return; }
-      const { data: newMatch, error } = await supabase.from('matches').insert(payload).select().single();
+      let { data: newMatch, error } = await supabase.from('matches').insert(payload).select().single();
+      // Si la base de datos todavía no tiene la columna "rival_color", el
+      // partido se crea igual (sin el color) y se avisa qué falta activar.
+      if(error && /rival_color/.test(error.message || '')){
+        delete payload.rival_color;
+        ({ data: newMatch, error } = await supabase.from('matches').insert(payload).select().single());
+        if(!error) toast('Partido creado. El color del rival no se guardó: falta activar esa opción en la base de datos.', true);
+      }
       if(error) return toast(error.message, true);
       // Convocatoria automática: los jugadores la ven de inmediato como notificación,
       // incluyendo el uniforme que les corresponde para este partido.
@@ -4179,6 +4272,11 @@ window.__openMatch = async (matchId)=>{
       <button class="secondary small" onclick="window.__closeMatch()">← Volver a todos los partidos</button>
       <h3>${fmtDate(m.match_date)}${m.match_time?' · '+m.match_time.slice(0,5):''} vs ${m.opponent} ${m.result?('· '+m.result):''}</h3>
       ${(m.location || m.location_url) ? `<div class="muted">${m.location ? '📍 '+m.location : ''} ${mapsLinkAuto(m.location, m.location_url)}</div>` : ''}
+      <div class="match-kits">
+        <div class="kit"><span class="j">${jerseySvg('AL', matchCallUp?.uniform==='uniforme_2' ? 'u2' : '')}</span>${matchCallUp?.uniform==='uniforme_2' ? 'Uniforme 2' : 'Uniforme 1'}</div>
+        <div class="vs">VS</div>
+        <div class="kit"><span class="j">${jerseySvg('', 'rival', m.rival_color)}</span>${m.rival_color ? rivalColorName(m.rival_color) : 'Color rival sin definir'}</div>
+      </div>
       ${m.mvp_player_id ? `<div class="mvp-badge">${playerAvatarHtml(m.mvp_player_id,'mvp-badge-photo')} 🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
@@ -4234,12 +4332,10 @@ window.__openMatch = async (matchId)=>{
             </div>
           </div>
         </div>
-        <div class="row">
-          <select id="em-uniform">
-            <option value="uniforme_1" ${(!matchCallUp?.uniform || matchCallUp.uniform==='uniforme_1')?'selected':''}>Uniforme 1 (negro y amarillo)</option>
-            <option value="uniforme_2" ${matchCallUp?.uniform==='uniforme_2'?'selected':''}>Uniforme 2 (blanco y azul)</option>
-          </select>
-        </div>
+        <label class="field-label" style="margin-top:6px">Uniforme de Abraham Lincoln</label>
+        ${uniformPickerHtml('em-uniform', matchCallUp?.uniform)}
+        <label class="field-label">Color de la camiseta del rival</label>
+        ${rivalColorPickerHtml('em-rival-color', m.rival_color || '')}
         ${canManage() ? `
         <div class="row">
           <select id="em-mvp">
@@ -4383,7 +4479,15 @@ window.__saveMatch = async (matchId)=>{
   // no se toca el valor que ya estaba guardado.
   const mvpEl = $('#em-mvp');
   if(mvpEl) payload.mvp_player_id = mvpEl.value || null;
-  const { error } = await supabase.from('matches').update(payload).eq('id', matchId);
+  const rivalEl = $('#em-rival-color');
+  if(rivalEl) payload.rival_color = rivalEl.value || null;
+  let { error } = await supabase.from('matches').update(payload).eq('id', matchId);
+  // Igual que al crear: sin la columna "rival_color" se guarda todo lo demás.
+  if(error && /rival_color/.test(error.message || '')){
+    delete payload.rival_color;
+    ({ error } = await supabase.from('matches').update(payload).eq('id', matchId));
+    if(!error) toast('El color del rival no se guardó: falta activar esa opción en la base de datos.', true);
+  }
   if(error){ toast(error.message, true); return; }
   // Mantiene sincronizada la fecha y el uniforme de la convocatoria asociada.
   const uniform = $('#em-uniform').value;
