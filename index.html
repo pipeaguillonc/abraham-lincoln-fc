@@ -1797,7 +1797,7 @@ function renderPlayersRows(){
       <td>${canManage() ? `<input type="number" class="jersey-input" style="width:70px" value="${p.jersey_number}">` : '#'+p.jersey_number}</td>
       <td>
         ${p.photo_url ? `<img src="${p.photo_url}" alt="${(p.full_name||'').replace(/"/g,'&quot;')}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;display:block;margin-bottom:4px" />` : '<span class="muted">Sin foto</span>'}
-        ${canManage() ? `<input type="file" class="photo-input" accept="image/*" style="font-size:10px;width:110px;padding:2px;margin-bottom:4px" /><button class="small secondary" onclick="window.__updatePhoto('${p.id}', this)">Cambiar foto</button>` : ''}
+        ${canManage() ? `<input type="file" class="photo-input" accept="image/*" style="display:none" onchange="window.__updatePhoto('${p.id}', this)" /><button class="small secondary" onclick="this.previousElementSibling.click()">Cambiar foto</button>` : ''}
       </td>
       <td>${p.full_name}</td>
       <td>${canManage() ? `<select class="position-input" style="width:160px">${PLAYER_POSITIONS.map(pos=>`<option value="${pos}" ${p.position===pos?'selected':''}>${pos}</option>`).join('')}</select>` : (p.position||'-')}</td>
@@ -1860,7 +1860,7 @@ function openPlayerDetail(id){
       <h3 style="margin:0 0 2px">#${p.jersey_number} ${p.full_name}</h3>
       ${!editable ? `<p class="muted" style="margin:0 0 10px">${p.position||'Posición sin definir'}</p>` : ''}
       ${editable ? `
-        <input type="file" id="pd-photo-input" accept="image/*" style="margin-bottom:8px" />
+        <input type="file" id="pd-photo-input" accept="image/*" style="display:none" />
         <button class="small secondary" id="pd-photo-save">${p.photo_url ? 'Cambiar foto' : 'Subir foto'}</button>
       ` : ''}
     </div>
@@ -1882,9 +1882,12 @@ function openPlayerDetail(id){
   `;
   $('#pd-back').addEventListener('click', closePlayerDetail);
   if(editable){
-    $('#pd-photo-save').addEventListener('click', async ()=>{
+    $('#pd-photo-save').addEventListener('click', ()=> $('#pd-photo-input').click());
+    $('#pd-photo-input').addEventListener('change', async ()=>{
+      // La subida arranca sola apenas se elige la foto en el selector nativo
+      // (evento "change"), ya no depende de un segundo clic en este botón.
       const file = $('#pd-photo-input').files[0];
-      if(!file){ toast('Selecciona una imagen primero', true); return; }
+      if(!file) return;
       if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.)', true); return; }
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `players/${id}-${Date.now()}.${ext}`;
@@ -1981,11 +1984,13 @@ window.__savePlayerRow = async (id, btn)=>{
   renderPlayersRows();
 };
 
-window.__updatePhoto = async (id, btn)=>{
-  const tr = btn.closest('tr');
-  const input = tr.querySelector('.photo-input');
-  const file = input?.files[0];
-  if(!file){ toast('Selecciona una imagen primero', true); return; }
+window.__updatePhoto = async (id, inputEl)=>{
+  // inputEl es el <input type=file> real (oculto): el botón visible solo le
+  // hace clic a este input, y la subida arranca sola apenas queda elegida una
+  // foto (evento "change"), así no hace falta un segundo clic aparte que
+  // antes era fácil saltarse y mostraba "Selecciona una imagen primero".
+  const file = inputEl.files[0];
+  if(!file) return;
   if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `players/${id}-${Date.now()}.${ext}`;
@@ -2018,7 +2023,7 @@ async function renderPerfil(){
           ${p.document_number ? `<span class="muted"> · Doc. ${p.document_number}</span>` : ''}
         </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-          <input type="file" id="mp-photo" accept="image/*" style="font-size:11px;width:150px;margin-bottom:0;padding:2px" />
+          <input type="file" id="mp-photo" accept="image/*" style="display:none" />
           <button class="small secondary" id="mp-photo-save">${p.photo_url ? 'Cambiar foto' : 'Subir foto'}</button>
         </div>
       </div>
@@ -2053,9 +2058,16 @@ async function renderPerfil(){
     await loadPlayersCache();
     renderPerfil();
   });
-  $('#mp-photo-save').addEventListener('click', async ()=>{
+  // El botón "Subir/Cambiar foto" abre directamente el selector de archivos
+  // (el <input type=file> real queda oculto); apenas se elige una foto se
+  // sube sola, sin un segundo clic — antes había que (1) elegir el archivo y
+  // (2) acordarse de darle clic a este botón aparte, y era fácil tocar
+  // "Subir foto" sin haber completado el paso 1, lo que mostraba "Selecciona
+  // una imagen primero" aunque la persona sintiera que ya había cargado la foto.
+  $('#mp-photo-save').addEventListener('click', ()=> $('#mp-photo').click());
+  $('#mp-photo').addEventListener('change', async ()=>{
     const file = $('#mp-photo').files[0];
-    if(!file){ toast('Selecciona una imagen primero', true); return; }
+    if(!file) return;
     if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `players/${p.id}-${Date.now()}.${ext}`;
