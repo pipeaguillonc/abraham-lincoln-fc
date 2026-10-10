@@ -1367,6 +1367,7 @@
   .med-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
   .med-cheers{flex:1;font-size:13.5px;color:var(--muted);min-width:140px}
   .med-actions button{width:auto;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+  .cp-flash{outline:3px solid #F5C400;outline-offset:4px;border-radius:12px;transition:outline-color 1.5s}
 
 </style>
 <script>
@@ -3137,12 +3138,38 @@ window.__coachNoteEdit = async ()=>{
   $('#cn-clear')?.addEventListener('click', ()=> save(null));
 };
 
+// ---- Botones del panel: llevan directo a la acción ----
+function waitFor(sel, ms){ return new Promise(res=>{ const t0 = Date.now(); const tick = ()=>{ const el = document.querySelector(sel); if(el || Date.now() - t0 > (ms||5000)) return res(el); setTimeout(tick, 120); }; tick(); }); }
+window.__cpRemind = ()=>{ const t = window.__cpRemindText; if(t) window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); };
+window.__cpAttendance = async (tid)=>{
+  navigate('entrenamientos');
+  const el = await waitFor('#att-' + tid);
+  if(!el) return;
+  // Si el entrenamiento ya pasó, está en la pestaña "Realizados"
+  const inPast = el.closest('#ent-realizados');
+  if(inPast) document.querySelector('.tab-pill[data-ent-tab="realizados"]')?.click();
+  const d = el.closest('details'); if(d) d.open = true;
+  setTimeout(()=> el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  el.classList.add('cp-flash'); setTimeout(()=> el.classList.remove('cp-flash'), 2200);
+};
+window.__cpRate = async (mid)=>{
+  currentView = 'partidos';
+  window.__onViewChange && window.__onViewChange('partidos');
+  updateBottomTabbar('partidos'); closeMobileNav();
+  $$('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.view === 'partidos'));
+  await renderPartidos();
+  await window.__openMatch(mid);
+  await new Promise(r=> setTimeout(r, 300));
+  const h = [...document.querySelectorAll('h4')].find(x=> /calificaci/i.test(x.textContent));
+  if(h){ h.scrollIntoView({ behavior: 'smooth', block: 'start' }); h.classList.add('cp-flash'); setTimeout(()=> h.classList.remove('cp-flash'), 2200); }
+};
+
 // ---- Panel del técnico: pendientes + resumen del equipo ----
 async function renderCoachPanel(){
   const el = $('#coach-panel'); if(!el) return;
   const today = new Date().toISOString().slice(0,10);
   const [{ data: next }, { data: past }, { data: trs }, { data: evals }, { data: att }, { data: ts }, staff] = await Promise.all([
-    supabase.from('matches').select('id,opponent,match_date,match_time').gte('match_date', today).order('match_date').limit(1),
+    supabase.from('matches').select('id,opponent,match_date,match_time,location').gte('match_date', today).order('match_date').limit(1),
     supabase.from('matches').select('id,opponent,match_date,result').lt('match_date', today).order('match_date', { ascending: false }),
     supabase.from('trainings').select('id,session_date').lte('session_date', today).order('session_date', { ascending: false }),
     supabase.from('evaluations').select('match_id').not('match_id', 'is', null),
@@ -3156,28 +3183,34 @@ async function renderCoachPanel(){
   const items = [];
   // Convocatoria del próximo partido
   if(nm){
-    const { data: cu } = await supabase.from('call_ups').select('id').eq('match_id', nm.id).maybeSingle();
+    const { data: cu } = await supabase.from('call_ups').select('id,uniform').eq('match_id', nm.id).maybeSingle();
     if(!cu){
-      items.push({ icon:'shirt', t:`Crear la convocatoria vs ${escS(nm.opponent)}`, s:`Partido el ${fmtDayMon(nm.match_date)}`, b:'Convocar', go:"navigate('convocatoria')" });
+      items.push({ icon:'shirt', t:`Crear la convocatoria vs ${escS(nm.opponent)}`, s:`Partido el ${fmtDayMon(nm.match_date)}`, b:'Convocar', go:"window.__navigate('convocatoria')" });
     } else {
       const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', cu.id);
       const yes = (rs||[]).filter(r=> r.response === 'asiste').length;
       const answered = new Set((rs||[]).map(r=> r.player_id));
-      const missing = active.filter(p=> !answered.has(p.id)).length;
-      items.push({ icon:'shirt', t:`Convocatoria vs ${escS(nm.opponent)}`, s:`${yes} confirmados · ${missing} sin responder`, b: missing ? 'Recordar' : 'Ver', go:"navigate('convocatoria')", warn: missing > 0 });
+      const missingP = active.filter(p=> !p.injured && !answered.has(p.id));
+      const missing = missingP.length;
+      if(missing){
+        const dt = new Date(nm.match_date+'T00:00:00').toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' });
+        window.__cpRemindText = `⚽ *Convocatoria Abraham Lincoln FC*\nvs ${nm.opponent} · ${dt}${nm.match_time ? ', '+nm.match_time.slice(0,5) : ''}${nm.location ? '\n📍 '+nm.location : ''}${cu.uniform && typeof UNIFORM_LABELS !== 'undefined' && UNIFORM_LABELS[cu.uniform] ? '\n👕 '+UNIFORM_LABELS[cu.uniform] : ''}\n\n⏳ *Faltan por responder (${missing}):*\n${missingP.map(p=> p.full_name).join(', ')}\n\nPor favor confirmen en la app 🙏\n👉 ${location.origin + location.pathname}`;
+      }
+      items.push({ icon:'shirt', t:`Convocatoria vs ${escS(nm.opponent)}`, s:`${yes} confirmados · ${missing} sin responder`, b: missing ? 'Recordar por WhatsApp' : 'Ver', go: missing ? 'window.__cpRemind()' : "window.__navigate('convocatoria')", warn: missing > 0 });
     }
     const { data: lu } = await supabase.from('lineups').select('id').eq('match_id', nm.id).maybeSingle();
     if(!lu) items.push({ icon:'tactic', t:'Armar la formación', s:`Para el partido vs ${escS(nm.opponent)}`, b:'Armar', go:`window.__goToMatchLineup('${nm.id}')`, warn:true });
   }
   // Pasar lista del último entrenamiento
   const lastT = (trs||[])[0];
-  if(lastT && !(att||[]).some(a=> a.training_id === lastT.id)){
-    items.push({ icon:'clip', t:'Pasar lista del entrenamiento', s:`Del ${fmtDayMon(lastT.session_date)}`, b:'Pasar lista', go:"navigate('entrenamientos')", warn:true });
+  const recent = lastT && (Date.now() - new Date(lastT.session_date+'T00:00:00').getTime()) < 14*86400000;
+  if(recent && canManageEvents() && !(att||[]).some(a=> a.training_id === lastT.id)){
+    items.push({ icon:'clip', t:'Registrar asistencia del entrenamiento', s:`Del ${fmtDayMon(lastT.session_date)} · todavía no se marcó quién fue`, b:'Marcar asistencia', go:`window.__cpAttendance('${lastT.id}')`, warn:true });
   }
   // Partidos sin calificar
   const rated = new Set((evals||[]).map(e=> e.match_id));
   const unrated = (past||[]).filter(m=> !rated.has(m.id));
-  unrated.slice(0,2).forEach(m=> items.push({ icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:"navigate('partidos')", warn:true }));
+  unrated.slice(0,2).forEach(m=> items.push({ icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:`window.__cpRate('${m.id}')`, warn:true }));
   // Lesionados que ya deberían estar de vuelta
   active.filter(p=> p.injured && p.injury_return && daysUntil(p.injury_return) <= 0).forEach(p=>
     items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Dar de alta', go:`window.__setInjury('${p.id}', false)`, warn:true }));
@@ -4156,7 +4189,7 @@ function openPlayerDetail(id){
       <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>` : `
       <div class="player-detail-field"><label>Edad</label><p>${age!=null ? age+' años' : '-'}</p></div>`}
       <div class="player-detail-field"><label>Calificación promedio</label><p>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : 'Sin calificar'}</p></div>
-      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p><button type="button" class="small secondary" style="margin-top:8px;width:auto" onclick="navigate('medico')">Ver en Departamento médico</button>` : ''}</div>
+      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p><button type="button" class="small secondary" style="margin-top:8px;width:auto" onclick="window.__navigate('medico')">Ver en Departamento médico</button>` : ''}</div>
       ${editable ? `
         <button class="secondary" id="pd-toggle-active" style="width:100%;margin-top:8px">${p.active?'Desactivar':'Activar'}</button>
         <button class="secondary" id="pd-toggle-injured" style="width:100%;margin-top:8px">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button>
