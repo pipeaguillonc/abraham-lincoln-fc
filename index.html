@@ -1001,6 +1001,41 @@
   .install-close{background:transparent!important;color:#4A4E55;padding:6px!important;min-height:0!important;font-size:18px;align-self:flex-start}
   @media (min-width:861px){ .install-banner{bottom:20px;left:auto;right:20px;width:420px} }
 
+  /* Galería */
+  .gal-upload select,.gal-upload input:not([type=file]){width:100%}
+  .gal-upload .attach-btn input{display:none}
+  .gal-group{margin-bottom:22px}
+  .gal-head{display:flex;flex-direction:column;margin-bottom:8px}
+  .gal-head b{font-family:var(--font-display);font-weight:800;font-size:24px;line-height:1.1}
+  .gal-head span{color:var(--muted);font-size:14px}
+  .gal-head{position:relative}
+  .gal-group.is-event .gal-head{padding-right:120px}
+  .gal-badge{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-style:normal;background:#F5C400;color:#0A0B0C;font-weight:800;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-bottom:5px}
+  .gal-badge .ic{width:12px;height:12px}
+  .gal-head .gal-head-actions{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;gap:6px;color:inherit}
+  .gal-head-actions button{padding:7px 11px;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+  .gal-head-actions .ic{width:15px;height:15px}
+  .gal-empty-ev{font-size:14px;margin:4px 0 0}
+  .gal-newev{background:#FFF8D6;border:1.5px dashed #F5C400;border-radius:12px;padding:10px 12px 4px;margin:6px 0 10px}
+  .gal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  @media (min-width:861px){.gal-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}}
+  .gal-thumb{padding:0!important;border:none;border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel2)!important;min-height:0!important;display:block}
+  .gal-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+  .gal-thumb:hover img{transform:scale(1.04)}
+  .gal-viewer{position:fixed;inset:0;z-index:400;background:#0A0B0C;display:none;align-items:center;justify-content:center;flex-direction:column;padding:56px 12px 96px}
+  .gal-viewer.open{display:flex}
+  .gal-fig{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px;max-width:100%;max-height:100%}
+  .gal-fig img{max-width:100%;max-height:calc(100vh - 210px);object-fit:contain;border-radius:8px}
+  .gal-fig figcaption{color:#E6E7E9;text-align:center;display:flex;flex-direction:column;gap:2px;font-size:14px}
+  .gal-fig figcaption b{font-family:var(--font-display);font-size:20px;color:#fff}
+  .gal-x{position:absolute;top:10px;right:12px;background:transparent!important;color:#fff;font-size:24px;padding:8px 12px!important}
+  .gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;padding:0!important;background:rgba(255,255,255,.12)!important;color:#fff;min-height:0!important}
+  .gal-nav .ic{width:26px;height:26px}
+  .gal-nav.prev{left:8px}.gal-nav.next{right:8px}
+  .gal-actions{position:absolute;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0 12px}
+  .gal-actions a,.gal-actions button{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;background:rgba(255,255,255,.12)!important;color:#fff!important;border:none;font-family:var(--font-display);font-weight:700;font-size:17px;text-decoration:none}
+  .gal-actions .ic{width:20px;height:20px}
+
   /* Pie de patrocinadores */
   .sponsors-footer{border-top:1px solid var(--border)}
 
@@ -1152,6 +1187,9 @@
     <symbol id="i-field" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="16" rx="1"/><path d="M12 4v16"/><circle cx="12" cy="12" r="2.6"/><path d="M2.5 9h3v6h-3M21.5 9h-3v6h3"/></symbol>
     <symbol id="i-tactic" viewBox="0 0 24 24"><circle cx="5.5" cy="18.5" r="2"/><circle cx="17" cy="17" r="2.5"/><path d="M4 4l4 4M8 4 4 8M7.5 16.5c2-3.5 5-6 9.5-8M14 6h3v3"/></symbol>
     <symbol id="i-store" viewBox="0 0 24 24"><path d="M3.5 9 5 4h14l1.5 5a2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.2 0z"/><path d="M5 11.5V20h14v-8.5"/><path d="M10 20v-4.5h4V20"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m21 16-5-5-8 9"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
     <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12.5H6z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M10 16.5 5.5 12 10 7.5M5.5 12H16"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
@@ -1278,6 +1316,7 @@ const VIEW_LAYOUT = {
   dashboard:{hdr:'dash', tab:'dark'},
   jugadores:{hdr:'light', tab:'light'},
   tablas:{hdr:'light', tab:'light'},
+  galeria:{hdr:'light', tab:'light'},
   partidos:{hdr:'light', tab:'light'},
   finanzas:{hdr:'light', tab:'light'},
   'resumen-financiero':{hdr:'light', tab:'light'},
@@ -1498,6 +1537,7 @@ window.__setupTabbar = function(role){
     <div class="who" id="who-am-i"></div>
     <button class="nav-btn" data-view="dashboard"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span>Inicio</span></button>
     <button class="nav-btn" data-view="tablas"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span>Tablas</span></button>
+    <button class="nav-btn" data-view="galeria"><svg class="ic" aria-hidden="true"><use href="#i-photo"/></svg><span>Galería</span></button>
     <button class="nav-btn" data-view="jugadores"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span>Jugadores</span></button>
     <button class="nav-btn" data-view="resumen-financiero"><svg class="ic" aria-hidden="true"><use href="#i-wallet"/></svg><span>Resumen financiero</span></button>
     <button class="nav-btn" data-view="entrenamientos"><svg class="ic" aria-hidden="true"><use href="#i-run"/></svg><span>Entrenamientos</span></button>
@@ -1772,11 +1812,11 @@ const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Later
 
 function buildNav(){
   const itemsByRole = {
-    cuerpo_tecnico: ['dashboard','tablas','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','equipacion'],
-    jugador: ['dashboard','tablas','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
-    usuario_maestro: ['dashboard','tablas','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios','patrocinadores','equipacion'],
+    cuerpo_tecnico: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','equipacion'],
+    jugador: ['dashboard','tablas','galeria','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
+    usuario_maestro: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios','patrocinadores','equipacion'],
     // Igual que "jugador" pero sin "Resumen financiero".
-    fichaje: ['dashboard','tablas','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
+    fichaje: ['dashboard','tablas','galeria','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
   };
   const items = (itemsByRole[profile.role] || itemsByRole.jugador).slice();
   // "Finanzas" no depende solo del rol: si a este jugador/fichaje le
@@ -1867,6 +1907,7 @@ function navigate(view){
   const renderers = {
     dashboard: renderDashboard,
     tablas: renderTablas,
+    galeria: renderGaleria,
     jugadores: renderJugadores,
     'resumen-financiero': renderResumenFinanciero,
     entrenamientos: renderEntrenamientos,
@@ -2633,6 +2674,239 @@ async function renderTablas(){
     ` : '<p class="muted">Todavía no hay goles registrados.</p>'}
   `;
 }
+
+
+// ---------------- GALERÍA DE FOTOS ----------------
+// Todas las fotos del equipo en un solo lugar, agrupadas por partido o por evento especial
+// (despedida de fin de año, tercer tiempo…). Cualquier
+// usuario con sesión puede subir; borra quien la subió o Comité/cuerpo técnico.
+// Incluye también las 2 fotos "viejas" de cada partido (photo_url_1/2).
+let galleryItems = [];
+let galleryIndex = 0;
+function galleryCanDelete(item){ return !!item.id && (canManage() || item.uploaded_by === profile?.id); }
+// Reduce la foto a máx. 1600 px (JPEG) antes de subirla: sube más rápido y ocupa menos.
+function shrinkImage(file){
+  return new Promise(resolve=>{
+    if(!file.type.startsWith('image/') || file.type === 'image/gif'){ resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const max = 1600, scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b=>{ URL.revokeObjectURL(url); resolve(b && b.size < file.size ? new File([b], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file); }, 'image/jpeg', 0.85);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+async function renderGaleria(){
+  main.innerHTML = `
+    <div class="title-row">
+      <h2 class="section-title">Galería</h2>
+      <button type="button" id="gal-add-toggle">${ic('plus')} Subir fotos</button>
+    </div>
+    <div class="panel gal-upload" id="gal-upload" style="display:none">
+      <label class="field-label" for="gal-match">¿De qué son las fotos?</label>
+      <select id="gal-match"><option value="">Cargando…</option></select>
+      <div id="gal-newev" class="gal-newev" style="display:none">
+        <label class="field-label" for="gal-ev-name">Nombre del evento</label>
+        <input id="gal-ev-name" placeholder="Ej. Despedida de fin de año, Tercer tiempo…" maxlength="80" />
+        <label class="field-label" for="gal-ev-date">Fecha</label>
+        <input id="gal-ev-date" type="date" />
+      </div>
+      <label class="field-label" for="gal-caption">Descripción (opcional)</label>
+      <input id="gal-caption" placeholder="Ej. Celebración del segundo gol" maxlength="140" />
+      <label class="attach-btn">${ic('photo','lg')} Elegir fotos<input type="file" id="gal-files" accept="image/*" multiple /></label>
+      <div class="attach-hint" id="gal-files-hint">Puedes elegir varias a la vez.</div>
+      <button type="button" id="gal-save" style="width:100%;font-size:21px;padding:12px">Subir</button>
+    </div>
+    <div class="pill-filter-row" id="gal-filters"></div>
+    <div id="gal-body"><p class="muted">Cargando fotos…</p></div>
+  `;
+  $('#gal-add-toggle').addEventListener('click', ()=>{ const p = $('#gal-upload'); p.style.display = p.style.display === 'none' ? 'block' : 'none'; });
+  $('#gal-files').addEventListener('change', e=>{ const n = e.target.files.length; $('#gal-files-hint').textContent = n ? `${n} foto${n>1?'s':''} lista${n>1?'s':''} para subir` : 'Puedes elegir varias a la vez.'; });
+
+  const [{ data: matches }, photosRes, eventsRes] = await Promise.all([
+    supabase.from('matches').select('id,opponent,match_date,result,photo_url_1,photo_url_2').order('match_date', { ascending: false }),
+    supabase.from('match_photos').select('*').order('created_at', { ascending: false }),
+    supabase.from('gallery_events').select('*').order('event_date', { ascending: false }),
+  ]);
+  const tableMissing = !!photosRes.error;
+  const eventsMissing = !!eventsRes.error;
+  const events = eventsRes.data || [];
+  const esc = s=> String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const today = new Date().toISOString().slice(0,10);
+  const lastPlayed = (matches||[]).find(m=> m.match_date <= today);
+  $('#gal-match').innerHTML =
+    `<optgroup label="Eventos especiales">` +
+      (eventsMissing ? '' : `<option value="new">➕ Crear evento nuevo</option>`) +
+      events.map(ev=>`<option value="ev:${ev.id}">${esc(ev.name)}${ev.event_date ? ' · '+fmtDate(ev.event_date) : ''}</option>`).join('') +
+    `</optgroup>` +
+    `<optgroup label="Partidos">` +
+      (matches||[]).map(m=>`<option value="${m.id}" ${lastPlayed && m.id === lastPlayed.id ? 'selected' : ''}>${fmtDate(m.match_date)} · vs ${esc(m.opponent)}${m.result ? ' ('+m.result+')' : ''}</option>`).join('') +
+    `</optgroup>` +
+    `<option value="">Otro momento del equipo</option>`;
+  $('#gal-ev-date').value = today;
+  const syncNew = ()=>{ $('#gal-newev').style.display = $('#gal-match').value === 'new' ? 'block' : 'none'; };
+  $('#gal-match').addEventListener('change', syncNew); syncNew();
+
+  const matchById = Object.fromEntries((matches||[]).map(m=>[m.id, m]));
+  const eventById = Object.fromEntries(events.map(e=>[e.id, e]));
+  const items = [];
+  (photosRes.data||[]).forEach(p=> items.push({ id: p.id, url: p.url, path: p.storage_path, match_id: p.match_id, event_id: p.event_id, caption: p.caption, uploaded_by: p.uploaded_by, by: p.uploader_name, at: p.created_at }));
+  (matches||[]).forEach(m=>{
+    [m.photo_url_1, m.photo_url_2].filter(Boolean).forEach(u=> items.push({ id: null, url: u, match_id: m.id, caption: '', by: '', at: m.match_date }));
+  });
+  // Grupo: evento especial, partido u "otros momentos". Más reciente primero; "otros" al final.
+  const keyOf = it=> (it.event_id && eventById[it.event_id]) ? 'ev:'+it.event_id : (it.match_id && matchById[it.match_id]) ? it.match_id : '_otros';
+  const dateOf = k=> k.startsWith('ev:') ? (eventById[k.slice(3)]?.event_date || '') : (matchById[k]?.match_date || '');
+  const groups = {};
+  items.forEach(it=>{ const k = keyOf(it); (groups[k] = groups[k] || []).push(it); });
+  // Eventos recién creados aún sin fotos también se muestran (para que se vean en la lista).
+  events.forEach(ev=>{ if(!groups['ev:'+ev.id]) groups['ev:'+ev.id] = []; });
+  const keys = Object.keys(groups).sort((a,b)=>{
+    if(a === '_otros') return 1; if(b === '_otros') return -1;
+    return dateOf(b).localeCompare(dateOf(a));
+  });
+  galleryItems = keys.flatMap(k=> groups[k]);
+
+  const label = k=> k === '_otros' ? 'Otros' : k.startsWith('ev:') ? (eventById[k.slice(3)]?.name || 'Evento') : 'vs '+(matchById[k]?.opponent||'');
+  $('#gal-filters').innerHTML = keys.length > 1 ? `<button type="button" class="pill-filter active" data-g="all">Todas (${galleryItems.length})</button>` +
+    (events.length ? `<button type="button" class="pill-filter" data-g="eventos">${ic('star')} Eventos</button>` : '') +
+    keys.map(k=>`<button type="button" class="pill-filter" data-g="${k}">${esc(label(k))}</button>`).join('') : '';
+  $$('#gal-filters .pill-filter').forEach(b=> b.addEventListener('click', ()=>{
+    $$('#gal-filters .pill-filter').forEach(x=> x.classList.toggle('active', x===b));
+    $$('#gal-body .gal-group').forEach(g=>{
+      const show = b.dataset.g === 'all' || g.dataset.g === b.dataset.g || (b.dataset.g === 'eventos' && g.dataset.g.startsWith('ev:'));
+      g.style.display = show ? '' : 'none';
+    });
+  }));
+
+  let idx = 0;
+  $('#gal-body').innerHTML = (tableMissing ? `<div class="notify-banner" style="margin-bottom:14px">Para subir fotos nuevas falta activar la galería en la base de datos (SQL de la galería). Mientras tanto se ven las fotos que ya tenían los partidos.</div>` : '') +
+    (keys.length ? keys.map(k=>{
+      const isEv = k.startsWith('ev:');
+      const ev = isEv ? eventById[k.slice(3)] : null;
+      const m = matchById[k];
+      const n = groups[k].length;
+      const head = k === '_otros' ? 'Otros momentos del equipo' : isEv ? esc(ev.name) : `vs ${esc(m?.opponent)}`;
+      const sub = k === '_otros' ? '' : isEv ? (ev.event_date ? fmtDate(ev.event_date) : '') : `${fmtDate(m?.match_date)}${m?.result ? ' · '+m.result : ''}`;
+      const canDelEv = isEv && (canManage() || ev.created_by === profile?.id);
+      return `<section class="gal-group${isEv ? ' is-event' : ''}" data-g="${k}">
+        <div class="gal-head">${isEv ? `<em class="gal-badge">${ic('star')} Evento especial</em>` : ''}<b>${head}</b><span>${sub}${sub ? ' · ' : ''}${n} foto${n===1?'':'s'}</span>
+          ${isEv ? `<span class="gal-head-actions"><button type="button" class="small secondary" onclick="window.__galAddTo('${k}')">${ic('plus')} Fotos</button>${canDelEv ? `<button type="button" class="small secondary" onclick="window.__galDelEvent('${ev.id}')" aria-label="Borrar evento">${ic('trash')}</button>` : ''}</span>` : ''}
+        </div>
+        ${n ? `<div class="gal-grid">${groups[k].map(it=>{ const i = idx++; return `<button type="button" class="gal-thumb" onclick="window.__galOpen(${i})" aria-label="Ver foto ${i+1}"><img src="${it.url}" alt="" loading="lazy" /></button>`; }).join('')}</div>`
+            : `<p class="muted gal-empty-ev">Aún no hay fotos de este evento.</p>`}
+      </section>`;
+    }).join('') : `<div class="panel empty-state">${ic('photo','xl')}<p>Todavía no hay fotos. ¡Sube las primeras!</p></div>`);
+
+  $('#gal-save').addEventListener('click', async ()=>{
+    const files = [...$('#gal-files').files];
+    if(!files.length){ toast('Elige al menos una foto', true); return; }
+    if(tableMissing){ toast('Falta activar la galería en la base de datos (SQL de la galería).', true); return; }
+    const sel = $('#gal-match').value;
+    let matchId = null, eventId = null;
+    if(sel === 'new'){
+      const name = $('#gal-ev-name').value.trim();
+      if(!name){ toast('Escribe el nombre del evento', true); $('#gal-ev-name').focus(); return; }
+      const { data: ev, error: evErr } = await supabase.from('gallery_events').insert({ name, event_date: $('#gal-ev-date').value || today, created_by: profile.id }).select('id').single();
+      if(evErr || !ev){ toast('No se pudo crear el evento: ' + (evErr?.message || 'sin permiso'), true); return; }
+      eventId = ev.id;
+    } else if(sel.startsWith('ev:')) eventId = sel.slice(3);
+    else matchId = sel || null;
+    const btn = $('#gal-save'); btn.disabled = true;
+    const caption = $('#gal-caption').value.trim() || null;
+    const folder = eventId ? 'evento-'+eventId : (matchId || 'otros');
+    let ok = 0;
+    for(const [n, f0] of files.entries()){
+      if(!f0.type.startsWith('image/')) continue;
+      btn.textContent = `Subiendo ${n+1} de ${files.length}…`;
+      const f = await shrinkImage(f0);
+      const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `gallery/${folder}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, f, { upsert: false, contentType: f.type });
+      if(upErr){ toast('Una foto no se pudo subir: ' + upErr.message, true); continue; }
+      const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
+      const row = { match_id: matchId, url: pub.publicUrl, storage_path: path, caption, uploaded_by: profile.id, uploader_name: profile.full_name };
+      if(eventId) row.event_id = eventId;
+      const { error } = await supabase.from('match_photos').insert(row);
+      if(error){ toast('No se guardó una foto: ' + error.message, true); continue; }
+      ok++;
+    }
+    btn.disabled = false; btn.textContent = 'Subir';
+    if(ok){ toast(`${ok} foto${ok>1?'s':''} subida${ok>1?'s':''}`); renderGaleria(); }
+  });
+}
+// Abre el panel de subida con el evento ya elegido
+window.__galAddTo = (k)=>{
+  const p = document.getElementById('gal-upload'); if(!p) return;
+  p.style.display = 'block';
+  const s = document.getElementById('gal-match'); s.value = k; s.dispatchEvent(new Event('change'));
+  p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+// Borra el evento (las fotos no se pierden: pasan a "Otros momentos")
+window.__galDelEvent = async (id)=>{
+  if(!confirm('¿Borrar este evento? Las fotos no se borran: pasan a "Otros momentos del equipo".')) return;
+  const { data: rows, error } = await supabase.from('gallery_events').delete().eq('id', id).select('id');
+  if(error){ toast(error.message, true); return; }
+  if(!rows || !rows.length){ toast('No se pudo borrar: solo quien creó el evento o el Comité pueden hacerlo.', true); return; }
+  toast('Evento borrado');
+  renderGaleria();
+};
+
+// Visor de fotos en grande (anterior / siguiente / descargar / compartir / borrar)
+window.__galOpen = (i)=>{
+  galleryIndex = i;
+  let v = document.getElementById('gal-viewer');
+  if(!v){
+    v = document.createElement('div');
+    v.id = 'gal-viewer'; v.className = 'gal-viewer'; v.setAttribute('role','dialog'); v.setAttribute('aria-label','Foto');
+    document.body.appendChild(v);
+    document.addEventListener('keydown', e=>{
+      if(!document.getElementById('gal-viewer')?.classList.contains('open')) return;
+      if(e.key === 'Escape') window.__galClose();
+      if(e.key === 'ArrowRight') window.__galMove(1);
+      if(e.key === 'ArrowLeft') window.__galMove(-1);
+    });
+  }
+  const it = galleryItems[galleryIndex];
+  if(!it) return;
+  const share = 'https://wa.me/?text=' + encodeURIComponent('📸 Abraham Lincoln FC' + (it.caption ? ' — '+it.caption : '') + '\n' + it.url);
+  v.innerHTML = `
+    <button type="button" class="gal-x" onclick="window.__galClose()" aria-label="Cerrar">✕</button>
+    <button type="button" class="gal-nav prev" onclick="window.__galMove(-1)" aria-label="Anterior">${ic('chevron-left')}</button>
+    <figure class="gal-fig"><img src="${it.url}" alt="${(it.caption||'Foto del equipo').replace(/"/g,'&quot;')}" />
+      <figcaption>${it.caption ? `<b>${it.caption.replace(/</g,'&lt;')}</b>` : ''}<span>${galleryIndex+1} de ${galleryItems.length}${it.by ? ' · Subida por '+it.by.replace(/</g,'&lt;') : ''}</span></figcaption>
+    </figure>
+    <button type="button" class="gal-nav next" onclick="window.__galMove(1)" aria-label="Siguiente">${ic('chevron-right')}</button>
+    <div class="gal-actions">
+      <a href="${it.url}" target="_blank" rel="noopener" download>${ic('download')} Descargar</a>
+      <a href="${share}" target="_blank" rel="noopener">${ic('chat')} WhatsApp</a>
+      ${galleryCanDelete(it) ? `<button type="button" onclick="window.__galDelete()">${ic('trash')} Borrar</button>` : ''}
+    </div>`;
+  v.classList.add('open');
+  // Deslizar con el dedo para pasar de foto
+  let x0 = null;
+  v.ontouchstart = e=>{ x0 = e.touches[0].clientX; };
+  v.ontouchend = e=>{ if(x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if(Math.abs(dx) > 50) window.__galMove(dx < 0 ? 1 : -1); x0 = null; };
+};
+window.__galMove = (d)=>{ if(!galleryItems.length) return; window.__galOpen((galleryIndex + d + galleryItems.length) % galleryItems.length); };
+window.__galClose = ()=>{ document.getElementById('gal-viewer')?.classList.remove('open'); };
+window.__galDelete = async ()=>{
+  const it = galleryItems[galleryIndex];
+  if(!it || !galleryCanDelete(it)) return;
+  if(!confirm('¿Borrar esta foto de la galería?')) return;
+  const { data: rows, error } = await supabase.from('match_photos').delete().eq('id', it.id).select('id');
+  if(error){ toast(error.message, true); return; }
+  if(!rows || !rows.length){ toast('No se pudo borrar: no tienes permiso sobre esta foto.', true); return; }
+  if(it.path) supabase.storage.from('match-photos').remove([it.path]).catch(()=>{});
+  toast('Foto borrada');
+  window.__galClose();
+  renderGaleria();
+};
 
 // ---------------- JUGADORES ----------------
 let playerRatings = {}; // player_id -> promedio de calificación (1-5)
