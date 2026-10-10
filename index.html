@@ -2345,6 +2345,8 @@ async function renderDashboard(){
       <div class="stat-chip-card"><div class="stat-chip-icon blue">${ic('users-solid')}</div><div class="stat-chip-body"><div class="num">${activePlayers ?? '-'}</div><div class="label">Jugadores activos</div></div></div>
     `;
   } else {
+    const mvpBlock = $('#monthly-highlights'), heroBlock = $('#dash-hero');
+    if(mvpBlock && heroBlock) heroBlock.after(mvpBlock);
     // (Oculto a pedido) aviso de convocatorias pendientes en el Inicio del jugador;
     // las convocatorias siguen en el módulo Convocatoria y en la insignia del menú.
     renderUnreadMessagesBanner();
@@ -4403,7 +4405,7 @@ async function renderTemporadas(){
       </div>
       <button type="button" class="block" id="ts-view-current" data-sid="${cur.id}" style="font-size:22px">Ver temporada ${ic('chevron-right')}</button>
     </div>` : ''; })()}
-    <p class="muted">El torneo corre en semestres. La temporada marcada como "Actual" es la que reciben automáticamente los entrenamientos, partidos, categorías de presupuesto y cuotas que se crean desde hoy. Usa esta sección para comparar un semestre contra otro.</p>
+    ${isMaster() ? `<p class="muted">El torneo corre en semestres. La temporada marcada como "Actual" es la que reciben automáticamente los entrenamientos, partidos, categorías de presupuesto y cuotas que se crean desde hoy. Usa esta sección para comparar un semestre contra otro.</p>` : `<p class="muted">Consulta la temporada actual y el histórico de temporadas anteriores. Solo el Comité ALS puede crear o cambiar temporadas.</p>`}
     <div class="panel">
       <h3>Todas las temporadas</h3>
       <table>
@@ -4413,18 +4415,19 @@ async function renderTemporadas(){
             <tr>
               <td>${s.name}</td><td>${fmtDate(s.start_date)}</td><td>${fmtDate(s.end_date)}</td>
               <td>${s.is_current ? '<span class="badge presente">Actual</span>' : '<span class="muted">Cerrada</span>'}</td>
-              <td>${s.is_current ? '' : `<button class="small secondary" onclick="window.__setCurrentSeason('${s.id}')">Marcar como actual</button>`}</td>
+              <td>${(s.is_current || !isMaster()) ? '' : `<button class="small secondary" onclick="window.__setCurrentSeason('${s.id}')">Marcar como actual</button>`}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
+      ${isMaster() ? `
       <div class="row" style="margin-top:14px">
         <input id="ts-name" placeholder="Nombre (ej. 2027-1 (Torneo 52))" />
         <input id="ts-start" type="date" placeholder="Inicio" />
         <input id="ts-end" type="date" placeholder="Fin" />
         <button id="ts-save">Crear temporada</button>
       </div>
-      <label style="display:flex;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" id="ts-current" checked /> Marcarla como temporada actual al crearla</label>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" id="ts-current" checked /> Marcarla como temporada actual al crearla</label>` : ''}
     </div>
     <h3 class="block-title" id="th-anchor">Histórico</h3>
     <div class="panel">
@@ -4442,10 +4445,11 @@ async function renderTemporadas(){
       <div class="cards" style="margin-top:14px">
         <div class="card"><div class="num">${s.entrenamientos}</div><div class="label">Entrenamientos</div></div>
         <div class="card"><div class="num">${s.partidosJugados} / ${s.partidosProgramados}</div><div class="label">Partidos jugados / programados</div></div>
+        ${isMaster() ? `
         <div class="card"><div class="num">${fmtMoney(s.presupuestado)}</div><div class="label">Presupuestado</div></div>
         <div class="card"><div class="num">${fmtMoney(s.ejecutado)}</div><div class="label">Ejecutado (gastos)</div></div>
         <div class="card"><div class="num">${fmtMoney(s.comprometido)}</div><div class="label">Cuotas asignadas</div></div>
-        <div class="card"><div class="num">${fmtMoney(s.recaudado)}</div><div class="label">Recaudado (aprox.)</div></div>
+        <div class="card"><div class="num">${fmtMoney(s.recaudado)}</div><div class="label">Recaudado (aprox.)</div></div>` : ''}
       </div>
     `;
   };
@@ -4457,7 +4461,8 @@ async function renderTemporadas(){
     await renderHistorico();
     $('#th-anchor').scrollIntoView({behavior:'smooth', block:'start'});
   });
-  $('#ts-save').addEventListener('click', async ()=>{
+  $('#ts-save')?.addEventListener('click', async ()=>{
+    if(!isMaster()){ toast('Solo el Comité ALS puede crear temporadas', true); return; }
     const name = $('#ts-name').value.trim();
     const start_date = $('#ts-start').value || null;
     const end_date = $('#ts-end').value || null;
@@ -4476,6 +4481,7 @@ async function renderTemporadas(){
 }
 
 window.__setCurrentSeason = async (seasonId)=>{
+  if(!isMaster()){ toast('Solo el Comité ALS puede cambiar la temporada actual', true); return; }
   const { error: unsetError } = await supabase.from('seasons').update({ is_current: false }).eq('is_current', true);
   if(unsetError) return toast(unsetError.message, true);
   const { error } = await supabase.from('seasons').update({ is_current: true }).eq('id', seasonId);
