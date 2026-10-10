@@ -1177,6 +1177,41 @@
   .sponsor-name{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--text);text-transform:uppercase}
   @media (max-width:899px){ #sponsors-footer{padding-bottom:84px} }
 
+  /* Cumpleaños */
+  .bday-banner{position:relative;overflow:hidden;display:flex;align-items:flex-start;gap:12px;background:linear-gradient(120deg,#0A0B0C 0%,#1d1f22 100%);color:#fff;border-radius:18px;padding:16px 16px 14px;margin:0 0 14px;border:2px solid #F5C400}
+  .bday-banner.me{background:#F5C400;color:#0A0B0C;border-color:#0A0B0C}
+  .bday-emoji{font-size:38px;line-height:1;animation:bdayBounce 1.4s ease-in-out infinite}
+  .bday-text{flex:1;min-width:0;display:flex;flex-direction:column}
+  .bday-text small{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#F5C400}
+  .bday-banner.me .bday-text small{color:#0A0B0C;opacity:.7}
+  .bday-text > b{font-family:var(--font-display);font-weight:800;font-size:28px;line-height:1.02;margin:3px 0 4px}
+  .bday-text > span{font-size:14px;opacity:.85}
+  .bday-person{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .bday-person:first-of-type{border-top:0}
+  .bday-person b{display:block;font-family:var(--font-display);font-weight:800;font-size:24px;line-height:1.05}
+  .bday-person span{font-size:12.5px;color:#B9BCC2}
+  .bday-wa{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:#F5C400;color:#0A0B0C;font-weight:800;font-size:14px;padding:8px 12px;border-radius:999px;text-decoration:none}
+  .bday-confetti{position:absolute;right:-6px;top:-10px;font-size:54px;opacity:.18;transform:rotate(-15deg);pointer-events:none}
+  .bday-soon{font-size:14px;color:var(--text);background:var(--panel2);border-radius:12px;padding:9px 12px;margin:0 0 14px}
+  .bday-soon span{color:var(--muted)}
+  @keyframes bdayBounce{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(-6deg)}}
+  @media (prefers-reduced-motion:reduce){.bday-emoji{animation:none}}
+
+  /* Instagram */
+  .ig-card{display:flex;align-items:center;gap:12px;background:var(--panel);border:1.5px solid var(--border);border-radius:16px;padding:12px 14px;margin:16px 0}
+  .ig-icon{width:46px;height:46px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)}
+  .ig-text{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ig-text b{font-family:var(--font-display);font-weight:800;font-size:20px;line-height:1.05}
+  .ig-text span{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ig-follow{flex-shrink:0;background:#0A0B0C;color:#fff;font-weight:800;font-size:15px;padding:9px 16px;border-radius:999px;text-decoration:none}
+  .ig-edit{width:auto;padding:8px;background:transparent;color:var(--muted);border:0}
+  .ig-add{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text);border:1.5px dashed var(--border);margin:16px 0;font-size:16px}
+  .bday-next{display:flex;align-items:center;gap:12px;background:var(--panel);border:1.5px solid var(--border);border-left:5px solid #F5C400;border-radius:14px;padding:10px 14px;margin:0 0 14px}
+  .bday-next-emoji{font-size:28px;line-height:1}
+  .bday-next small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+  .bday-next b{display:block;font-family:var(--font-display);font-weight:800;font-size:21px;line-height:1.1}
+  .bday-next span{font-size:13.5px;color:var(--muted)}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -1263,6 +1298,7 @@
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></symbol>
   </defs>
 </svg>
 
@@ -2611,7 +2647,7 @@ window.__goToMatchLineup = async (matchId)=>{
 };
 
 async function renderDashboard(){
-  main.innerHTML = helloLine() + `
+  main.innerHTML = helloLine() + `<div id="dash-bday"></div>` + `
     <h1 class="display-xl">El equipo, en un solo lugar</h1>
     <p class="lead">Organización, compromiso y fútbol<br>para seguir haciendo historia.</p>
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
@@ -2620,9 +2656,12 @@ async function renderDashboard(){
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
     <div id="monthly-highlights"></div>
+    <div id="dash-ig"></div>
     <div id="dash-sponsors"></div>
     <div id="dash-lineup"></div>`;
   renderDashSponsors();
+  renderBirthdays();
+  renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
   renderDashboardLineup();
@@ -2764,6 +2803,108 @@ async function renderDashboard(){
     `;
     if(profile.role !== 'fichaje') renderBrebPanel('#dash-breb-slot');
   }
+}
+
+
+
+// ---------------- INSTAGRAM DEL EQUIPO ----------------
+// Se guarda en team_settings.instagram (solo el usuario, sin @).
+function igHandle(v){ return String(v||'').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i,'').replace(/[/?#].*$/,'').replace(/^@/,''); }
+async function renderIgCard(){
+  const el = $('#dash-ig'); if(!el) return;
+  const { data } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  const h = igHandle(data?.instagram);
+  if(!h){
+    el.innerHTML = isMaster() ? `<button type="button" class="ig-add" onclick="window.__igEdit()">${ic('instagram')} Agregar el Instagram del equipo</button>` : '';
+    return;
+  }
+  el.innerHTML = `
+    <div class="ig-card">
+      <span class="ig-icon">${ic('instagram','lg')}</span>
+      <div class="ig-text"><b>Síguenos en Instagram</b><span>@${h.replace(/</g,'&lt;')}</span></div>
+      <a class="ig-follow" href="https://instagram.com/${encodeURIComponent(h)}" target="_blank" rel="noopener">Seguir</a>
+      ${isMaster() ? `<button type="button" class="ig-edit" onclick="window.__igEdit()" aria-label="Editar Instagram">${ic('edit','sm')}</button>` : ''}
+    </div>`;
+}
+window.__igEdit = async ()=>{
+  const el = $('#dash-ig'); if(!el) return;
+  const { data } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  el.innerHTML = `
+    <div class="panel ig-form">
+      <label class="field-label" for="ig-in">Instagram del equipo</label>
+      <input id="ig-in" value="${igHandle(data?.instagram)}" placeholder="Ej. abrahamlincolnfc (o pega el link)" maxlength="120" />
+      <div style="display:flex;gap:8px"><button type="button" id="ig-save" style="flex:1">Guardar</button><button type="button" class="secondary" id="ig-cancel">Cancelar</button></div>
+    </div>`;
+  $('#ig-cancel').addEventListener('click', renderIgCard);
+  $('#ig-save').addEventListener('click', async ()=>{
+    const { error } = await supabase.from('team_settings').upsert({ id: 1, instagram: igHandle($('#ig-in').value) || null, updated_at: new Date().toISOString() });
+    if(error){ toast(error.message.includes('instagram') ? 'Falta correr el SQL del Instagram en Supabase.' : error.message, true); return; }
+    toast('Instagram guardado');
+    renderIgCard();
+  });
+};
+
+// ---------------- CUMPLEAÑOS ----------------
+// Jugadores activos (fecha de su ficha) + cuerpo técnico / Comité (fecha que se
+// pone en Usuarios). La función team_birthdays() junta ambos; si todavía no
+// existe en la base de datos, se usan solo los jugadores.
+async function loadBirthdays(){
+  const rpc = await supabase.rpc('team_birthdays');
+  if(!rpc.error && Array.isArray(rpc.data)) return rpc.data;
+  if(!playersCache.length) await loadPlayersCache();
+  return playersCache.filter(p=> p.active && p.birth_date).map(p=>({ name: p.full_name, birth_date: p.birth_date, phone: p.phone, kind: 'jugador', player_id: p.id, profile_id: null }));
+}
+function bdayDaysUntil(birth){
+  const [, m, d] = String(birth).slice(0,10).split('-').map(Number);
+  const now = new Date(); const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mk = y=>{ const leap = (y%4===0 && y%100!==0) || y%400===0; return new Date(y, m-1, (m===2 && d===29 && !leap) ? 28 : d); };
+  let next = mk(t0.getFullYear());
+  if(next < t0) next = mk(t0.getFullYear()+1);
+  return Math.round((next - t0) / 86400000);
+}
+function waPhone(p){
+  let n = String(p||'').replace(/\D/g,'');
+  if(!n) return '';
+  if(n.length === 10 && n.startsWith('3')) n = '57' + n;
+  return n;
+}
+async function renderBirthdays(){
+  const el = $('#dash-bday'); if(!el) return;
+  let list = [];
+  try{ list = await loadBirthdays(); }catch(e){ return; }
+  const esc = s=> String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const first = n=> String(n||'').trim().split(/\s+/)[0] || '';
+  const withDays = list.filter(b=> b.birth_date).map(b=>({ ...b, days: bdayDaysUntil(b.birth_date) }));
+  const today = withDays.filter(b=> b.days === 0);
+  // Próximo en cumplir (todos los que cumplen ese mismo día), avisado desde 7 días antes.
+  const BDAY_NOTICE_DAYS = 7;
+  const upcoming = withDays.filter(b=> b.days > 0 && b.days <= BDAY_NOTICE_DAYS).sort((a,b)=> a.days - b.days);
+  const soon = upcoming.length ? upcoming.filter(b=> b.days === upcoming[0].days) : [];
+  const isMe = b=> (b.player_id && b.player_id === profile?.player_id) || (b.profile_id && b.profile_id === profile?.id);
+  const kindLabel = b=> b.kind === 'jugador' ? 'Jugador' : b.kind === 'cuerpo_tecnico' ? 'Cuerpo técnico' : b.kind === 'usuario_maestro' ? 'Comité' : '';
+  const dayName = n=>{ const d = new Date(); d.setDate(d.getDate()+n); return n === 1 ? 'Mañana' : d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, c=> c.toUpperCase()); };
+  const inDays = n=> n === 1 ? '' : ` · en ${n} días`;
+  let html = '';
+  if(today.length){
+    const mine = today.find(isMe);
+    const others = today.filter(b=> !isMe(b));
+    if(mine){
+      html += `<div class="bday-banner me"><span class="bday-emoji">🎂</span><div class="bday-text"><small>¡Hoy es tu día!</small><b>Feliz cumpleaños, ${esc(first(mine.name))}</b><span>Todo el Abraham Lincoln FC te desea un gran día ⚽🎉</span></div><span class="bday-confetti" aria-hidden="true">🎉</span></div>`;
+    }
+    if(others.length){
+      html += `<div class="bday-banner"><span class="bday-emoji">🎂</span><div class="bday-text"><small>Hoy está de cumpleaños</small>
+        ${others.map(b=>{
+          const msg = encodeURIComponent(`¡Feliz cumpleaños, ${first(b.name)}! 🎂⚽ Un abrazo de parte de todo el Abraham Lincoln FC.`);
+          const ph = waPhone(b.phone);
+          return `<div class="bday-person"><div><b>${esc(b.name)}</b>${kindLabel(b) ? `<span>${kindLabel(b)}</span>` : ''}</div><a class="bday-wa" href="https://wa.me/${ph}?text=${msg}" target="_blank" rel="noopener">${ic('chat','sm')} Felicitar</a></div>`;
+        }).join('')}
+      </div><span class="bday-confetti" aria-hidden="true">🎉</span></div>`;
+    }
+  }
+  if(soon.length){
+    html += `<div class="bday-next"><span class="bday-next-emoji">🎈</span><div><small>Próximo cumpleaños</small><b>${soon.map(b=> esc(isMe(b) ? 'Tú' : b.name)).join(' y ')}</b><span>${dayName(soon[0].days)}${inDays(soon[0].days)}</span></div></div>`;
+  }
+  el.innerHTML = html;
 }
 
 // ---------------- TABLAS (goleadores + posiciones del torneo) ----------------
@@ -3704,7 +3845,7 @@ async function renderUsuarios(){
       <p id="nu-error" class="muted" style="color:#f66"></p>
     </div>
     <div class="cardify"><table>
-      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Finanzas</th><th>Partidos/Entrenos</th><th>Formación</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Cumpleaños</th><th>Finanzas</th><th>Partidos/Entrenos</th><th>Formación</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
@@ -3713,6 +3854,7 @@ async function renderUsuarios(){
             <td class="c-more" data-label="Contraseña">${p.must_change_password && p.temp_password ? `<code>${p.temp_password}</code>` : '<span class="muted">Cambiada por el usuario</span>'}</td>
             <td class="c-more" data-label="Rol">${ROLE_LABELS[p.role] || p.role}</td>
             <td class="c-more" data-label="Jugador vinculado">${p.players ? `#${p.players.jersey_number} ${p.players.full_name}` : '-'}</td>
+            <td class="c-more" data-label="Cumpleaños">${p.player_id ? '<span class="muted">De su ficha de jugador</span>' : `<input type="date" class="bday-input" data-uid="${p.id}" value="${p.birth_date || ''}" style="width:150px;margin-bottom:0" />`}</td>
             <td class="c-more c-perm" data-label="Finanzas">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="finance-permission-cb" data-uid="${p.id}" ${p.can_manage_finance ? 'checked' : ''} /> Puede editar</label>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more c-perm" data-label="Partidos y entrenamientos">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="events-permission-cb" data-uid="${p.id}" ${p.can_manage_events ? 'checked' : ''} /> Puede administrar</label>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more c-perm" data-label="Formación">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="lineup-permission-cb" data-uid="${p.id}" ${p.can_view_lineup ? 'checked' : ''} /> Puede ver</label>` : '<span class="muted">Según rol</span>'}</td>
@@ -3728,6 +3870,14 @@ async function renderUsuarios(){
     </table></div>
   `;
 
+  $$('.bday-input').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const { data, error } = await supabase.from('profiles').update({ birth_date: inp.value || null }).eq('id', inp.dataset.uid).select('id');
+      if(error){ toast(error.message.includes('birth_date') ? 'Falta correr el SQL de cumpleaños en Supabase.' : error.message, true); return; }
+      if(!data || !data.length){ toast('No se pudo guardar (sin permiso).', true); return; }
+      toast('Cumpleaños guardado');
+    });
+  });
   $$('.finance-permission-cb').forEach(cb=>{
     cb.addEventListener('change', async ()=>{
       cb.disabled = true;
