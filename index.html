@@ -2751,7 +2751,7 @@ async function renderDashboard(){
       </details>
       ${profile.role !== 'fichaje' ? `
       <details class="dash-collapsible">
-        <summary>💰 Ver resumen financiero</summary>
+        <summary>💰 Estado de tu cuenta</summary>
         <div class="cards" style="margin-top:14px">
           <div class="card"><div class="num">${fmtMoney(cuotas)}</div><div class="label">Cuotas</div></div>
           <div class="card"><div class="num">${fmtMoney(multas)}</div><div class="label">Multas (tarjetas)</div></div>
@@ -2759,8 +2759,10 @@ async function renderDashboard(){
           <div class="card"><div class="num">${fmtMoney(totalPaid)}</div><div class="label">Total pagado</div></div>
           <div class="card"><div class="num">${fmtMoney(totalDue-totalPaid)}</div><div class="label">Saldo pendiente</div></div>
         </div>
+        <div id="dash-breb-slot" style="margin-top:14px"></div>
       </details>` : ''}
     `;
+    if(profile.role !== 'fichaje') renderBrebPanel('#dash-breb-slot');
   }
 }
 
