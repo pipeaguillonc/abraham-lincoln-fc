@@ -2345,7 +2345,8 @@ async function renderDashboard(){
       <div class="stat-chip-card"><div class="stat-chip-icon blue">${ic('users-solid')}</div><div class="stat-chip-body"><div class="num">${activePlayers ?? '-'}</div><div class="label">Jugadores activos</div></div></div>
     `;
   } else {
-    renderPlayerNotifications();
+    // (Oculto a pedido) aviso de convocatorias pendientes en el Inicio del jugador;
+    // las convocatorias siguen en el módulo Convocatoria y en la insignia del menú.
     renderUnreadMessagesBanner();
     const pid = profile.player_id;
     // El % de participación (y el resto de estadísticas de partidos/entrenos) se
@@ -2421,10 +2422,9 @@ async function renderDashboard(){
     // con foto (renderDashHero) — antes se repetía también aquí abajo en dos
     // tarjetas más (una de partido y otra de entreno), duplicado que el
     // usuario pidió quitar.
-    $('#dash-cards').className = 'cards';
-    $('#dash-cards').innerHTML = `
-      <div class="card"><div class="num">#${me?.jersey_number ?? '-'}</div><div class="label">Tu camiseta</div></div>
-    `;
+    // (Oculta a pedido) tarjeta "Tu camiseta".
+    $('#dash-cards').className = '';
+    $('#dash-cards').innerHTML = '';
     // "fichaje" es igual a "jugador" pero sin nada del módulo financiero —
     // ni el ítem de menú "Resumen financiero" (ver buildNav) ni este resumen
     // dentro del Dashboard.
