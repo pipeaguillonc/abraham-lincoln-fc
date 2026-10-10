@@ -1262,6 +1262,8 @@
   .bd-panel.compact .bd-grid{grid-template-columns:repeat(4,1fr)}
   .bd-panel.compact .bd-medal{width:46px;height:46px;font-size:22px}
   .bd-panel.compact small{display:none}
+  #sponsors-footer .dash-sponsors{margin:0;padding:12px 16px;background:var(--panel);border-bottom:0}
+  @media (min-width:900px){ #sponsors-footer .dash-sponsors{padding:12px 24px} }
 
 </style>
 <script>
@@ -2176,15 +2178,18 @@ async function renderDashSponsors(){
     return s.website_url ? `<a class="sp-tile" href="${normalizeUrl(s.website_url)}" target="_blank" rel="noopener">${inner}</a>` : `<div class="sp-tile">${inner}</div>`;
   };
   const loop = data.length >= 3;
+  // Se repiten los logos para que la franja quede llena también en pantallas anchas.
+  const reps = Math.max(1, Math.ceil(10 / data.length));
   el.innerHTML = `
     <section class="dash-sponsors">
       <span class="dash-sponsors-label">Con el apoyo de</span>
-      <div class="sp-marquee${loop ? ' run' : ''}"><div class="sp-track" style="--n:${data.length}">${data.map(tile).join('')}${loop ? data.map(tile).join('').replace(/class="sp-tile"/g,'class="sp-tile" aria-hidden="true" tabindex="-1"') : ''}</div></div>
+      <div class="sp-marquee${loop ? ' run' : ''}"><div class="sp-track" style="--n:${data.length * reps}">${data.map(tile).join('')}${loop ? (data.map(tile).join('').replace(/class="sp-tile"/g,'class="sp-tile" aria-hidden="true" tabindex="-1"')).repeat(reps * 2 - 1) : ''}</div></div>
     </section>`;
 }
 
 async function renderSponsorsFooter(){
   const el = $('#sponsors-footer');
+  if(el){ el.innerHTML = '<div id="dash-sponsors"></div>'; await renderDashSponsors(); return; }
   if(!el) return;
   const { data } = await supabase.from('sponsors').select('*').eq('active', true).order('sort_order', {ascending:true});
   if(!data || !data.length){ el.innerHTML = ''; return; }
@@ -2709,12 +2714,7 @@ async function renderDashboard(){
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
     <div id="monthly-highlights"></div>
-    <div id="dash-ig"></div>
-    <div id="dash-sponsors"></div>
     <div id="dash-lineup"></div>`;
-  renderDashSponsors();
-  renderBirthdays();
-  renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
   renderDashboardLineup();
