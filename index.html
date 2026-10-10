@@ -1368,6 +1368,9 @@
   .med-cheers{flex:1;font-size:13.5px;color:var(--muted);min-width:140px}
   .med-actions button{width:auto;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:4px}
   .cp-flash{outline:3px solid #F5C400;outline-offset:4px;border-radius:12px;transition:outline-color 1.5s}
+  .cp-btns{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+  .cp-ok{width:auto;padding:3px 8px;font-size:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:999px}
+  .cp-btns .cp-ok{min-height:0;height:auto;padding:3px 10px;font-size:12px;line-height:1.3;font-weight:600;font-family:inherit;box-shadow:none}
 
 </style>
 <script>
@@ -3140,6 +3143,11 @@ window.__coachNoteEdit = async ()=>{
 
 // ---- Botones del panel: llevan directo a la acción ----
 function waitFor(sel, ms){ return new Promise(res=>{ const t0 = Date.now(); const tick = ()=>{ const el = document.querySelector(sel); if(el || Date.now() - t0 > (ms||5000)) return res(el); setTimeout(tick, 120); }; tick(); }); }
+window.__cpDone = (key)=>{
+  try{ const a = JSON.parse(localStorage.getItem('als_cp_done') || '[]'); if(!a.includes(key)) a.push(key); localStorage.setItem('als_cp_done', JSON.stringify(a.slice(-100))); }catch(e){}
+  toast('Pendiente marcado como hecho');
+  renderCoachPanel();
+};
 window.__cpRemind = ()=>{ const t = window.__cpRemindText; if(t) window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank'); };
 window.__cpAttendance = async (tid)=>{
   navigate('entrenamientos');
@@ -3168,12 +3176,14 @@ window.__cpRate = async (mid)=>{
 async function renderCoachPanel(){
   const el = $('#coach-panel'); if(!el) return;
   const today = new Date().toISOString().slice(0,10);
-  const [{ data: next }, { data: past }, { data: trs }, { data: evals }, { data: att }, { data: ts }, staff] = await Promise.all([
+  const [{ data: next }, { data: past }, { data: trs }, { data: evals }, { data: att }, { data: mstats }, { data: tcus }, { data: ts }, staff] = await Promise.all([
     supabase.from('matches').select('id,opponent,match_date,match_time,location').gte('match_date', today).order('match_date').limit(1),
-    supabase.from('matches').select('id,opponent,match_date,result').lt('match_date', today).order('match_date', { ascending: false }),
+    supabase.from('matches').select('id,opponent,match_date,result,mvp_player_id').lt('match_date', today).order('match_date', { ascending: false }),
     supabase.from('trainings').select('id,session_date').lte('session_date', today).order('session_date', { ascending: false }),
     supabase.from('evaluations').select('match_id').not('match_id', 'is', null),
     supabase.from('attendance').select('training_id,player_id,status'),
+    supabase.from('player_match_stats').select('match_id,minutes_played'),
+    supabase.from('call_ups').select('id,training_id').not('training_id', 'is', null),
     supabase.from('team_settings').select('*').eq('id', 1).maybeSingle(),
     loadStaff(),
   ]);
@@ -3199,27 +3209,41 @@ async function renderCoachPanel(){
       items.push({ icon:'shirt', t:`Convocatoria vs ${escS(nm.opponent)}`, s:`${yes} confirmados · ${missing} sin responder`, b: missing ? 'Recordar por WhatsApp' : 'Ver', go: missing ? 'window.__cpRemind()' : "window.__navigate('convocatoria')", warn: missing > 0 });
     }
     const { data: lu } = await supabase.from('lineups').select('id').eq('match_id', nm.id).maybeSingle();
-    if(!lu) items.push({ icon:'tactic', t:'Armar la formación', s:`Para el partido vs ${escS(nm.opponent)}`, b:'Armar', go:`window.__goToMatchLineup('${nm.id}')`, warn:true });
+    if(!lu) items.push({ key:'lineup:'+nm.id, icon:'tactic', t:'Armar la formación', s:`Para el partido vs ${escS(nm.opponent)}`, b:'Armar', go:`window.__goToMatchLineup('${nm.id}')`, warn:true });
   }
-  // Pasar lista del último entrenamiento
+  // Asistencia del último entrenamiento (de los últimos 7 días). Se da por hecha si ya
+  // hay asistencia registrada o si el cuerpo técnico/jugadores respondieron su convocatoria.
   const lastT = (trs||[])[0];
-  const recent = lastT && (Date.now() - new Date(lastT.session_date+'T00:00:00').getTime()) < 14*86400000;
-  if(recent && canManageEvents() && !(att||[]).some(a=> a.training_id === lastT.id)){
-    items.push({ icon:'clip', t:'Registrar asistencia del entrenamiento', s:`Del ${fmtDayMon(lastT.session_date)} · todavía no se marcó quién fue`, b:'Marcar asistencia', go:`window.__cpAttendance('${lastT.id}')`, warn:true });
+  const recent = lastT && (Date.now() - new Date(lastT.session_date+'T00:00:00').getTime()) < 7*86400000;
+  if(recent && canManageEvents()){
+    let done = (att||[]).some(a=> a.training_id === lastT.id);
+    const tcu = (tcus||[]).find(c=> c.training_id === lastT.id);
+    if(!done && tcu){
+      const { count } = await supabase.from('call_up_responses').select('player_id', { count: 'exact', head: true }).eq('call_up_id', tcu.id);
+      done = (count||0) > 0;
+    }
+    if(!done) items.push({ key:'att:'+lastT.id, icon:'clip', t:'Registrar asistencia del entrenamiento', s:`Del ${fmtDayMon(lastT.session_date)} · todavía no se marcó quién fue`, b:'Marcar asistencia', go:`window.__cpAttendance('${lastT.id}')`, warn:true });
   }
-  // Partidos sin calificar
+  // Partidos sin calificar (de los últimos 30 días). Se da por hecho si ya hay
+  // calificaciones, estadísticas cargadas o figura del partido.
   const rated = new Set((evals||[]).map(e=> e.match_id));
-  const unrated = (past||[]).filter(m=> !rated.has(m.id));
-  unrated.slice(0,2).forEach(m=> items.push({ icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:`window.__cpRate('${m.id}')`, warn:true }));
+  (mstats||[]).forEach(r=>{ if((r.minutes_played||0) > 0) rated.add(r.match_id); });
+  const unrated = (past||[]).filter(m=> !rated.has(m.id) && !m.mvp_player_id && (Date.now() - new Date(m.match_date+'T00:00:00').getTime()) < 30*86400000);
+  unrated.slice(0,2).forEach(m=> items.push({ key:'rate:'+m.id, icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:`window.__cpRate('${m.id}')`, warn:true }));
   // Lesionados que ya deberían estar de vuelta
   active.filter(p=> p.injured && p.injury_return && daysUntil(p.injury_return) <= 0).forEach(p=>
     items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Dar de alta', go:`window.__setInjury('${p.id}', false)`, warn:true }));
   // Palabra del profe
   const noteFresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 7*86400000;
-  if(nm && !noteFresh) items.push({ icon:'chat', t:'Escribir la palabra del profe', s:'Un mensaje para el equipo antes del partido', b:'Escribir', go:'window.__coachNoteEdit()' });
+  if(nm && !noteFresh) items.push({ key:'note:'+nm.id, icon:'chat', t:'Escribir la palabra del profe', s:'Un mensaje para el equipo antes del partido', b:'Escribir', go:'window.__coachNoteEdit()' });
   // Perfil propio
   const me = staff.find(s=> s.id === profile.id);
   if(isAdmin() && (!me || !me.photo_url || !me.staff_title)) items.push({ icon:'user', t:'Completa tu perfil', s:'Foto y cargo, para que los jugadores te reconozcan', b:'Completar', go:'window.__editMyStaffProfile()' });
+
+  // Pendientes que el usuario marcó como hechos a mano (se guardan en este dispositivo)
+  let doneKeys = [];
+  try{ doneKeys = JSON.parse(localStorage.getItem('als_cp_done') || '[]'); }catch(e){}
+  for(let i = items.length - 1; i >= 0; i--) if(items[i].key && doneKeys.includes(items[i].key)) items.splice(i, 1);
 
   // Resumen
   const parsed = (past||[]).map(m=>{ const mm = String(m.result||'').match(/(\d+)\s*[-–]\s*(\d+)/); return mm ? { ...m, gf:+mm[1], gc:+mm[2] } : null; }).filter(Boolean);
@@ -3241,7 +3265,7 @@ async function renderCoachPanel(){
         <div class="cp-item${it.warn ? ' warn' : ''}">
           <span class="cp-ic">${ic(it.icon)}</span>
           <div class="cp-txt"><b>${it.t}</b><span>${it.s}</span></div>
-          <button type="button" class="small" onclick="${it.go}">${it.b}</button>
+          <div class="cp-btns"><button type="button" class="small" onclick="${it.go}">${it.b}</button>${it.key ? `<button type="button" class="cp-ok" title="Ya lo hice" aria-label="Ya lo hice" onclick="window.__cpDone('${it.key}')">✓ Listo</button>` : ''}</div>
         </div>`).join('') : `<div class="cp-done">💪 ¡Todo al día! No tienes nada pendiente.</div>`}
     </div>
     <div class="cp-box">
