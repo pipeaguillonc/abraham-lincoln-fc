@@ -1265,6 +1265,81 @@
   #sponsors-footer .dash-sponsors{margin:0;padding:12px 16px;background:var(--panel);border-bottom:0}
   @media (min-width:900px){ #sponsors-footer .dash-sponsors{padding:12px 24px} }
 
+  /* Cuerpo técnico */
+  .st-av{border-radius:50%;object-fit:cover;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:3px solid #F5C400;background:#0A0B0C;color:#F5C400;font-family:var(--font-display);font-weight:800;box-sizing:border-box}
+  .st-section{margin:6px 0 18px}
+  .st-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .st-head b{font-family:var(--font-display);font-weight:800;font-size:24px}
+  .st-head span{color:var(--muted);font-size:14px}
+  .st-row{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+  .st-row::-webkit-scrollbar{display:none}
+  .st-card{flex:0 0 auto;width:150px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;background:#0A0B0C;color:#fff;border-radius:18px;padding:14px 10px}
+  .st-card b{font-family:var(--font-display);font-weight:800;font-size:18px;line-height:1.05;margin-top:4px}
+  .st-card span{font-size:12.5px;color:#F5C400;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .st-card button{margin-top:6px;width:auto;padding:5px 10px;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+  .st-modal{position:fixed;inset:0;z-index:9000;background:rgba(10,11,12,.7);display:none;align-items:center;justify-content:center;padding:16px}
+  .st-modal.open{display:flex}
+  .st-modal-box{width:100%;max-width:420px;margin:0}
+  .st-modal-box textarea{width:100%;box-sizing:border-box;font:inherit;font-size:16px;border-radius:12px;padding:10px 12px;border:1.5px solid var(--border)}
+
+  /* La palabra del profe */
+  .cn-card{position:relative;background:#0A0B0C;color:#fff;border-radius:18px;padding:14px 16px;margin:0 0 14px;border-left:6px solid #F5C400}
+  .cn-top{display:flex;align-items:center;gap:10px}
+  .cn-top small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#F5C400}
+  .cn-top b{display:block;font-family:var(--font-display);font-weight:800;font-size:19px;line-height:1.1}
+  .cn-top span{font-size:12.5px;color:#B9BCC2}
+  .cn-card p{margin:10px 0 0;font-size:17px;line-height:1.4;font-style:italic}
+  .cn-edit{margin-top:10px;width:auto;padding:6px 12px;font-size:13.5px;display:inline-flex;align-items:center;gap:5px;background:transparent;color:#F5C400;border:1.5px solid #F5C400}
+
+  /* Panel del técnico */
+  .cp-box{background:var(--panel);border:1.5px solid var(--border);border-radius:18px;padding:14px;margin:0 0 14px}
+  .cp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .cp-head b{font-family:var(--font-display);font-weight:800;font-size:23px}
+  .cp-count{background:#E5484D;color:#fff;font-weight:800;font-size:13px;min-width:24px;height:24px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 7px}
+  .cp-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border)}
+  .cp-item:first-of-type{border-top:0}
+  .cp-ic{width:40px;height:40px;flex-shrink:0;border-radius:12px;background:var(--panel2);display:flex;align-items:center;justify-content:center}
+  .cp-item.warn .cp-ic{background:#FFF3C4;color:#8A6A00}
+  .cp-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+  .cp-txt b{font-size:15.5px;line-height:1.2}
+  .cp-txt span{font-size:13px;color:var(--muted)}
+  .cp-item button{width:auto;flex-shrink:0;padding:8px 12px;font-size:14.5px}
+  .cp-done{padding:8px 0;font-weight:600}
+  .cp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 10px}
+  .cp-stats div{background:var(--panel2);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column}
+  .cp-stats b{font-family:var(--font-display);font-weight:800;font-size:24px;line-height:1}
+  .cp-stats span{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.15}
+  .cp-form{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .cp-form span,.cp-abs > span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:4px}
+  .cp-form i{font-style:normal;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px}
+  .cp-form .f-G{background:#1F9D55} .cp-form .f-E{background:#8B919A} .cp-form .f-P{background:#E5484D}
+  .cp-abs{display:flex;flex-direction:column;gap:4px}
+  .cp-abs div{display:flex;justify-content:space-between;font-size:14.5px}
+  .cp-abs em{font-style:normal;color:#E5484D;font-weight:700}
+  @media (max-width:420px){ .cp-stats{grid-template-columns:repeat(2,1fr)} }
+
+  /* Lesionados */
+  .inj-me{background:#FFF8E1;border:2px solid #F5C400;border-radius:18px;padding:14px;margin:0 0 14px}
+  .inj-me-top{display:flex;align-items:center;gap:14px}
+  .inj-count{width:72px;height:72px;flex-shrink:0;border-radius:18px;background:#0A0B0C;color:#F5C400;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .inj-count b{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:.9}
+  .inj-count span{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#fff}
+  .inj-me-top small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#8A6A00}
+  .inj-me-top b{display:block;font-family:var(--font-display);font-weight:800;font-size:24px;line-height:1.05}
+  .inj-me-top span{font-size:13.5px;color:var(--muted)}
+  .inj-cheers{margin-top:12px;font-size:14.5px}
+  .inj-acc{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.08);font-size:14px}
+  .inj-acc button{width:auto;flex-shrink:0}
+  .inj-list{background:var(--panel);border:1.5px solid var(--border);border-radius:16px;padding:10px 14px;margin:0 0 14px}
+  .inj-list-head{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-bottom:4px}
+  .inj-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border)}
+  .inj-row:nth-child(2){border-top:0}
+  .inj-row b{display:block;font-size:15.5px}
+  .inj-row span{font-size:13px;color:var(--muted)}
+  .inj-row button{width:auto;flex-shrink:0;padding:7px 12px;font-size:14px}
+  .player-card-injury{font-size:12.5px;color:#B42318;font-weight:600;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .cheer-mini{width:auto;padding:3px 8px;font-size:12px;border-radius:999px}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -2705,7 +2780,7 @@ window.__goToMatchLineup = async (matchId)=>{
 };
 
 async function renderDashboard(){
-  main.innerHTML = helloLine() + `<div id="dash-bday"></div>` + `
+  main.innerHTML = helloLine() + `<div id="dash-bday"></div><div id="dash-coach-note"></div><div id="dash-injury"></div>` + `
     <h1 class="display-xl">El equipo, en un solo lugar</h1>
     <p class="lead">Organización, compromiso y fútbol<br>para seguir haciendo historia.</p>
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
@@ -2714,7 +2789,12 @@ async function renderDashboard(){
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
     <div id="monthly-highlights"></div>
+    <div id="dash-ig"></div>
     <div id="dash-lineup"></div>`;
+  renderBirthdays();
+  renderCoachNote();
+  renderInjuryBlock();
+  renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
   renderDashboardLineup();
@@ -2733,12 +2813,9 @@ async function renderDashboard(){
       <div class="stat-chip-card"><div class="stat-chip-icon blue">${ic('wallet-solid')}</div><div class="stat-chip-body"><div class="label">Saldo en caja</div><div class="num">${fmtMoney((s.total_recaudado||0)-(s.total_gastado||0))}</div></div></div>
     `;
   } else if(isAdmin()){
-    renderUnratedMatchesReminder();
-    $('#dash-cards').className = 'stat-grid';
-    const { count: activePlayers } = await supabase.from('players').select('*', {count:'exact', head:true}).eq('active', true).eq('injured', false);
-    $('#dash-cards').innerHTML = `
-      <div class="stat-chip-card"><div class="stat-chip-icon blue">${ic('users-solid')}</div><div class="stat-chip-body"><div class="num">${activePlayers ?? '-'}</div><div class="label">Jugadores activos</div></div></div>
-    `;
+    $('#dash-cards').className = '';
+    $('#dash-cards').innerHTML = '<div id="coach-panel"><p class="muted">Cargando tus pendientes…</p></div>';
+    renderCoachPanel();
   } else {
     const mvpBlock = $('#monthly-highlights'), heroBlock = $('#dash-hero');
     if(mvpBlock && heroBlock) heroBlock.after(mvpBlock);
@@ -2896,6 +2973,326 @@ window.__igEdit = async ()=>{
     renderIgCard();
   });
 };
+
+
+// ---------------- CUERPO TÉCNICO ----------------
+const STAFF_TITLES = ['Director técnico','Asistente técnico','Preparador físico','Entrenador de arqueros','Delegado','Fisioterapeuta','Utilero'];
+let staffCache = null;
+async function loadStaff(force){
+  if(staffCache && !force) return staffCache;
+  const rpc = await supabase.rpc('team_staff');
+  if(!rpc.error && Array.isArray(rpc.data)){ staffCache = rpc.data; return staffCache; }
+  const { data } = await supabase.from('profiles').select('id,full_name,role,staff_title,photo_url').eq('role','cuerpo_tecnico');
+  staffCache = (data||[]).filter(p=> p.role === 'cuerpo_tecnico');
+  return staffCache;
+}
+const escS = s=> String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function staffAvatar(s, size){
+  return s?.photo_url ? `<img class="st-av" style="width:${size}px;height:${size}px" src="${s.photo_url}" alt="" />`
+    : `<span class="st-av st-ini" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.38)}px">${escS(initials(s?.full_name||''))}</span>`;
+}
+async function renderStaffSection(){
+  const el = $('#staff-section'); if(!el) return;
+  const list = await loadStaff();
+  if(!list.length){ el.innerHTML = ''; return; }
+  const order = t=>{ const i = STAFF_TITLES.indexOf(t); return i < 0 ? 99 : i; };
+  const sorted = [...list].sort((a,b)=> order(a.staff_title) - order(b.staff_title));
+  el.innerHTML = `
+    <div class="st-section">
+      <div class="st-head"><b>Cuerpo técnico</b><span>${sorted.length} ${sorted.length === 1 ? 'persona' : 'personas'}</span></div>
+      <div class="st-row">${sorted.map(s=>`
+        <div class="st-card">
+          ${staffAvatar(s, 72)}
+          <b>${escS(s.full_name)}</b>
+          <span>${escS(s.staff_title || 'Cuerpo técnico')}</span>
+          ${s.id === profile?.id ? `<button type="button" class="small secondary" onclick="window.__editMyStaffProfile()">${ic('edit','sm')} Editar</button>` : ''}
+        </div>`).join('')}</div>
+    </div>`;
+}
+window.__editMyStaffProfile = async ()=>{
+  const list = await loadStaff(true);
+  const me = list.find(s=> s.id === profile.id) || { full_name: profile.full_name, staff_title: profile.staff_title, photo_url: profile.photo_url };
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  ov.innerHTML = `
+    <div class="panel st-modal-box">
+      <h3 style="margin-top:0">Mi perfil del cuerpo técnico</h3>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">${staffAvatar(me, 76)}<div><b style="font-size:18px">${escS(me.full_name)}</b><div class="muted" style="font-size:14px">Así te ven los jugadores</div></div></div>
+      <label class="field-label" for="st-title">Cargo</label>
+      <select id="st-title">${STAFF_TITLES.map(t=>`<option ${me.staff_title === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <label class="field-label" for="st-photo">Foto</label>
+      <input type="file" id="st-photo" accept="image/*" />
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="st-save" style="flex:1">Guardar</button>
+        <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cancelar</button>
+      </div>
+    </div>`;
+  ov.classList.add('open');
+  $('#st-save').addEventListener('click', async ()=>{
+    const btn = $('#st-save'); btn.disabled = true; btn.textContent = 'Guardando…';
+    let photo = me.photo_url || null;
+    const f = $('#st-photo').files[0];
+    if(f){
+      if(!f.type.startsWith('image/')){ toast('La foto debe ser una imagen', true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
+      const file = (typeof shrinkImage === 'function') ? await shrinkImage(f) : f;
+      const path = `staff/${profile.id}-${Date.now()}.${(file.name.split('.').pop()||'jpg').toLowerCase()}`;
+      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true, contentType: file.type });
+      if(upErr){ toast(upErr.message, true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
+      photo = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
+    }
+    const { error } = await supabase.rpc('update_my_staff_profile', { p_title: $('#st-title').value, p_photo: photo });
+    btn.disabled = false; btn.textContent = 'Guardar';
+    if(error){ toast(/function|does not exist/i.test(error.message) ? 'Falta correr el SQL del cuerpo técnico en Supabase.' : error.message, true); return; }
+    toast('Perfil actualizado');
+    ov.classList.remove('open');
+    staffCache = null;
+    renderStaffSection(); renderCoachNote(); if($('#coach-panel')) renderCoachPanel();
+  });
+};
+
+// ---- La palabra del profe (se ve en el Inicio de todos) ----
+function agoText(ts){
+  const m = Math.round((Date.now() - new Date(ts).getTime()) / 60000);
+  if(m < 60) return 'hace ' + Math.max(1, m) + ' min';
+  const h = Math.round(m / 60); if(h < 24) return 'hace ' + h + ' h';
+  const d = Math.round(h / 24); return d === 1 ? 'ayer' : 'hace ' + d + ' días';
+}
+async function renderCoachNote(){
+  const el = $('#dash-coach-note'); if(!el) return;
+  const { data: ts } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  const fresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 14*86400000;
+  if(!fresh){ el.innerHTML = ''; return; }
+  const staff = await loadStaff();
+  const a = staff.find(s=> s.id === ts.coach_note_by) || { full_name: 'Cuerpo técnico' };
+  el.innerHTML = `
+    <div class="cn-card">
+      <div class="cn-top">${staffAvatar(a, 44)}<div><small>La palabra del profe</small><b>${escS(a.full_name)}</b><span>${escS(a.staff_title || 'Cuerpo técnico')} · ${agoText(ts.coach_note_at)}</span></div></div>
+      <p>“${escS(ts.coach_note)}”</p>
+      ${canManage() ? `<button type="button" class="cn-edit" onclick="window.__coachNoteEdit()">${ic('edit','sm')} Cambiar mensaje</button>` : ''}
+    </div>`;
+}
+window.__coachNoteEdit = async ()=>{
+  const { data: ts } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  ov.innerHTML = `
+    <div class="panel st-modal-box">
+      <h3 style="margin-top:0">La palabra del profe</h3>
+      <p class="muted" style="margin-top:-4px">Sale destacado en el Inicio de todos los jugadores durante 14 días.</p>
+      <textarea id="cn-text" rows="4" maxlength="400" placeholder="Ej. Muchachos, el sábado presión alta desde el inicio. Puntuales 6:30 en la cancha.">${escS(ts?.coach_note || '')}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button type="button" id="cn-save" style="flex:1">Publicar</button>
+        ${ts?.coach_note ? `<button type="button" class="secondary" id="cn-clear">Quitar</button>` : ''}
+        <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cancelar</button>
+      </div>
+    </div>`;
+  ov.classList.add('open');
+  const save = async (text)=>{
+    const { error } = await supabase.rpc('set_coach_note', { p_note: text });
+    if(error){ toast(/function|does not exist/i.test(error.message) ? 'Falta correr el SQL del cuerpo técnico en Supabase.' : error.message, true); return; }
+    toast(text ? 'Mensaje publicado' : 'Mensaje quitado');
+    ov.classList.remove('open');
+    renderCoachNote(); if($('#coach-panel')) renderCoachPanel();
+  };
+  $('#cn-save').addEventListener('click', ()=>{ const t = $('#cn-text').value.trim(); if(!t){ toast('Escribe el mensaje', true); return; } save(t); });
+  $('#cn-clear')?.addEventListener('click', ()=> save(null));
+};
+
+// ---- Panel del técnico: pendientes + resumen del equipo ----
+async function renderCoachPanel(){
+  const el = $('#coach-panel'); if(!el) return;
+  const today = new Date().toISOString().slice(0,10);
+  const [{ data: next }, { data: past }, { data: trs }, { data: evals }, { data: att }, { data: ts }, staff] = await Promise.all([
+    supabase.from('matches').select('id,opponent,match_date,match_time').gte('match_date', today).order('match_date').limit(1),
+    supabase.from('matches').select('id,opponent,match_date,result').lt('match_date', today).order('match_date', { ascending: false }),
+    supabase.from('trainings').select('id,session_date').lte('session_date', today).order('session_date', { ascending: false }),
+    supabase.from('evaluations').select('match_id').not('match_id', 'is', null),
+    supabase.from('attendance').select('training_id,player_id,status'),
+    supabase.from('team_settings').select('*').eq('id', 1).maybeSingle(),
+    loadStaff(),
+  ]);
+  if(!playersCache.length) await loadPlayersCache();
+  const active = playersCache.filter(p=> p.active);
+  const nm = next?.[0];
+  const items = [];
+  // Convocatoria del próximo partido
+  if(nm){
+    const { data: cu } = await supabase.from('call_ups').select('id').eq('match_id', nm.id).maybeSingle();
+    if(!cu){
+      items.push({ icon:'shirt', t:`Crear la convocatoria vs ${escS(nm.opponent)}`, s:`Partido el ${fmtDayMon(nm.match_date)}`, b:'Convocar', go:"navigate('convocatoria')" });
+    } else {
+      const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', cu.id);
+      const yes = (rs||[]).filter(r=> r.response === 'asiste').length;
+      const answered = new Set((rs||[]).map(r=> r.player_id));
+      const missing = active.filter(p=> !answered.has(p.id)).length;
+      items.push({ icon:'shirt', t:`Convocatoria vs ${escS(nm.opponent)}`, s:`${yes} confirmados · ${missing} sin responder`, b: missing ? 'Recordar' : 'Ver', go:"navigate('convocatoria')", warn: missing > 0 });
+    }
+    const { data: lu } = await supabase.from('lineups').select('id').eq('match_id', nm.id).maybeSingle();
+    if(!lu) items.push({ icon:'tactic', t:'Armar la formación', s:`Para el partido vs ${escS(nm.opponent)}`, b:'Armar', go:`window.__goToMatchLineup('${nm.id}')`, warn:true });
+  }
+  // Pasar lista del último entrenamiento
+  const lastT = (trs||[])[0];
+  if(lastT && !(att||[]).some(a=> a.training_id === lastT.id)){
+    items.push({ icon:'clip', t:'Pasar lista del entrenamiento', s:`Del ${fmtDayMon(lastT.session_date)}`, b:'Pasar lista', go:"navigate('entrenamientos')", warn:true });
+  }
+  // Partidos sin calificar
+  const rated = new Set((evals||[]).map(e=> e.match_id));
+  const unrated = (past||[]).filter(m=> !rated.has(m.id));
+  unrated.slice(0,2).forEach(m=> items.push({ icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:"navigate('partidos')", warn:true }));
+  // Lesionados que ya deberían estar de vuelta
+  active.filter(p=> p.injured && p.injury_return && daysUntil(p.injury_return) <= 0).forEach(p=>
+    items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Quitar lesión', go:`window.__setInjury('${p.id}', false)`, warn:true }));
+  // Palabra del profe
+  const noteFresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 7*86400000;
+  if(nm && !noteFresh) items.push({ icon:'chat', t:'Escribir la palabra del profe', s:'Un mensaje para el equipo antes del partido', b:'Escribir', go:'window.__coachNoteEdit()' });
+  // Perfil propio
+  const me = staff.find(s=> s.id === profile.id);
+  if(isAdmin() && (!me || !me.photo_url || !me.staff_title)) items.push({ icon:'user', t:'Completa tu perfil', s:'Foto y cargo, para que los jugadores te reconozcan', b:'Completar', go:'window.__editMyStaffProfile()' });
+
+  // Resumen
+  const parsed = (past||[]).map(m=>{ const mm = String(m.result||'').match(/(\d+)\s*[-–]\s*(\d+)/); return mm ? { ...m, gf:+mm[1], gc:+mm[2] } : null; }).filter(Boolean);
+  const res = r=> r.gf > r.gc ? 'G' : r.gf === r.gc ? 'E' : 'P';
+  const W = parsed.filter(r=> res(r) === 'G').length, D = parsed.filter(r=> res(r) === 'E').length, L = parsed.filter(r=> res(r) === 'P').length;
+  const GF = parsed.reduce((a,r)=> a + r.gf, 0), GC = parsed.reduce((a,r)=> a + r.gc, 0);
+  const last5 = parsed.slice(0,5);
+  const pastTrainIds = new Set((trs||[]).map(t=> t.id));
+  const attPast = (att||[]).filter(a=> pastTrainIds.has(a.training_id));
+  const pct = attPast.length ? Math.round(attPast.filter(a=> a.status !== 'ausente').length / attPast.length * 100) : null;
+  const absences = {};
+  attPast.filter(a=> a.status === 'ausente').forEach(a=>{ absences[a.player_id] = (absences[a.player_id]||0) + 1; });
+  const topAbs = Object.entries(absences).sort((a,b)=> b[1]-a[1]).slice(0,3).map(([pid,n])=>({ p: playersCache.find(x=> x.id === pid), n })).filter(x=> x.p);
+
+  el.innerHTML = `
+    <div class="cp-box">
+      <div class="cp-head"><b>Tus pendientes</b>${items.length ? `<span class="cp-count">${items.length}</span>` : ''}</div>
+      ${items.length ? items.map(it=>`
+        <div class="cp-item${it.warn ? ' warn' : ''}">
+          <span class="cp-ic">${ic(it.icon)}</span>
+          <div class="cp-txt"><b>${it.t}</b><span>${it.s}</span></div>
+          <button type="button" class="small" onclick="${it.go}">${it.b}</button>
+        </div>`).join('') : `<div class="cp-done">💪 ¡Todo al día! No tienes nada pendiente.</div>`}
+    </div>
+    <div class="cp-box">
+      <div class="cp-head"><b>Resumen del equipo</b><span class="muted" style="font-size:13px">${parsed.length} partidos jugados</span></div>
+      <div class="cp-stats">
+        <div><b>${W}-${D}-${L}</b><span>G · E · P</span></div>
+        <div><b>${GF}</b><span>Goles a favor</span></div>
+        <div><b>${GC}</b><span>Goles en contra</span></div>
+        <div><b>${pct == null ? '—' : pct + '%'}</b><span>Asistencia a entrenos</span></div>
+      </div>
+      ${last5.length ? `<div class="cp-form"><span>Últimos partidos</span>${last5.map(r=>`<i class="f-${res(r)}" title="vs ${escS(r.opponent)} ${r.gf}-${r.gc}">${res(r)}</i>`).join('')}</div>` : ''}
+      ${topAbs.length ? `<div class="cp-abs"><span>Los que más faltan a entrenar</span>${topAbs.map(x=>`<div><b>#${x.p.jersey_number} ${escS(x.p.full_name)}</b><em>${x.n} falta${x.n>1?'s':''}</em></div>`).join('')}</div>` : ''}
+    </div>`;
+}
+
+
+// ---------------- LESIONADOS ----------------
+const INJURY_TYPES = ['Molestia muscular','Desgarre','Esguince','Golpe / contusión','Rodilla','Tobillo','Fractura','Otra'];
+function daysUntil(d){ if(!d) return null; const t = new Date(); t.setHours(0,0,0,0); return Math.round((new Date(d+'T00:00:00') - t) / 86400000); }
+function returnText(p){
+  const n = daysUntil(p.injury_return);
+  if(n == null) return 'Fecha de regreso por definir';
+  if(n < 0) return 'Ya debería estar de vuelta';
+  if(n === 0) return 'Vuelve hoy';
+  if(n === 1) return 'Vuelve mañana';
+  if(n < 14) return `Vuelve en ${n} días`;
+  return `Vuelve en ~${Math.round(n/7)} semanas`;
+}
+function injuryLine(p){ return `🩹 ${p.injury_type ? p.injury_type + ' · ' : ''}${returnText(p)}`; }
+// Marcar lesión: pide tipo y fecha estimada de regreso. Quitar lesión: limpia todo.
+window.__setInjury = async (id, makeInjured, after)=>{
+  const done = async ()=>{ await loadPlayersCache(); if($('#players-tbody')) renderPlayersRows(); if($('#player-cards-list')) renderPlayerCards(); after && after(); if($('#coach-panel')) renderCoachPanel(); if($('#dash-injury')) renderInjuryBlock(); };
+  if(!makeInjured){
+    let r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, accompany_match_id: null }).eq('id', id);
+    if(r.error && /injury_|accompany/.test(r.error.message)) r = await supabase.from('players').update({ injured: false }).eq('id', id);
+    if(r.error){ toast(r.error.message, true); return; }
+    toast('Lesión retirada del jugador'); done(); return;
+  }
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  const p = playersCache.find(x=> x.id === id) || {};
+  const def = new Date(); def.setDate(def.getDate() + 14);
+  ov.innerHTML = `
+    <div class="panel st-modal-box">
+      <h3 style="margin-top:0">🩹 Marcar lesionado</h3>
+      <p class="muted" style="margin-top:-4px">#${p.jersey_number ?? ''} ${escS(p.full_name)} · no le llegarán convocatorias hasta que vuelva.</p>
+      <label class="field-label" for="inj-type">Tipo de lesión</label>
+      <select id="inj-type">${INJURY_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      <label class="field-label" for="inj-date">Fecha estimada de regreso</label>
+      <input type="date" id="inj-date" value="${def.toISOString().slice(0,10)}" />
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="inj-save" style="flex:1">Marcar lesionado</button>
+        <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cancelar</button>
+      </div>
+    </div>`;
+  ov.classList.add('open');
+  $('#inj-save').addEventListener('click', async ()=>{
+    let r = await supabase.from('players').update({ injured: true, injury_type: $('#inj-type').value, injury_return: $('#inj-date').value || null }).eq('id', id);
+    if(r.error && /injury_/.test(r.error.message)){ toast('Se marcó la lesión, pero falta correr el SQL de lesionados para guardar tipo y fecha.', true); r = await supabase.from('players').update({ injured: true }).eq('id', id); }
+    if(r.error){ toast(r.error.message, true); return; }
+    ov.classList.remove('open');
+    toast('Jugador marcado como lesionado'); done();
+  });
+};
+// "¡Fuerza!" de un compañero
+window.__sendCheer = async (pid, btn)=>{
+  if(btn){ btn.disabled = true; }
+  const { error } = await supabase.from('injury_cheers').insert({ player_id: pid, from_profile: profile.id, from_name: (typeof firstName === 'function' ? firstName() : '') || profile.full_name });
+  if(error){ if(btn) btn.disabled = false; toast(/injury_cheers/.test(error.message) ? 'Falta correr el SQL de lesionados en Supabase.' : error.message, true); return; }
+  if(btn){ btn.textContent = '💪 ¡Enviado!'; }
+  toast('Le mandaste fuerza 💪');
+};
+window.__toggleAccompany = async (matchId, on)=>{
+  const { error } = await supabase.from('players').update({ accompany_match_id: on ? matchId : null }).eq('id', profile.player_id);
+  if(error){ toast(/accompany/.test(error.message) ? 'Falta correr el SQL de lesionados en Supabase.' : error.message, true); return; }
+  toast(on ? '¡Gracias por acompañar al equipo! 🙌' : 'Listo, quitamos tu confirmación');
+  await loadPlayersCache(); renderInjuryBlock();
+};
+async function renderInjuryBlock(){
+  const el = $('#dash-injury'); if(!el) return;
+  if(!playersCache.length) await loadPlayersCache();
+  const injured = playersCache.filter(p=> p.active && p.injured);
+  if(!injured.length){ el.innerHTML = ''; return; }
+  const me = injured.find(p=> p.id === profile?.player_id);
+  const others = injured.filter(p=> p.id !== profile?.player_id);
+  let html = '';
+  if(me){
+    const today = new Date().toISOString().slice(0,10);
+    const [{ data: cheers }, { data: nm }] = await Promise.all([
+      supabase.from('injury_cheers').select('from_name,created_at').eq('player_id', me.id).order('created_at', { ascending: false }).limit(30),
+      supabase.from('matches').select('id,opponent,match_date').gte('match_date', today).order('match_date').limit(1),
+    ]);
+    const n = daysUntil(me.injury_return);
+    const names = [...new Set((cheers||[]).map(c=> c.from_name).filter(Boolean))];
+    const next = nm?.[0];
+    const going = next && me.accompany_match_id === next.id;
+    html += `
+      <div class="inj-me">
+        <div class="inj-me-top">
+          <div class="inj-count">${n != null && n >= 0 ? `<b>${n}</b><span>${n === 1 ? 'día' : 'días'}</span>` : '<b>🩹</b>'}</div>
+          <div><small>Estás en recuperación</small><b>${escS(me.injury_type || 'Lesión')}</b><span>${me.injury_return ? returnText(me) + ' · ' + fmtDate(me.injury_return) : 'El cuerpo técnico definirá tu regreso'}</span></div>
+        </div>
+        ${names.length ? `<div class="inj-cheers">💪 Te mandaron fuerza: <b>${names.slice(0,6).map(escS).join(', ')}${names.length > 6 ? ` y ${names.length - 6} más` : ''}</b></div>` : `<div class="inj-cheers">💪 Todo el equipo te espera de vuelta.</div>`}
+        ${next ? `<div class="inj-acc"><span>¿Acompañas al equipo vs ${escS(next.opponent)} (${fmtDayMon(next.match_date)})?</span>
+          <button type="button" class="small${going ? ' secondary' : ''}" onclick="window.__toggleAccompany('${next.id}', ${!going})">${going ? '✓ Voy a acompañar' : 'Voy como hincha'}</button></div>` : ''}
+      </div>`;
+  }
+  if(others.length){
+    html += `
+      <div class="inj-list">
+        <div class="inj-list-head">🩹 En recuperación</div>
+        ${others.map(p=>`
+          <div class="inj-row">
+            <div><b>#${p.jersey_number} ${escS(p.full_name)}</b><span>${escS(p.injury_type || 'Lesión')} · ${returnText(p)}</span></div>
+            <button type="button" class="small" onclick="window.__sendCheer('${p.id}', this)">💪 ¡Fuerza!</button>
+          </div>`).join('')}
+      </div>`;
+  }
+  el.innerHTML = html;
+}
 
 // ---------------- CUMPLEAÑOS ----------------
 // Jugadores activos (fecha de su ficha) + cuerpo técnico / Comité (fecha que se
@@ -3480,6 +3877,7 @@ async function renderJugadores(){
       ${canManage() ? `<button id="jug-add-toggle" style="width:auto">${ic('plus')} Agregar</button>` : ''}
     </div>
     <div class="active-count-pill">${ic('users')} ${activeCount} activos</div>
+    <div id="staff-section"></div>
     ${profile?.player_id && !canManage() ? `<div class="panel my-card-cta"><div><b>¿Tu ficha está al día?</b><span>Actualiza tu foto y tus datos; tus compañeros los ven aquí.</span></div><button type="button" onclick="window.__editPlayer(profile.player_id)">${ic('user')} Editar mi ficha</button></div>` : ''}
 
     ${canManage() ? `
@@ -3520,6 +3918,7 @@ async function renderJugadores(){
   `;
   renderPlayersRows();
   renderPlayerCards();
+  renderStaffSection();
   $('#player-search').addEventListener('input', (e)=>{ playerSearchQuery = e.target.value.trim().toLowerCase(); renderPlayerCards(); });
   $$('#jugadores-mobile .pill-filter').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -3600,6 +3999,7 @@ function renderPlayerCards(){
         <div class="player-card-num">${p.jersey_number}</div>
         <div class="player-card-name">${p.full_name}</div>
         <div class="player-card-position">${p.position||'Posición sin definir'}${p.injured ? ' · 🩹 Lesionado' : (!p.active ? ' · Inactivo' : '')}</div>
+        ${p.injured && p.active ? `<div class="player-card-injury">${returnText(p)}</div>` : ''}
         <div class="player-card-rating">${playerRatings[p.id] ? `${ic('star','star')} <b>${playerRatings[p.id].toFixed(1)}</b> / 5` : '<span class="muted">Sin calificar</span>'}</div>
       </div>
       <div class="player-card-actions">
@@ -3643,7 +4043,7 @@ function openPlayerDetail(id){
       <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>` : `
       <div class="player-detail-field"><label>Edad</label><p>${age!=null ? age+' años' : '-'}</p></div>`}
       <div class="player-detail-field"><label>Calificación promedio</label><p>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : 'Sin calificar'}</p></div>
-      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p></div>
+      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p>${p.id !== profile?.player_id ? `<button type="button" class="small" style="margin-top:8px;width:auto" onclick="window.__sendCheer('${p.id}', this)">💪 Mandarle fuerza</button>` : ''}` : ''}</div>
       ${editable ? `
         <button class="secondary" id="pd-toggle-active" style="width:100%;margin-top:8px">${p.active?'Desactivar':'Activar'}</button>
         <button class="secondary" id="pd-toggle-injured" style="width:100%;margin-top:8px">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button>
@@ -3696,13 +4096,7 @@ function openPlayerDetail(id){
       renderPlayersRows(); renderPlayerCards();
       openPlayerDetail(id);
     });
-    $('#pd-toggle-injured').addEventListener('click', async ()=>{
-      const { error } = await supabase.from('players').update({injured: !p.injured}).eq('id', id);
-      if(error){ toast(error.message, true); return; }
-      await loadPlayersCache();
-      renderPlayersRows(); renderPlayerCards();
-      openPlayerDetail(id);
-    });
+    $('#pd-toggle-injured').addEventListener('click', ()=> window.__setInjury(id, !p.injured, ()=> openPlayerDetail(id)));
   }
 }
 function closePlayerDetail(){
@@ -3724,13 +4118,7 @@ window.__toggleActive = async (id, active)=>{
 // cuenta en el "X/Y confirmados" — pero sigue viendo su perfil, estadísticas y
 // el resto de la app con normalidad, y su "Mi perfil"/Dashboard le avisa que
 // está marcado como lesionado.
-window.__toggleInjured = async (id, injured)=>{
-  const { error } = await supabase.from('players').update({injured: !injured}).eq('id', id);
-  if(error){ toast(error.message, true); return; }
-  toast(!injured ? 'Jugador marcado como lesionado' : 'Lesión retirada del jugador');
-  await loadPlayersCache();
-  renderPlayersRows();
-};
+window.__toggleInjured = (id, injured)=> window.__setInjury(id, !injured);
 
 // Un solo botón "Guardar cambios" para número, fecha de nacimiento, documento,
 // teléfono y correo — antes eran 3 botones separados en la misma fila y era
@@ -7298,7 +7686,7 @@ async function renderCallUpBody(callUp){
     const injuredActive = playersCache.filter(p=>p.active && p.injured);
     container.innerHTML = `
       <p class="muted" style="margin:0 0 6px">Toca un jugador para marcar su asistencia directamente, sin esperar su respuesta ni la hora límite.</p>
-      ${injuredActive.length ? `<p class="muted" style="margin:0">🩹 No convocados por lesión: ${injuredActive.map(p=>`#${p.jersey_number} ${p.full_name}`).join(', ')}</p>` : ''}
+      ${injuredActive.length ? `<p class="muted" style="margin:0">🩹 No convocados por lesión: ${injuredActive.map(p=>`#${p.jersey_number} ${p.full_name}${callUp.match_id && p.accompany_match_id === callUp.match_id ? ' (acompaña como hincha 🙌)' : ''}`).join(', ')}</p>` : ''}
     `;
   } else if(profile.player_id){
     const { data: mine } = await supabase.from('call_up_responses').select('*').eq('call_up_id', callUp.id).eq('player_id', profile.player_id).maybeSingle();
