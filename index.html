@@ -4889,7 +4889,7 @@ window.__openMatch = async (matchId)=>{
 
       <h4>Minutos, estadísticas y calificación</h4>
       ${canManageEvents() ? `
-      <p class="muted">Registra minutos, goles, tarjetas y la calificación de 1 a 5 de cada jugador que participó. Todo se guarda con el botón "Guardar". Máximo 11 titulares por partido. Los titulares aparecen primero.</p>
+      <p class="muted">Registra minutos, goles, tarjetas y la calificación de 1 a 5 (puede llevar decimal, ej. 3,5) de cada jugador que participó. Todo se guarda con el botón "Guardar". Máximo 11 titulares por partido. Los titulares aparecen primero.</p>
       <table><thead><tr><th>#</th><th>Jugador</th><th>Titular</th><th>Min.</th><th>Goles</th><th>Asist.</th><th>TA</th><th>TR</th><th>Calificación (1-5)</th><th></th></tr></thead>
       <tbody>
         ${sortedMatchPlayers.map(p=>{
@@ -4910,7 +4910,7 @@ window.__openMatch = async (matchId)=>{
               <option value="0" ${!s.red_cards?'selected':''}>0</option>
               <option value="1" ${s.red_cards==1?'selected':''}>1</option>
             </select></td>
-            <td><input type="number" min="1" max="5" step="1" inputmode="numeric" class="f-rating rating-input" value="${evalScore(e) ? Math.round(evalScore(e)) : ''}" placeholder="-" /></td>
+            <td><input type="text" inputmode="decimal" class="f-rating rating-input" value="${evalScore(e) ? String(Math.round(evalScore(e)*10)/10).replace('.', ',') : ''}" placeholder="-" title="De 1 a 5, puede llevar decimal: 3,5" /></td>
             <td><button class="small" onclick="window.__saveMatchStat('${matchId}','${p.id}', this)">Guardar</button></td>
           </tr>`;
         }).join('')}
@@ -5074,8 +5074,8 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
   // todos los promedios de la app sigan funcionando sin cambios.
   const ratingRaw = tr.querySelector('.f-rating').value;
   if(ratingRaw !== ''){
-    const rating = Math.round(Number(ratingRaw));
-    if(!(rating >= 1 && rating <= 5)) return toast('La calificación debe ser un número del 1 al 5', true);
+    const rating = Math.round(Number(String(ratingRaw).trim().replace(',', '.')) * 10) / 10;
+    if(!(rating >= 1 && rating <= 5)) return toast('La calificación debe ser un número del 1 al 5 (puede llevar decimal, ej. 3,5)', true);
     const evalPayload = {
       match_id: matchId, player_id: playerId,
       eval_date: tr.dataset.matchDate,
@@ -5086,7 +5086,12 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
       mental: rating,
     };
     const { error: evalError } = await supabase.from('evaluations').upsert(evalPayload, { onConflict: 'player_id,match_id' });
-    if(evalError) return toast(evalError.message, true);
+    if(evalError){
+      // Columnas todavía enteras en la base de datos: avisar qué activar.
+      if(/integer|smallint|bigint/i.test(evalError.message || '') && !Number.isInteger(rating))
+        return toast('Para guardar decimales falta activar esa opción en la base de datos (SQL de calificación con decimales).', true);
+      return toast(evalError.message, true);
+    }
   }
   toast('Estadísticas y calificación guardadas');
 };
