@@ -1113,6 +1113,24 @@
     .store-banner h1{font-size:44px}
   }
 
+  /* Saludo */
+  .dash-hello{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+  .dash-hello .wave{font-size:30px;display:inline-block;transform-origin:70% 70%;animation:wave 1.6s ease-in-out 2}
+  .dash-hello b{display:block;font-family:var(--font-display);font-weight:800;font-size:30px;line-height:1}
+  .dash-hello span:not(.wave){color:var(--muted);font-size:14.5px}
+  @keyframes wave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(16deg)}20%,40%{transform:rotate(-8deg)}}
+  .hello-splash{position:fixed;inset:0;z-index:9999;background:#0A0B0C;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;animation:helloIn .35s ease both;cursor:pointer}
+  .hello-splash.out{animation:helloOut .45s ease both}
+  .hello-inner{padding:24px;animation:helloUp .6s .1s cubic-bezier(.2,.8,.2,1) both}
+  .hello-crest{display:block;width:96px;height:96px;margin:0 auto 18px}
+  .hello-small{font-size:16px;letter-spacing:.14em;text-transform:uppercase;color:#F5C400;font-weight:700}
+  .hello-big{font-family:var(--font-display);font-weight:800;font-size:64px;line-height:.95;margin:8px 0 12px;text-transform:uppercase}
+  .hello-sub{color:#B9BCC2;font-size:16px}
+  @keyframes helloIn{from{opacity:0}to{opacity:1}}
+  @keyframes helloOut{to{opacity:0;visibility:hidden}}
+  @keyframes helloUp{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.hello-splash,.hello-inner,.dash-hello .wave{animation:none}}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -1777,6 +1795,37 @@ async function afterLogin(sess){
   await enterApp();
 }
 
+
+// ---------------- SALUDO ----------------
+function firstName(){
+  const linked = profile?.player_id ? playersCache.find(p=>p.id === profile.player_id) : null;
+  const full = (linked?.full_name || profile?.full_name || '').trim();
+  const w = full.split(/\s+/)[0] || '';
+  return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '';
+}
+function greetingWord(){
+  const h = new Date().getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+function helloLine(){
+  const n = firstName();
+  return `<div class="dash-hello"><span class="wave">👋</span><div><b>Hola${n ? ', '+n : ''}</b><span>${greetingWord()} · ¡Qué bueno verte por acá!</span></div></div>`;
+}
+function showWelcomeSplash(){
+  let seen = false;
+  try { seen = sessionStorage.getItem('als_hello') === '1'; sessionStorage.setItem('als_hello','1'); } catch(e){}
+  if(seen) return;
+  const n = firstName();
+  const el = document.createElement('div');
+  el.className = 'hello-splash';
+  el.setAttribute('role','status');
+  el.innerHTML = `<div class="hello-inner"><span class="crest-badge hello-crest"></span><div class="hello-small">${greetingWord()}</div><div class="hello-big">¡Hola${n ? ',<br>'+n.replace(/</g,'&lt;') : ''}!</div><div class="hello-sub">Bienvenido a Abraham Lincoln FC</div></div>`;
+  document.body.appendChild(el);
+  const close = ()=>{ el.classList.add('out'); setTimeout(()=> el.remove(), 450); };
+  el.addEventListener('click', close);
+  setTimeout(close, 2200);
+}
+
 async function enterApp(){
   $('#force-password-screen').style.display = 'none';
   $('#app').classList.add('active');
@@ -1785,6 +1834,7 @@ async function enterApp(){
   window.__setupTabbar && window.__setupTabbar(profile.role);
   await loadPlayersCache();
   await loadCurrentSeason();
+  showWelcomeSplash();
   navigate('dashboard');
   refreshConvocatoriaBadge();
   refreshMensajesBadge();
@@ -1813,10 +1863,10 @@ const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Later
 function buildNav(){
   const itemsByRole = {
     cuerpo_tecnico: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','equipacion'],
-    jugador: ['dashboard','tablas','galeria','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
+    jugador: ['dashboard','tablas','galeria','jugadores','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
     usuario_maestro: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios','patrocinadores','equipacion'],
     // Igual que "jugador" pero sin "Resumen financiero".
-    fichaje: ['dashboard','tablas','galeria','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
+    fichaje: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
   };
   const items = (itemsByRole[profile.role] || itemsByRole.jugador).slice();
   // "Finanzas" no depende solo del rol: si a este jugador/fichaje le
@@ -2492,7 +2542,7 @@ window.__goToMatchLineup = async (matchId)=>{
 };
 
 async function renderDashboard(){
-  main.innerHTML = `
+  main.innerHTML = helloLine() + `
     <h1 class="display-xl">El equipo, en un solo lugar</h1>
     <p class="lead">Organización, compromiso y fútbol<br>para seguir haciendo historia.</p>
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
@@ -2912,6 +2962,12 @@ window.__galDelete = async ()=>{
 let playerRatings = {}; // player_id -> promedio de calificación (1-5)
 
 async function loadPlayerRatings(){
+  const rpc = await supabase.rpc('player_avg_ratings');
+  if(!rpc.error && Array.isArray(rpc.data) && rpc.data.length){
+    playerRatings = {};
+    rpc.data.forEach(r=>{ if(r.avg_rating != null) playerRatings[r.player_id] = Number(r.avg_rating); });
+    return;
+  }
   const { data: evals } = await supabase.from('evaluations').select('player_id,technique,physical,tactical,mental').not('match_id', 'is', null);
   const sums = {};
   (evals||[]).forEach(e=>{
@@ -3101,9 +3157,9 @@ function renderPlayersRows(){
       <td>${p.full_name}</td>
       <td>${canManage() ? `<select class="position-input" style="width:160px">${PLAYER_POSITIONS.map(pos=>`<option value="${pos}" ${p.position===pos?'selected':''}>${pos}</option>`).join('')}</select>` : (p.position||'-')}</td>
       <td>${canManage() ? `<input type="date" class="birth-input" style="width:150px" value="${p.birth_date||''}"><div class="muted" style="margin-top:2px">${age!=null ? age+' años' : 'Sin fecha de nacimiento'}</div>` : (age!=null ? age+' años' : '-')}</td>
-      <td>${canManage() ? `<input type="text" class="document-input" style="width:130px" value="${p.document_number||''}" placeholder="N° documento">` : (p.document_number||'-')}</td>
+      <td>${canManage() ? `<input type="text" class="document-input" style="width:130px" value="${p.document_number||''}" placeholder="N° documento">` : (p.id === profile?.player_id ? (p.document_number||'-') : '<span class="muted">Privado</span>')}</td>
       <td>${canManage() ? `<input type="tel" class="phone-input" style="width:130px" value="${p.phone||''}" placeholder="Teléfono">` : (p.phone||'-')}</td>
-      <td>${canManage() ? `<input type="email" class="email-input" style="width:160px" value="${p.email||''}" placeholder="correo@ejemplo.com">` : (p.email||'-')}</td>
+      <td>${canManage() ? `<input type="email" class="email-input" style="width:160px" value="${p.email||''}" placeholder="correo@ejemplo.com">` : (p.id === profile?.player_id ? (p.email||'-') : '<span class="muted">Privado</span>')}</td>
       <td>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : '<span class="muted">Sin calificar</span>'}</td>
       <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</td>
       ${canManage() ? `<td><button class="small" onclick="window.__editPlayer('${p.id}')">Editar ficha</button> <button class="small secondary" onclick="window.__savePlayerRow('${p.id}', this)">Guardar cambios</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button> <button class="small secondary" onclick="window.__toggleInjured('${p.id}', ${p.injured})">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button></td>` : ''}
@@ -3166,10 +3222,12 @@ function openPlayerDetail(id){
     </div>
     <div class="panel">
       <div class="player-detail-field"><label>Número de camiseta</label><p>#${p.jersey_number}</p></div>
+      ${(editable || p.id === profile?.player_id) ? `
       <div class="player-detail-field"><label>Fecha de nacimiento</label><p>${p.birth_date ? fmtDate(p.birth_date) : '-'}${age!=null ? ' · '+age+' años' : ''}</p></div>
       <div class="player-detail-field"><label>N° de documento</label><p>${p.document_number||'-'}</p></div>
       <div class="player-detail-field"><label>Teléfono</label><p>${p.phone||'-'}</p></div>
-      <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>
+      <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>` : `
+      <div class="player-detail-field"><label>Edad</label><p>${age!=null ? age+' años' : '-'}</p></div>`}
       <div class="player-detail-field"><label>Calificación promedio</label><p>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : 'Sin calificar'}</p></div>
       <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p></div>
       ${editable ? `
