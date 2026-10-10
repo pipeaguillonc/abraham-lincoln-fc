@@ -1131,6 +1131,52 @@
   @keyframes helloUp{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.hello-splash,.hello-inner,.dash-hello .wave{animation:none}}
 
+  /* Llave Bre-B */
+  .breb-card{border:2px solid #F5C400;background:#fff}
+  .breb-empty{display:flex;align-items:center;gap:12px}
+  .breb-empty div{flex:1;display:flex;flex-direction:column}
+  .breb-empty span{color:var(--muted);font-size:14px}
+  .breb-empty button{width:auto}
+  .breb-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .breb-top button{width:auto;display:inline-flex;align-items:center;gap:5px}
+  .breb-brand{display:flex;align-items:center;gap:10px}
+  .breb-brand b{display:block;font-family:var(--font-display);font-weight:800;font-size:22px;line-height:1.05}
+  .breb-brand span{color:var(--muted);font-size:13.5px}
+  .breb-logo{flex-shrink:0;background:#0A0B0C;color:#F5C400;font-family:var(--font-display);font-weight:800;font-size:17px;padding:8px 10px;border-radius:10px;letter-spacing:.02em}
+  .breb-body{display:flex;gap:16px;align-items:center}
+  .breb-qr{width:170px;height:170px;flex-shrink:0;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:8px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .breb-qr svg,.breb-qr img{width:100%;height:100%;object-fit:contain;display:block}
+  .breb-qr.sm{width:110px;height:110px;margin-bottom:6px}
+  .breb-info{flex:1;min-width:0}
+  .breb-info label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}
+  .breb-key{font-family:var(--font-display);font-weight:800;font-size:26px;line-height:1.1;word-break:break-all;margin:2px 0 8px}
+  .breb-holder{font-weight:600;margin-top:2px}
+  .breb-copy{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px}
+  .breb-steps{margin:14px 0 0;padding-left:20px;color:var(--text);font-size:14.5px;line-height:1.45}
+  .breb-steps li{margin-bottom:3px}
+  .check-inline{display:flex;align-items:center;gap:6px;font-size:14px;margin-bottom:8px}
+  .check-inline input{width:auto;margin:0}
+  @media (max-width:520px){ .breb-body{flex-direction:column;align-items:stretch} .breb-qr{width:220px;height:220px;margin:0 auto} .breb-key{text-align:center} .breb-info label{text-align:center} .breb-holder{text-align:center} }
+  .breb-brand .breb-logo{color:#F5C400;font-size:17px}
+
+  /* Patrocinadores en el Inicio (sutil) */
+  .dash-sponsors{margin:18px 0;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;overflow:hidden}
+  .dash-sponsors-label{flex:0 0 auto;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;max-width:62px;line-height:1.2}
+  .sp-marquee{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+  .sp-marquee::-webkit-scrollbar{display:none}
+  .sp-marquee.run{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+  .sp-track{display:flex;align-items:center;gap:26px;width:max-content}
+  .sp-marquee.run .sp-track{animation:spScroll calc(var(--n) * 6s) linear infinite;padding-right:26px}
+  .sp-marquee.run:hover .sp-track{animation-play-state:paused}
+  @keyframes spScroll{to{transform:translateX(-50%)}}
+  .sp-tile{flex:0 0 auto;display:flex;align-items:center;height:30px;text-decoration:none;opacity:.7;filter:grayscale(1);transition:opacity .2s,filter .2s}
+  .sp-tile:hover{opacity:1;filter:none}
+  .sp-tile img{height:30px;max-width:96px;object-fit:contain;display:block}
+  .sp-tile b{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--text);text-transform:uppercase;white-space:nowrap}
+  @media (prefers-reduced-motion:reduce){ .sp-marquee.run{overflow-x:auto} .sp-marquee.run .sp-track{animation:none} }
+  .sponsor-name{font-family:var(--font-display);font-weight:800;font-size:15px;color:var(--text);text-transform:uppercase}
+  @media (max-width:899px){ #sponsors-footer{padding-bottom:84px} }
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -1214,6 +1260,9 @@
     <symbol id="i-whistle" viewBox="0 0 24 24"><circle cx="9" cy="14" r="5.5"/><path d="M13 10h8.5v3.5h-4.8M9 14h.01"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-run" viewBox="0 0 24 24"><circle cx="14.5" cy="4.5" r="2"/><path d="m8 21 3-5.5 3 2.5v4M6.5 11l2.5-3.5 4.5.5 2.5 3.5 3 1M11 15.5 13 8"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
   </defs>
 </svg>
 
@@ -2025,6 +2074,26 @@ function normalizeUrl(url){
 // no solo en la que esté abierta en ese momento. Se llena una sola vez al
 // entrar a la app y se vuelve a llenar cada vez que se edita algo desde
 // "Patrocinadores".
+
+// Franja de patrocinadores en el Inicio: tarjetas grandes con el logo (o el
+// nombre si no tiene logo) que se desplazan solas; tocar abre su página.
+async function renderDashSponsors(){
+  const el = $('#dash-sponsors'); if(!el) return;
+  const { data } = await supabase.from('sponsors').select('*').eq('active', true).order('sort_order', {ascending:true});
+  if(!data || !data.length){ el.innerHTML = ''; return; }
+  const tile = s=>{
+    const name = (s.name || 'Patrocinador').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const inner = s.logo_url ? `<img src="${s.logo_url}" alt="${name}" title="${name}" loading="lazy" />` : `<b>${name}</b>`;
+    return s.website_url ? `<a class="sp-tile" href="${normalizeUrl(s.website_url)}" target="_blank" rel="noopener">${inner}</a>` : `<div class="sp-tile">${inner}</div>`;
+  };
+  const loop = data.length >= 3;
+  el.innerHTML = `
+    <section class="dash-sponsors">
+      <span class="dash-sponsors-label">Con el apoyo de</span>
+      <div class="sp-marquee${loop ? ' run' : ''}"><div class="sp-track" style="--n:${data.length}">${data.map(tile).join('')}${loop ? data.map(tile).join('').replace(/class="sp-tile"/g,'class="sp-tile" aria-hidden="true" tabindex="-1"') : ''}</div></div>
+    </section>`;
+}
+
 async function renderSponsorsFooter(){
   const el = $('#sponsors-footer');
   if(!el) return;
@@ -2035,7 +2104,7 @@ async function renderSponsorsFooter(){
       <span class="sponsors-footer-label">Con el apoyo de</span>
       ${data.map(s=>{
         const safeName = (s.name || 'Patrocinador').replace(/"/g,'&quot;');
-        const img = `<img src="${s.logo_url}" alt="${safeName}" title="${safeName}" />`;
+        const img = s.logo_url ? `<img src="${s.logo_url}" alt="${safeName}" title="${safeName}" />` : `<b class="sponsor-name">${safeName}</b>`;
         return s.website_url
           ? `<a class="sponsor-logo" href="${normalizeUrl(s.website_url)}" target="_blank" rel="noopener">${img}</a>`
           : `<span class="sponsor-logo">${img}</span>`;
@@ -2551,7 +2620,9 @@ async function renderDashboard(){
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
     <div id="monthly-highlights"></div>
+    <div id="dash-sponsors"></div>
     <div id="dash-lineup"></div>`;
+  renderDashSponsors();
   renderDashHero();
   renderMonthlyHighlights();
   renderDashboardLineup();
@@ -4187,9 +4258,116 @@ async function loadFinancialSummaryReadOnly(selector){
   el.innerHTML = error ? `<p class="muted">No se pudo cargar el resumen financiero.</p>` : renderFinancialSummaryHTML(summary || {});
 }
 
+
+// ---------------- LLAVE BRE-B ----------------
+// Guarda en team_settings: breb_key (la llave), breb_holder (titular) y
+// breb_qr_url (QR oficial descargado de la app del banco, opcional).
+// Si no hay QR oficial, se genera uno con la llave (al escanearlo con la
+// cámara se puede copiar la llave).
+const BREB_DEFAULT_KEY = 'alsfutbolclub@gmail.com';
+function loadQrLib(){
+  if(window.qrcode) return Promise.resolve(window.qrcode);
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    s.onload = ()=> res(window.qrcode); s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+async function qrSvg(text){
+  const qrcode = await loadQrLib();
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+}
+async function getBrebSettings(){
+  const { data, error } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  return { s: data || {}, missing: !!error };
+}
+async function renderBrebPanel(sel){
+  const el = $(sel); if(!el) return;
+  const { s } = await getBrebSettings();
+  // Llave oficial del equipo por defecto (si no se ha configurado otra en Finanzas).
+  const key = (s.breb_key || BREB_DEFAULT_KEY).trim();
+  const can = canManageFinance();
+  if(!key && !s.breb_qr_url){
+    el.innerHTML = can ? `<div class="panel breb-card breb-empty">${ic('qr','lg')}<div><b>Llave Bre-B del equipo</b><span>Aún no está configurada. Agrégala para que los jugadores puedan pagar escaneando el QR.</span></div><button type="button" onclick="window.__brebEdit('${sel}')">Configurar</button></div>` : '';
+    return;
+  }
+  const safe = key.replace(/</g,'&lt;');
+  el.innerHTML = `
+    <div class="panel breb-card">
+      <div class="breb-top">
+        <div class="breb-brand"><span class="breb-logo">Bre-B</span><div><b>Paga tus cuotas y multas</b><span>Transfiere al instante desde la app de cualquier banco</span></div></div>
+        ${can ? `<button type="button" class="small secondary" onclick="window.__brebEdit('${sel}')">${ic('edit','sm')} Editar</button>` : ''}
+      </div>
+      <div class="breb-body">
+        <div class="breb-qr" id="breb-qr">${s.breb_qr_url ? `<img src="${s.breb_qr_url}" alt="Código QR Bre-B del equipo" />` : '<span class="muted">Generando QR…</span>'}</div>
+        <div class="breb-info">
+          ${key ? `<label>Llave Bre-B</label><div class="breb-key">${safe}</div>
+          <button type="button" class="breb-copy" onclick="window.__brebCopy(this)" data-key="${safe.replace(/"/g,'&quot;')}">${ic('copy')} Copiar llave</button>` : ''}
+          ${s.breb_holder ? `<label>A nombre de</label><div class="breb-holder">${String(s.breb_holder).replace(/</g,'&lt;')}</div>` : ''}
+        </div>
+      </div>
+      <ol class="breb-steps">
+        <li>Abre la app de tu banco y entra a <b>Bre-B</b> (o “Transferir con llave”).</li>
+        <li>${s.breb_qr_url ? 'Escanea el QR o pega la llave.' : 'Pega la llave (o escanea el QR con la cámara para copiarla).'}</li>
+        <li>Confirma el nombre del titular, el valor y envía. Guarda el comprobante.</li>
+      </ol>
+    </div>`;
+  if(!s.breb_qr_url && key){
+    try{ $('#breb-qr').innerHTML = await qrSvg(key); }catch(e){ $('#breb-qr').innerHTML = '<span class="muted">No se pudo generar el QR</span>'; }
+  }
+}
+window.__brebCopy = async (btn)=>{
+  const k = btn.dataset.key.replace(/&quot;/g,'"').replace(/&lt;/g,'<');
+  try{ await navigator.clipboard.writeText(k); }
+  catch(e){ const t = document.createElement('textarea'); t.value = k; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(_){} t.remove(); }
+  toast('Llave copiada. Pégala en la app de tu banco.');
+};
+window.__brebEdit = async (sel)=>{
+  const el = $(sel); if(!el) return;
+  const { s, missing } = await getBrebSettings();
+  el.innerHTML = `
+    <div class="panel breb-card">
+      <h3 style="margin-top:0">Llave Bre-B del equipo</h3>
+      ${missing ? `<div class="notify-banner" style="margin-bottom:10px">Falta correr el SQL de la llave Bre-B en Supabase.</div>` : ''}
+      <label class="field-label" for="breb-key-in">Llave (celular, cédula, correo o @alias)</label>
+      <input id="breb-key-in" value="${(s.breb_key||BREB_DEFAULT_KEY).replace(/"/g,'&quot;')}" placeholder="Ej. @abrahamlincolnfc o 3001234567" maxlength="80" />
+      <label class="field-label" for="breb-holder-in">A nombre de (titular)</label>
+      <input id="breb-holder-in" value="${(s.breb_holder||'').replace(/"/g,'&quot;')}" placeholder="Ej. Felipe Aguillón" maxlength="80" />
+      <label class="field-label">QR oficial del banco (opcional, recomendado)</label>
+      <p class="muted" style="margin:0 0 8px;font-size:14px">En la app de tu banco, en Bre-B → “Mis llaves” → “Compartir / Descargar QR”, guarda la imagen y súbela aquí. Ese QR se puede escanear directo para pagar. Si no lo subes, la app crea uno con la llave.</p>
+      ${s.breb_qr_url ? `<div class="breb-qr sm"><img src="${s.breb_qr_url}" alt="" /></div><label class="check-inline"><input type="checkbox" id="breb-qr-remove" /> Quitar este QR</label>` : ''}
+      <input type="file" id="breb-qr-in" accept="image/*" />
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="breb-save" style="flex:1">Guardar</button>
+        <button type="button" class="secondary" id="breb-cancel">Cancelar</button>
+      </div>
+    </div>`;
+  $('#breb-cancel').addEventListener('click', ()=> renderBrebPanel(sel));
+  $('#breb-save').addEventListener('click', async ()=>{
+    const btn = $('#breb-save'); btn.disabled = true;
+    const payload = { id: 1, breb_key: $('#breb-key-in').value.trim() || null, breb_holder: $('#breb-holder-in').value.trim() || null, updated_at: new Date().toISOString() };
+    const f = $('#breb-qr-in').files[0];
+    if(f){
+      if(!f.type.startsWith('image/')){ toast('El QR debe ser una imagen (PNG o JPG).', true); btn.disabled = false; return; }
+      const path = `team/breb-qr-${Date.now()}.${(f.name.split('.').pop()||'png').toLowerCase()}`;
+      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, f, { upsert: true, contentType: f.type });
+      if(upErr){ toast(upErr.message, true); btn.disabled = false; return; }
+      payload.breb_qr_url = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
+    } else if($('#breb-qr-remove')?.checked) payload.breb_qr_url = null;
+    const { error } = await supabase.from('team_settings').upsert(payload);
+    btn.disabled = false;
+    if(error){ toast('No se pudo guardar: ' + error.message, true); return; }
+    toast('Llave Bre-B guardada');
+    renderBrebPanel(sel);
+  });
+};
+
 // Pestaña "Resumen financiero" del jugador: agregado de todo el equipo, solo lectura.
 async function renderResumenFinanciero(){
-  main.innerHTML = `<h2 class="section-title">Resumen financiero</h2><div id="jugadores-fin-summary">Cargando…</div>`;
+  main.innerHTML = `<h2 class="section-title">Resumen financiero</h2><div id="breb-slot"></div><div id="jugadores-fin-summary">Cargando…</div>`;
+  renderBrebPanel('#breb-slot');
   await loadFinancialSummaryReadOnly('#jugadores-fin-summary');
 }
 
@@ -4290,6 +4468,7 @@ async function renderFinanzas(){
         <div class="stat-chip-card"><div class="stat-chip-icon outline-red">${ic('circle-down')}</div><div class="stat-chip-body"><div class="label">Gastado</div><div class="num" id="fin-hero-gastado">…</div></div></div>
       </div>
       <button id="fin-registrar-btn" style="width:100%;margin-bottom:18px;font-size:22px;padding:13px">${ic('plus','lg')} Registrar movimiento</button>
+      <div id="fin-breb-slot"></div>
       <div class="link-list">
         <button class="link-row" data-fin-section="fin-sec-presupuesto"><span class="link-row-icon">${ic('doc')}</span><span>Presupuesto de temporada</span><span class="link-row-chevron">${ic('chevron-right')}</span></button>
         <button class="link-row" data-fin-section="fin-sec-cuotas"><span class="link-row-icon">${ic('users')}</span><span>Cuotas y pagos</span><span class="link-row-chevron">${ic('chevron-right')}</span></button>
@@ -4411,6 +4590,7 @@ async function renderFinanzas(){
     <div id="fin-detail"></div>
   `;
   renderFinHero();
+  renderBrebPanel('#fin-breb-slot');
   renderBudgetRows();
   renderPlayerHealthRows();
   renderReminderLog();
