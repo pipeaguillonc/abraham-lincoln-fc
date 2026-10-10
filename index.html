@@ -1340,6 +1340,34 @@
   .player-card-injury{font-size:12.5px;color:#B42318;font-weight:600;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .cheer-mini{width:auto;padding:3px 8px;font-size:12px;border-radius:999px}
 
+  /* Departamento médico */
+  .med-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 16px}
+  .med-stat{border-radius:14px;padding:12px 8px;text-align:center;display:flex;flex-direction:column;background:var(--panel);border:1.5px solid var(--border)}
+  .med-stat b{font-family:var(--font-display);font-weight:800;font-size:30px;line-height:1}
+  .med-stat span{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.15}
+  .med-stat.red b{color:#D92D20} .med-stat.amber b{color:#B54708} .med-stat.green b{color:#1F9D55}
+  .med-h{font-family:var(--font-display);font-weight:800;font-size:22px;margin:4px 0 10px}
+  .med-card{background:var(--panel);border:1.5px solid var(--border);border-left:6px solid #D92D20;border-radius:16px;padding:12px 14px;margin-bottom:12px}
+  .med-card.due{border-left-color:#1F9D55}
+  .med-top{display:flex;align-items:center;gap:12px}
+  .med-av{width:58px;height:58px;flex-shrink:0;border-radius:14px;overflow:hidden;background:var(--panel2);display:flex;align-items:center;justify-content:center}
+  .med-av img{width:100%;height:100%;object-fit:cover}
+  .med-av svg{width:52px;height:52px}
+  .med-info{flex:1;min-width:0;display:flex;flex-direction:column}
+  .med-info b{font-family:var(--font-display);font-weight:800;font-size:20px;line-height:1.1}
+  .med-info em{font-style:normal;font-weight:600;color:var(--muted);font-size:15px}
+  .med-type{font-size:14px;font-weight:600;color:#B42318;margin-top:2px}
+  .med-ret{font-size:13px;color:var(--muted)}
+  .med-days{width:58px;height:58px;flex-shrink:0;border-radius:14px;background:#0A0B0C;color:#F5C400;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .med-days b{font-family:var(--font-display);font-weight:800;font-size:26px;line-height:.9}
+  .med-days span{font-size:10.5px;color:#fff;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .med-bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:12px}
+  .med-bar i{display:block;height:100%;background:linear-gradient(90deg,#F5C400,#1F9D55);border-radius:99px}
+  .med-bar-l{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:3px}
+  .med-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  .med-cheers{flex:1;font-size:13.5px;color:var(--muted);min-width:140px}
+  .med-actions button{width:auto;padding:7px 12px;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -1427,6 +1455,7 @@
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
     <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></symbol>
+    <symbol id="i-medical" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/></symbol>
   </defs>
 </svg>
 
@@ -1546,6 +1575,7 @@ function initials(name){
 const VIEW_LAYOUT = {
   dashboard:{hdr:'dash', tab:'dark'},
   jugadores:{hdr:'light', tab:'light'},
+  medico:{hdr:'light', tab:'light'},
   tablas:{hdr:'light', tab:'light'},
   galeria:{hdr:'light', tab:'light'},
   partidos:{hdr:'light', tab:'light'},
@@ -1770,6 +1800,7 @@ window.__setupTabbar = function(role){
     <button class="nav-btn" data-view="tablas"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span>Tablas</span></button>
     <button class="nav-btn" data-view="galeria"><svg class="ic" aria-hidden="true"><use href="#i-photo"/></svg><span>Galería</span></button>
     <button class="nav-btn" data-view="jugadores"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span>Jugadores</span></button>
+    <button class="nav-btn" data-view="medico"><svg class="ic" aria-hidden="true"><use href="#i-medical"/></svg><span>Departamento médico</span></button>
     <button class="nav-btn" data-view="resumen-financiero"><svg class="ic" aria-hidden="true"><use href="#i-wallet"/></svg><span>Resumen financiero</span></button>
     <button class="nav-btn" data-view="entrenamientos"><svg class="ic" aria-hidden="true"><use href="#i-run"/></svg><span>Entrenamientos</span></button>
     <button class="nav-btn" data-view="partidos"><svg class="ic" aria-hidden="true"><use href="#i-ball"/></svg><span>Partidos</span></button>
@@ -2075,9 +2106,9 @@ const PLAYER_POSITIONS = ['Portero','Defensa central','Lateral izquierdo','Later
 
 function buildNav(){
   const itemsByRole = {
-    cuerpo_tecnico: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','equipacion'],
-    jugador: ['dashboard','tablas','galeria','jugadores','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
-    usuario_maestro: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','finanzas','temporadas','usuarios','patrocinadores','equipacion'],
+    cuerpo_tecnico: ['dashboard','tablas','galeria','jugadores','medico','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','equipacion'],
+    jugador: ['dashboard','tablas','galeria','jugadores','medico','resumen-financiero','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
+    usuario_maestro: ['dashboard','tablas','galeria','jugadores','medico','entrenamientos','partidos','convocatoria','mensajes','recomendaciones','finanzas','temporadas','usuarios','patrocinadores','equipacion'],
     // Igual que "jugador" pero sin "Resumen financiero".
     fichaje: ['dashboard','tablas','galeria','jugadores','entrenamientos','partidos','convocatoria','mensajes','equipacion','evalrecom','perfil'],
   };
@@ -2174,6 +2205,7 @@ function navigate(view){
     tablas: renderTablas,
     galeria: renderGaleria,
     jugadores: renderJugadores,
+    medico: renderMedico,
     'resumen-financiero': renderResumenFinanciero,
     entrenamientos: renderEntrenamientos,
     convocatoria: renderConvocatoria,
@@ -2780,7 +2812,7 @@ window.__goToMatchLineup = async (matchId)=>{
 };
 
 async function renderDashboard(){
-  main.innerHTML = helloLine() + `<div id="dash-bday"></div><div id="dash-coach-note"></div><div id="dash-injury"></div>` + `
+  main.innerHTML = helloLine() + `<div id="dash-bday"></div><div id="dash-coach-note"></div>` + `
     <h1 class="display-xl">El equipo, en un solo lugar</h1>
     <p class="lead">Organización, compromiso y fútbol<br>para seguir haciendo historia.</p>
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos Abraham Lincoln FC! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
@@ -2793,7 +2825,6 @@ async function renderDashboard(){
     <div id="dash-lineup"></div>`;
   renderBirthdays();
   renderCoachNote();
-  renderInjuryBlock();
   renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
@@ -2812,6 +2843,8 @@ async function renderDashboard(){
       <div class="stat-chip-card"><div class="stat-chip-icon red">${ic('arrow-up-bold')}</div><div class="stat-chip-body"><div class="label">Gastado</div><div class="num">${fmtMoney(s.total_gastado)}</div></div></div>
       <div class="stat-chip-card"><div class="stat-chip-icon blue">${ic('wallet-solid')}</div><div class="stat-chip-body"><div class="label">Saldo en caja</div><div class="num">${fmtMoney((s.total_recaudado||0)-(s.total_gastado||0))}</div></div></div>
     `;
+    $('#dash-cards').insertAdjacentHTML('afterend', '<div id="coach-panel" style="margin-top:14px"></div>');
+    renderCoachPanel();
   } else if(isAdmin()){
     $('#dash-cards').className = '';
     $('#dash-cards').innerHTML = '<div id="coach-panel"><p class="muted">Cargando tus pendientes…</p></div>';
@@ -3005,20 +3038,21 @@ async function renderStaffSection(){
           ${staffAvatar(s, 72)}
           <b>${escS(s.full_name)}</b>
           <span>${escS(s.staff_title || 'Cuerpo técnico')}</span>
-          ${s.id === profile?.id ? `<button type="button" class="small secondary" onclick="window.__editMyStaffProfile()">${ic('edit','sm')} Editar</button>` : ''}
+          ${(s.id === profile?.id || isMaster()) ? `<button type="button" class="small secondary" onclick="window.__editMyStaffProfile('${s.id}')">${ic('edit','sm')} Editar</button>` : ''}
         </div>`).join('')}</div>
     </div>`;
 }
-window.__editMyStaffProfile = async ()=>{
+window.__editMyStaffProfile = async (targetId)=>{
   const list = await loadStaff(true);
-  const me = list.find(s=> s.id === profile.id) || { full_name: profile.full_name, staff_title: profile.staff_title, photo_url: profile.photo_url };
+  const tid = targetId || profile.id;
+  const me = list.find(s=> s.id === tid) || { id: tid, full_name: profile.full_name, staff_title: profile.staff_title, photo_url: profile.photo_url };
   let ov = document.getElementById('st-modal');
   if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
     ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
   ov.innerHTML = `
     <div class="panel st-modal-box">
-      <h3 style="margin-top:0">Mi perfil del cuerpo técnico</h3>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">${staffAvatar(me, 76)}<div><b style="font-size:18px">${escS(me.full_name)}</b><div class="muted" style="font-size:14px">Así te ven los jugadores</div></div></div>
+      <h3 style="margin-top:0">${tid === profile.id ? 'Mi perfil del cuerpo técnico' : 'Perfil del cuerpo técnico'}</h3>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">${staffAvatar(me, 76)}<div><b style="font-size:18px">${escS(me.full_name)}</b><div class="muted" style="font-size:14px">${tid === profile.id ? 'Así te ven los jugadores' : 'Editando como Comité ALS'}</div></div></div>
       <label class="field-label" for="st-title">Cargo</label>
       <select id="st-title">${STAFF_TITLES.map(t=>`<option ${me.staff_title === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <label class="field-label" for="st-photo">Foto</label>
@@ -3036,12 +3070,12 @@ window.__editMyStaffProfile = async ()=>{
     if(f){
       if(!f.type.startsWith('image/')){ toast('La foto debe ser una imagen', true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
       const file = (typeof shrinkImage === 'function') ? await shrinkImage(f) : f;
-      const path = `staff/${profile.id}-${Date.now()}.${(file.name.split('.').pop()||'jpg').toLowerCase()}`;
+      const path = `staff/${tid}-${Date.now()}.${(file.name.split('.').pop()||'jpg').toLowerCase()}`;
       const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true, contentType: file.type });
       if(upErr){ toast(upErr.message, true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
       photo = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
     }
-    const { error } = await supabase.rpc('update_my_staff_profile', { p_title: $('#st-title').value, p_photo: photo });
+    const { error } = await supabase.rpc('update_staff_profile', { p_id: tid, p_title: $('#st-title').value, p_photo: photo });
     btn.disabled = false; btn.textContent = 'Guardar';
     if(error){ toast(/function|does not exist/i.test(error.message) ? 'Falta correr el SQL del cuerpo técnico en Supabase.' : error.message, true); return; }
     toast('Perfil actualizado');
@@ -3064,7 +3098,7 @@ async function renderCoachNote(){
   const fresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 14*86400000;
   if(!fresh){ el.innerHTML = ''; return; }
   const staff = await loadStaff();
-  const a = staff.find(s=> s.id === ts.coach_note_by) || { full_name: 'Cuerpo técnico' };
+  const a = staff.find(s=> s.id === ts.coach_note_by) || { full_name: 'Comité ALS', staff_title: 'Abraham Lincoln FC' };
   el.innerHTML = `
     <div class="cn-card">
       <div class="cn-top">${staffAvatar(a, 44)}<div><small>La palabra del profe</small><b>${escS(a.full_name)}</b><span>${escS(a.staff_title || 'Cuerpo técnico')} · ${agoText(ts.coach_note_at)}</span></div></div>
@@ -3081,6 +3115,9 @@ window.__coachNoteEdit = async ()=>{
     <div class="panel st-modal-box">
       <h3 style="margin-top:0">La palabra del profe</h3>
       <p class="muted" style="margin-top:-4px">Sale destacado en el Inicio de todos los jugadores durante 14 días.</p>
+      ${isMaster() ? `<label class="field-label" for="cn-author">Publicar a nombre de</label>
+      <select id="cn-author">${(await loadStaff()).map(s=>`<option value="${s.id}" ${ts?.coach_note_by === s.id ? 'selected' : ''}>${escS(s.full_name)}${s.staff_title ? ' · '+escS(s.staff_title) : ''}</option>`).join('')}<option value="${profile.id}">Comité ALS</option></select>
+      <label class="field-label" for="cn-text">Mensaje</label>` : ''}
       <textarea id="cn-text" rows="4" maxlength="400" placeholder="Ej. Muchachos, el sábado presión alta desde el inicio. Puntuales 6:30 en la cancha.">${escS(ts?.coach_note || '')}</textarea>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button type="button" id="cn-save" style="flex:1">Publicar</button>
@@ -3090,7 +3127,7 @@ window.__coachNoteEdit = async ()=>{
     </div>`;
   ov.classList.add('open');
   const save = async (text)=>{
-    const { error } = await supabase.rpc('set_coach_note', { p_note: text });
+    const { error } = await supabase.rpc('set_coach_note', { p_note: text, p_author: $('#cn-author')?.value || null });
     if(error){ toast(/function|does not exist/i.test(error.message) ? 'Falta correr el SQL del cuerpo técnico en Supabase.' : error.message, true); return; }
     toast(text ? 'Mensaje publicado' : 'Mensaje quitado');
     ov.classList.remove('open');
@@ -3143,7 +3180,7 @@ async function renderCoachPanel(){
   unrated.slice(0,2).forEach(m=> items.push({ icon:'star', t:`Calificar el partido vs ${escS(m.opponent)}`, s:fmtDate(m.match_date), b:'Calificar', go:"navigate('partidos')", warn:true }));
   // Lesionados que ya deberían estar de vuelta
   active.filter(p=> p.injured && p.injury_return && daysUntil(p.injury_return) <= 0).forEach(p=>
-    items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Quitar lesión', go:`window.__setInjury('${p.id}', false)`, warn:true }));
+    items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Dar de alta', go:`window.__setInjury('${p.id}', false)`, warn:true }));
   // Palabra del profe
   const noteFresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 7*86400000;
   if(nm && !noteFresh) items.push({ icon:'chat', t:'Escribir la palabra del profe', s:'Un mensaje para el equipo antes del partido', b:'Escribir', go:'window.__coachNoteEdit()' });
@@ -3203,38 +3240,46 @@ function returnText(p){
 function injuryLine(p){ return `🩹 ${p.injury_type ? p.injury_type + ' · ' : ''}${returnText(p)}`; }
 // Marcar lesión: pide tipo y fecha estimada de regreso. Quitar lesión: limpia todo.
 window.__setInjury = async (id, makeInjured, after)=>{
-  const done = async ()=>{ await loadPlayersCache(); if($('#players-tbody')) renderPlayersRows(); if($('#player-cards-list')) renderPlayerCards(); after && after(); if($('#coach-panel')) renderCoachPanel(); if($('#dash-injury')) renderInjuryBlock(); };
+  const done = async ()=>{ await loadPlayersCache(); if($('#players-tbody')) renderPlayersRows(); if($('#player-cards-list')) renderPlayerCards(); after && after(); if($('#coach-panel')) renderCoachPanel(); if($('#med-list')) renderMedico(); };
   if(!makeInjured){
-    let r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, accompany_match_id: null }).eq('id', id);
+    let r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, injury_since: null, accompany_match_id: null }).eq('id', id);
     if(r.error && /injury_|accompany/.test(r.error.message)) r = await supabase.from('players').update({ injured: false }).eq('id', id);
     if(r.error){ toast(r.error.message, true); return; }
-    toast('Lesión retirada del jugador'); done(); return;
+    toast('Jugador dado de alta 💪'); done(); return;
   }
   let ov = document.getElementById('st-modal');
   if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
     ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
   const p = playersCache.find(x=> x.id === id) || {};
   const def = new Date(); def.setDate(def.getDate() + 14);
+  const pick = !id;
+  const editing = !!p.injured;
   ov.innerHTML = `
     <div class="panel st-modal-box">
-      <h3 style="margin-top:0">🩹 Marcar lesionado</h3>
-      <p class="muted" style="margin-top:-4px">#${p.jersey_number ?? ''} ${escS(p.full_name)} · no le llegarán convocatorias hasta que vuelva.</p>
+      <h3 style="margin-top:0">🩹 ${editing ? 'Actualizar lesión' : 'Reportar lesión'}</h3>
+      ${pick ? `<label class="field-label" for="inj-player">Jugador</label>
+      <select id="inj-player">${playersCache.filter(x=> x.active && !x.injured).map(x=>`<option value="${x.id}">#${x.jersey_number} ${escS(x.full_name)}</option>`).join('')}</select>`
+        : `<p class="muted" style="margin-top:-4px">#${p.jersey_number ?? ''} ${escS(p.full_name)} · no le llegarán convocatorias hasta que vuelva.</p>`}
       <label class="field-label" for="inj-type">Tipo de lesión</label>
-      <select id="inj-type">${INJURY_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
+      <select id="inj-type">${INJURY_TYPES.map(t=>`<option ${p.injury_type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <label class="field-label" for="inj-date">Fecha estimada de regreso</label>
-      <input type="date" id="inj-date" value="${def.toISOString().slice(0,10)}" />
+      <input type="date" id="inj-date" value="${p.injury_return || def.toISOString().slice(0,10)}" />
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button type="button" id="inj-save" style="flex:1">Marcar lesionado</button>
+        <button type="button" id="inj-save" style="flex:1">${editing ? 'Guardar' : 'Reportar lesión'}</button>
         <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cancelar</button>
       </div>
     </div>`;
   ov.classList.add('open');
   $('#inj-save').addEventListener('click', async ()=>{
-    let r = await supabase.from('players').update({ injured: true, injury_type: $('#inj-type').value, injury_return: $('#inj-date').value || null }).eq('id', id);
-    if(r.error && /injury_/.test(r.error.message)){ toast('Se marcó la lesión, pero falta correr el SQL de lesionados para guardar tipo y fecha.', true); r = await supabase.from('players').update({ injured: true }).eq('id', id); }
+    const pid = id || $('#inj-player')?.value;
+    if(!pid){ toast('Elige el jugador', true); return; }
+    const upd = { injured: true, injury_type: $('#inj-type').value, injury_return: $('#inj-date').value || null };
+    if(!editing) upd.injury_since = new Date().toISOString().slice(0,10);
+    let r = await supabase.from('players').update(upd).eq('id', pid);
+    if(r.error && /injury_/.test(r.error.message)){ toast('Se marcó la lesión, pero falta correr el SQL del departamento médico para guardar tipo y fecha.', true); r = await supabase.from('players').update({ injured: true }).eq('id', pid); }
     if(r.error){ toast(r.error.message, true); return; }
     ov.classList.remove('open');
-    toast('Jugador marcado como lesionado'); done();
+    toast(editing ? 'Lesión actualizada' : 'Lesión reportada'); done();
   });
 };
 // "¡Fuerza!" de un compañero
@@ -3249,15 +3294,15 @@ window.__toggleAccompany = async (matchId, on)=>{
   const { error } = await supabase.from('players').update({ accompany_match_id: on ? matchId : null }).eq('id', profile.player_id);
   if(error){ toast(/accompany/.test(error.message) ? 'Falta correr el SQL de lesionados en Supabase.' : error.message, true); return; }
   toast(on ? '¡Gracias por acompañar al equipo! 🙌' : 'Listo, quitamos tu confirmación');
-  await loadPlayersCache(); renderInjuryBlock();
+  await loadPlayersCache(); renderMedico();
 };
 async function renderInjuryBlock(){
-  const el = $('#dash-injury'); if(!el) return;
+  const el = $('#med-me'); if(!el) return;
   if(!playersCache.length) await loadPlayersCache();
   const injured = playersCache.filter(p=> p.active && p.injured);
   if(!injured.length){ el.innerHTML = ''; return; }
   const me = injured.find(p=> p.id === profile?.player_id);
-  const others = injured.filter(p=> p.id !== profile?.player_id);
+  const others = [];
   let html = '';
   if(me){
     const today = new Date().toISOString().slice(0,10);
@@ -3292,6 +3337,75 @@ async function renderInjuryBlock(){
       </div>`;
   }
   el.innerHTML = html;
+}
+
+
+// ---------------- DEPARTAMENTO MÉDICO ----------------
+async function renderMedico(){
+  if(!playersCache.length) await loadPlayersCache();
+  const active = playersCache.filter(p=> p.active);
+  const injured = active.filter(p=> p.injured).sort((a,b)=> (a.injury_return||'9999').localeCompare(b.injury_return||'9999'));
+  const soon = injured.filter(p=>{ const n = daysUntil(p.injury_return); return n != null && n <= 7; }).length;
+  const available = active.length - injured.length;
+  const firstMount = !$('#med-list');
+  if(firstMount){
+    main.innerHTML = `
+      <div class="title-row">
+        <h2 class="section-title">Departamento médico</h2>
+        ${canManage() ? `<button type="button" onclick="window.__setInjury(null, true)">${ic('plus')} Reportar lesión</button>` : ''}
+      </div>
+      <p class="muted" style="margin-top:-8px">Seguimiento de lesiones y regresos del plantel.</p>
+      <div id="med-stats"></div>
+      <div id="med-me"></div>
+      <div id="med-list"></div>`;
+  }
+  $('#med-stats').innerHTML = `
+    <div class="med-stats">
+      <div class="med-stat red"><b>${injured.length}</b><span>En recuperación</span></div>
+      <div class="med-stat amber"><b>${soon}</b><span>Vuelven esta semana</span></div>
+      <div class="med-stat green"><b>${available}/${active.length}</b><span>Disponibles</span></div>
+    </div>`;
+  renderInjuryBlock();
+  if(!injured.filter(p=> p.id !== profile?.player_id).length){
+    $('#med-list').innerHTML = injured.length ? '' : `<div class="panel empty-state"><span style="font-size:40px">✅</span><p><b>Todo el plantel está disponible.</b><br>No hay jugadores lesionados en este momento.</p></div>`;
+    return;
+  }
+  if(false){
+    $('#med-list').innerHTML = `<div class="panel empty-state"><span style="font-size:40px">✅</span><p><b>Todo el plantel está disponible.</b><br>No hay jugadores lesionados en este momento.</p></div>`;
+    return;
+  }
+  const { data: cheers } = await supabase.from('injury_cheers').select('player_id').in('player_id', injured.map(p=> p.id));
+  const cheerCount = {};
+  (cheers||[]).forEach(c=>{ cheerCount[c.player_id] = (cheerCount[c.player_id]||0) + 1; });
+  const pctOf = p=>{
+    if(!p.injury_since || !p.injury_return) return null;
+    const a = new Date(p.injury_since+'T00:00:00'), b = new Date(p.injury_return+'T00:00:00'), t = new Date(); t.setHours(0,0,0,0);
+    if(b <= a) return 100;
+    return Math.max(4, Math.min(100, Math.round((t - a) / (b - a) * 100)));
+  };
+  $('#med-list').innerHTML = `
+    <h3 class="med-h">En recuperación</h3>
+    ${injured.filter(p=> p.id !== profile?.player_id).map(p=>{
+      const n = daysUntil(p.injury_return); const pct = pctOf(p); const mine = p.id === profile?.player_id;
+      return `
+      <div class="med-card${n != null && n <= 0 ? ' due' : ''}">
+        <div class="med-top">
+          <div class="med-av">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number)}</div>
+          <div class="med-info">
+            <b>#${p.jersey_number} ${escS(p.full_name)}${mine ? ' <em>(tú)</em>' : ''}</b>
+            <span class="med-type">🩹 ${escS(p.injury_type || 'Lesión')}</span>
+            <span class="med-ret">${returnText(p)}${p.injury_return ? ' · ' + fmtDayMon(p.injury_return) : ''}</span>
+          </div>
+          <div class="med-days">${n != null && n > 0 ? `<b>${n}</b><span>${n === 1 ? 'día' : 'días'}</span>` : `<b>✓</b><span>alta</span>`}</div>
+        </div>
+        ${pct != null ? `<div class="med-bar"><i style="width:${pct}%"></i></div><div class="med-bar-l"><span>Recuperación</span><span>${pct}%</span></div>` : ''}
+        <div class="med-actions">
+          <span class="med-cheers">💪 ${cheerCount[p.id]||0} ${cheerCount[p.id] === 1 ? 'mensaje' : 'mensajes'} de fuerza</span>
+          ${!mine ? `<button type="button" class="small" onclick="window.__sendCheer('${p.id}', this)">💪 ¡Fuerza!</button>` : ''}
+          ${canManage() ? `<button type="button" class="small secondary" onclick="window.__setInjury('${p.id}', true)">${ic('edit','sm')} Editar</button>
+            <button type="button" class="small secondary" onclick="window.__setInjury('${p.id}', false)">Dar de alta</button>` : ''}
+        </div>
+      </div>`; }).join('')}`;
 }
 
 // ---------------- CUMPLEAÑOS ----------------
@@ -3999,7 +4113,6 @@ function renderPlayerCards(){
         <div class="player-card-num">${p.jersey_number}</div>
         <div class="player-card-name">${p.full_name}</div>
         <div class="player-card-position">${p.position||'Posición sin definir'}${p.injured ? ' · 🩹 Lesionado' : (!p.active ? ' · Inactivo' : '')}</div>
-        ${p.injured && p.active ? `<div class="player-card-injury">${returnText(p)}</div>` : ''}
         <div class="player-card-rating">${playerRatings[p.id] ? `${ic('star','star')} <b>${playerRatings[p.id].toFixed(1)}</b> / 5` : '<span class="muted">Sin calificar</span>'}</div>
       </div>
       <div class="player-card-actions">
@@ -4043,7 +4156,7 @@ function openPlayerDetail(id){
       <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>` : `
       <div class="player-detail-field"><label>Edad</label><p>${age!=null ? age+' años' : '-'}</p></div>`}
       <div class="player-detail-field"><label>Calificación promedio</label><p>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : 'Sin calificar'}</p></div>
-      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p>${p.id !== profile?.player_id ? `<button type="button" class="small" style="margin-top:8px;width:auto" onclick="window.__sendCheer('${p.id}', this)">💪 Mandarle fuerza</button>` : ''}` : ''}</div>
+      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p><button type="button" class="small secondary" style="margin-top:8px;width:auto" onclick="navigate('medico')">Ver en Departamento médico</button>` : ''}</div>
       ${editable ? `
         <button class="secondary" id="pd-toggle-active" style="width:100%;margin-top:8px">${p.active?'Desactivar':'Activar'}</button>
         <button class="secondary" id="pd-toggle-injured" style="width:100%;margin-top:8px">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button>
