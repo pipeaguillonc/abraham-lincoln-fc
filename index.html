@@ -1372,6 +1372,19 @@
   .cp-ok{width:auto;padding:3px 8px;font-size:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:999px}
   .cp-btns .cp-ok{min-height:0;height:auto;padding:3px 10px;font-size:12px;line-height:1.3;font-weight:600;font-family:inherit;box-shadow:none}
 
+  /* Entrenamientos: convocatoria vista por el jugador */
+  .tp-conv{display:flex;flex-direction:column;gap:10px}
+  .tp-counts{display:flex;flex-wrap:wrap;gap:6px}
+  .tp-c{font-size:13.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--panel2)}
+  .tp-c.ok{background:#E3F6EA;color:#11683A} .tp-c.no{background:#FDE7E6;color:#B42318} .tp-c.pe{background:#FFF3C4;color:#7A5A00}
+  .tp-me{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--panel2);border-radius:12px;padding:10px 12px}
+  .tp-btns{display:flex;gap:6px}
+  .tp-btns button{width:auto;padding:7px 16px}
+  .tp-group b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .tp-group > div{display:flex;flex-wrap:wrap;gap:5px}
+  .tp-name{font-size:13px;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:3px 9px}
+  .tp-mine{margin-top:10px;font-size:14px}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -4879,7 +4892,7 @@ async function renderEntrenamientos(){
             <span class="event-meta">${ic('clock')} ${t.start_time ? t.start_time.slice(0,5) : 'Hora por definir'}</span>
             <span class="event-meta">${ic('pin')} ${t.location || 'Lugar por definir'}</span>
             ${summary}
-            <span class="btn-outline-y"><span class="when-closed">Ver asistencia</span><span class="when-open">Ocultar asistencia</span></span>
+            <span class="btn-outline-y"><span class="when-closed">${canManageEvents() ? 'Ver asistencia' : 'Ver quién va'}</span><span class="when-open">Ocultar</span></span>
           </div>
         </summary>
         <div class="event-body">
@@ -4902,7 +4915,7 @@ async function renderEntrenamientos(){
             <button class="small danger" onclick="window.__deleteTraining('${t.id}')">Eliminar entrenamiento</button>
           </div>
         </div>` : ''}
-        <h4 class="sub-title">Asistencia del equipo</h4>
+        <h4 class="sub-title">${canManageEvents() ? 'Asistencia del equipo' : 'Convocatoria'}</h4>
         <div id="att-${t.id}" style="margin-top:10px">Cargando asistencia…</div>
         </div>
       </details>
@@ -4990,7 +5003,7 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
   if(!container) return;
   const [{ data: att }, { data: callUp }] = await Promise.all([
     supabase.from('attendance').select('*').eq('training_id', trainingId),
-    supabase.from('call_ups').select('id').eq('training_id', trainingId).maybeSingle(),
+    supabase.from('call_ups').select('*').eq('training_id', trainingId).maybeSingle(),
   ]);
   const byPlayer = Object.fromEntries((att||[]).map(a=>[a.player_id, a]));
   let confirmedIds = new Set();
@@ -5030,9 +5043,45 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
     `;
   } else {
     const a = byPlayer[profile.player_id];
-    container.innerHTML = a
+    const mine = a
       ? `<span class="badge ${a.status}">${a.status}</span> ${a.arrival_time ? '· Llegada: '+a.arrival_time.slice(0,5) : ''} ${a.absence_reason ? '· Motivo: '+a.absence_reason : ''} ${a.reason_notes ? '· '+a.reason_notes : ''}`
-      : `<span class="muted">Aún no registrada</span>`;
+      : '';
+    const esc = s=> String(s||'').replace(/</g,'&lt;');
+    let conv = '';
+    if(!callUp){
+      conv = `<p class="muted" style="margin:0">Este entrenamiento no tiene convocatoria.</p>`;
+    } else {
+      const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', callUp.id);
+      const resp = Object.fromEntries((rs||[]).map(r=>[r.player_id, r.response]));
+      const roster = playersCache.filter(p=> p.active && !p.injured);
+      const van = roster.filter(p=> resp[p.id] === 'asiste');
+      const noVan = roster.filter(p=> resp[p.id] && resp[p.id] !== 'asiste');
+      const pend = roster.filter(p=> !resp[p.id]);
+      const me = playersCache.find(p=> p.id === profile.player_id);
+      const my = resp[profile.player_id];
+      const open = typeof isCallUpOpen === 'function' ? isCallUpOpen(callUp) : (sessionDate >= new Date().toISOString().slice(0,10));
+      const chips = list=> list.length ? list.map(p=>`<span class="tp-name">#${p.jersey_number} ${esc(p.full_name)}</span>`).join('') : '<span class="muted">Nadie todavía</span>';
+      conv = `
+        <div class="tp-counts">
+          <span class="tp-c ok">✅ ${van.length} van</span>
+          <span class="tp-c no">❌ ${noVan.length} no van</span>
+          <span class="tp-c pe">⏳ ${pend.length} sin responder</span>
+        </div>
+        ${me && !me.injured ? `
+        <div class="tp-me">
+          <span>Tu respuesta: <b>${my === 'asiste' ? 'Voy ✅' : my ? 'No voy ❌' : 'Sin responder'}</b></span>
+          ${open ? `<div class="tp-btns">
+            <button type="button" class="small${my === 'asiste' ? '' : ' secondary'}" onclick="window.__respondTraining('${callUp.id}','${trainingId}','${sessionDate}','asiste')">Voy</button>
+            <button type="button" class="small${my && my !== 'asiste' ? '' : ' secondary'}" onclick="window.__respondTraining('${callUp.id}','${trainingId}','${sessionDate}','no_asiste')">No voy</button>
+          </div>` : `<span class="muted" style="font-size:13px">Ya cerró el plazo para responder</span>`}
+        </div>` : ''}
+        <div class="tp-group"><b>Van (${van.length})</b><div>${chips(van)}</div></div>
+        <div class="tp-group"><b>No van (${noVan.length})</b><div>${chips(noVan)}</div></div>
+        <div class="tp-group"><b>Sin responder (${pend.length})</b><div>${chips(pend)}</div></div>`;
+    }
+    container.innerHTML = `
+      <div class="tp-conv">${conv}</div>
+      ${mine ? `<div class="tp-mine"><b>Tu asistencia registrada:</b> ${mine}</div>` : (sessionDate < new Date().toISOString().slice(0,10) ? `<div class="tp-mine muted">Tu asistencia aún no está registrada por el cuerpo técnico.</div>` : '')}`;
   }
 }
 
@@ -7881,6 +7930,10 @@ async function renderCallUpBody(callUp){
   }
 }
 
+window.__respondTraining = async (callUpId, trainingId, sessionDate, response)=>{
+  await window.__respondCallUp(callUpId, response);
+  renderAttendanceForTraining(trainingId, sessionDate);
+};
 window.__respondCallUp = async (callUpId, response)=>{
   const payload = { call_up_id: callUpId, player_id: profile.player_id, response, responded_at: new Date().toISOString() };
   const { error } = await supabase.from('call_up_responses').upsert(payload, { onConflict: 'call_up_id,player_id' });
