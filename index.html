@@ -3701,15 +3701,22 @@ async function buildMatchPiece(matchId){
   try{ await Promise.all([document.fonts.load(`800 120px 'Barlow Condensed'`), document.fonts.load(`600 40px 'Barlow'`)]); }catch(e){}
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
-  // Fondo: foto del banner con capa oscura
+  // Fondo en colores del club (sin foto): negro con franjas diagonales y brillo del color principal
   x.fillStyle = '#0A0B0C'; x.fillRect(0, 0, W, H);
-  let bgSrc = cssUrl('--banner-photo-img') || cssUrl('--team-photo-img');
-  if(!bgSrc){ const el = document.querySelector('.auth-photo'); const bi = el ? getComputedStyle(el).backgroundImage : ''; const mm0 = bi && bi.match(/url\(["']?(.*?)["']?\)/s); if(mm0) bgSrc = mm0[1]; }
-  const bg = await loadImg(bgSrc);
-  if(bg){ drawCover(x, bg, 0, 0, W, H); }
-  let g = x.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, 'rgba(10,11,12,.70)'); g.addColorStop(.45, 'rgba(10,11,12,.82)'); g.addColorStop(1, 'rgba(10,11,12,.96)');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  let rg = x.createRadialGradient(W*0.5, 520, 40, W*0.5, 520, 760);
+  rg.addColorStop(0, hexA(brand, .30)); rg.addColorStop(1, 'rgba(10,11,12,0)');
+  x.fillStyle = rg; x.fillRect(0, 0, W, H);
+  // Franjas diagonales solo en dos esquinas (como las de la camiseta), sin tapar el contenido
+  const stripes = (clip, ox, oy)=>{
+    x.save(); x.beginPath(); clip(); x.clip();
+    x.translate(ox, oy); x.rotate(Math.PI / 4);
+    [[-70, 54, .95], [10, 22, .6], [56, 10, .4]].forEach(([off, w, a])=>{ x.fillStyle = hexA(brand, a); x.fillRect(off, -900, w, 1800); });
+    x.restore();
+  };
+  stripes(()=>{ x.moveTo(W - 330, 0); x.lineTo(W, 0); x.lineTo(W, 330); x.closePath(); }, W - 120, 120);
+  stripes(()=>{ x.moveTo(0, H - 520); x.lineTo(330, H - 170); x.lineTo(0, H - 170); x.closePath(); }, 120, H - 290);
+  const crestWm = await loadImg(window.__BRAND?.crest_url || cssUrl('--crest-img'));
+  if(crestWm){ x.save(); x.globalAlpha = .06; x.drawImage(crestWm, W - 620, 360, 720, 720); x.restore(); }
   x.fillStyle = brand; x.fillRect(0, 0, W, 14);
   // Encabezado: escudo + nombre
   const crest = await loadImg(window.__BRAND?.crest_url || cssUrl('--crest-img'));
@@ -3753,7 +3760,7 @@ async function buildMatchPiece(matchId){
   if(m.mvp_player_id){
     const p = playersCache.find(pp=> pp.id === m.mvp_player_id);
     if(p){
-      x.fillStyle = 'rgba(255,255,255,.07)'; roundRect(x, 64, y, W - 128, 200, 28); x.fill();
+      x.fillStyle = 'rgba(23,25,28,.94)'; roundRect(x, 64, y, W - 128, 200, 28); x.fill();
       x.strokeStyle = brand; x.lineWidth = 4; roundRect(x, 64, y, W - 128, 200, 28); x.stroke();
       const ph = await loadImg(p.photo_url);
       x.save(); x.beginPath(); x.arc(184, y + 100, 74, 0, Math.PI*2); x.closePath(); x.clip();
@@ -3782,6 +3789,7 @@ async function buildMatchPiece(matchId){
   }
   return c;
 }
+function hexA(hex, a){ const m = String(hex).trim().match(/^#?([0-9a-f]{6})$/i); if(!m) return `rgba(244,197,21,${a})`; const n = parseInt(m[1],16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 function roundRect(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a+r, b); x.arcTo(a+w, b, a+w, b+h, r); x.arcTo(a+w, b+h, a, b+h, r); x.arcTo(a, b+h, a, b, r); x.arcTo(a, b, a+w, b, r); x.closePath(); }
 window.__matchPiece = async (matchId, btn)=>{
   if(btn){ btn.disabled = true; btn.dataset.t = btn.innerHTML; btn.textContent = 'Creando pieza…'; }
