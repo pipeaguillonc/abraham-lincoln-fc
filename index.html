@@ -1388,6 +1388,38 @@
   .lu-empty button{width:auto;display:inline-flex;align-items:center;gap:6px}
   .match-cu-panel{margin:12px 0;background:var(--panel2)}
 
+  /* Votación de la figura */
+  .vt-card{background:#0A0B0C;color:#fff;border-radius:18px;padding:14px;margin:0 0 14px;border:2px solid #F5C400}
+  .vt-head{display:flex;align-items:center;gap:12px}
+  .vt-ico{font-size:30px}
+  .vt-head small{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#F5C400}
+  .vt-head b{display:block;font-family:var(--font-display);font-weight:800;font-size:22px;line-height:1.05}
+  .vt-head span{font-size:12.5px;color:#B9BCC2}
+  .vt-q{margin:12px 0 8px;font-weight:700}
+  .vt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .vt-opt{display:flex;flex-direction:column;align-items:center;gap:2px;background:#17191C;border:1.5px solid #2A2D32;border-radius:14px;padding:8px 4px;color:#fff;font:inherit;cursor:pointer;width:auto}
+  .vt-opt.confirm{border-color:#F5C400;background:#2A2410}
+  .vt-j{width:44px;height:44px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .vt-j img{width:100%;height:100%;object-fit:cover}
+  .vt-j svg{width:44px;height:44px}
+  .vt-opt b{font-size:13px} .vt-opt small{font-size:11px;color:#8E939B}
+  .vt-done{margin-top:12px;font-size:14.5px}
+  .vt-results{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .vt-row{display:grid;grid-template-columns:34px 1fr 1fr 24px;align-items:center;gap:8px;font-size:14px}
+  .vt-n{color:#8E939B;font-weight:700}
+  .vt-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vt-bar{height:8px;background:rgba(127,127,127,.25);border-radius:99px;overflow:hidden}
+  .vt-bar i{display:block;height:100%;background:#8E939B;border-radius:99px}
+  .vt-row.lead .vt-bar i{background:#F5C400}
+  .vt-row b{text-align:right}
+  @media (max-width:380px){ .vt-grid{grid-template-columns:repeat(3,1fr)} }
+  .cu-picker{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 0 14px;padding-bottom:2px}
+  .cu-picker::-webkit-scrollbar{display:none}
+  .cu-pick{flex:0 0 auto;width:auto;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--panel);color:var(--text);border:1.5px solid var(--border);border-radius:14px;padding:8px 12px;font-size:14px}
+  .cu-pick span{font-size:12px;color:var(--muted);font-weight:500;text-transform:capitalize}
+  .cu-pick.on{background:#0A0B0C;color:#F5C400;border-color:#0A0B0C}
+  .cu-pick.on span{color:#C9CCD1}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -2829,6 +2861,10 @@ window.__goToMatchLineup = async (matchId)=>{
   $$('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.view==='partidos'));
   await renderPartidos();
   await window.__openMatch(matchId);
+  if(canManage() && document.getElementById('lineup-panel')){
+    await window.__openLineup(matchId);
+    setTimeout(()=> document.getElementById('lineup-panel')?.closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  }
 };
 
 async function renderDashboard(){
@@ -6221,7 +6257,7 @@ async function renderPartidos(){
       </div>
       ${m.location ? `<div class="fx-meta" style="margin:-4px 0 14px">${ic('pin')} ${m.location}</div>` : ''}
       <div class="fx-actions">
-        <button type="button" onclick="event.stopPropagation();window.__navigate('convocatoria')">Ver convocatoria</button>
+        <button type="button" onclick="event.stopPropagation();window.__goCallUp('match','${m.id}')">Ver convocatoria</button>
         <a class="${mapUrl ? '' : 'disabled'}" href="${mapUrl ? normalizeUrl(mapUrl) : '#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('pin')} Cómo llegar</a>
       </div>
     </div>`;
@@ -7578,7 +7614,11 @@ async function refreshConvocatoriaBadge(){
   if(tabBadge){ tabBadge.textContent = pending.length || ''; tabBadge.style.display = pending.length ? 'flex' : 'none'; }
 }
 
+let cuFocus = null;   // { kind: 'match'|'training'|'id', id } — convocatoria elegida
+window.__goCallUp = (kind, id)=>{ window.__cuFocusNext = { kind, id }; window.__navigate('convocatoria'); };
+window.__cuPick = (callUpId)=>{ cuFocus = callUpId ? { kind: 'id', id: callUpId } : null; loadCallUpsList(); };
 async function renderConvocatoria(){
+  cuFocus = window.__cuFocusNext || null; window.__cuFocusNext = null;
   main.innerHTML = `
     <h2 class="section-title">Convocatoria</h2>
     <div id="callup-form-wrap"></div>
@@ -7691,11 +7731,27 @@ async function loadCallUpsList(){
   // jugador (y "fichaje") solo necesita ver la convocatoria más próxima —
   // sea partido o entrenamiento — en vez de desplazarse por todo el historial.
   let visibleCallUps = callUps;
-  if(!canManage()){
-    const today = new Date().toISOString().slice(0,10);
-    const upcoming = callUps.filter(c=>c.event_date >= today);
+  const todayStr = new Date().toISOString().slice(0,10);
+  const focused = cuFocus ? callUps.find(c=> cuFocus.kind === 'id' ? c.id === cuFocus.id : cuFocus.kind === 'match' ? c.match_id === cuFocus.id : c.training_id === cuFocus.id) : null;
+  if(focused){
+    visibleCallUps = [focused];
+  } else if(!canManage()){
+    const upcoming = callUps.filter(c=>c.event_date >= todayStr);
     visibleCallUps = upcoming.length ? [upcoming[0]] : [callUps[callUps.length-1]];
   }
+  // Selector: todas las convocatorias próximas (y de la última semana) para elegir cuál ver
+  const weekAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+  const pickable = callUps.filter(c=> c.event_date >= weekAgo);
+  const curId = visibleCallUps.length === 1 ? visibleCallUps[0].id : null;
+  const pickerHtml = pickable.length > 1 || focused ? `
+    <div class="cu-picker">
+      ${canManage() ? `<button type="button" class="cu-pick${!focused ? ' on' : ''}" onclick="window.__cuPick(null)">Todas</button>` : ''}
+      ${pickable.map(c=>{
+        const d = new Date(c.event_date+'T00:00:00').toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' });
+        const label = c.type === 'partido' ? `⚽ vs ${(c.matches?.opponent||'Partido')}` : '🏃 Entreno';
+        return `<button type="button" class="cu-pick${c.id === curId && (focused || !canManage()) ? ' on' : ''}" onclick="window.__cuPick('${c.id}')"><b>${label}</b><span>${d}</span></button>`;
+      }).join('')}
+    </div>` : '';
 
   // Resumen rápido (X/Y confirmados) y el detalle de quién asiste, quién no
   // asiste y quién todavía no responde — visible tanto para el cuerpo técnico
@@ -7730,7 +7786,7 @@ async function loadCallUpsList(){
   (allResponses||[]).forEach(r=>{ (respByCallUp[r.call_up_id] = respByCallUp[r.call_up_id] || {})[r.player_id] = r; });
   const escHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
-  list.innerHTML = visibleCallUps.map(c=>{
+  list.innerHTML = pickerHtml + visibleCallUps.map(c=>{
     const open = isCallUpOpen(c);
     const isMatch = c.type === 'partido';
     const eventLocation = isMatch ? c.matches?.location : c.trainings?.location;
@@ -8058,7 +8114,9 @@ async function renderMensajes(){
   // individuales. Jugador/fichaje la usan para escribirle a "todos mis
   // compañeros"; Comité ALS y cuerpo técnico (canMassMessageTeam) la usan
   // para escribirle a "todos los jugadores/fichajes" del equipo de una sola vez.
-  const [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }, { data: soloJugadores }] = await Promise.all([
+  const rpcContacts = await supabase.rpc('team_contacts');
+  const allContacts = !rpcContacts.error && Array.isArray(rpcContacts.data) ? rpcContacts.data.map(c=>({ ...c, players: c.jersey_number != null ? { jersey_number: c.jersey_number } : null })) : null;
+  let [{ data: contacts }, { data: unread }, { data: teammates, error: teammatesError }, { data: soloJugadores }] = await Promise.all([
     supabase.from('profiles')
       .select('id, full_name, role, player_id, players(jersey_number)')
       .in('role', contactRoles)
@@ -8072,6 +8130,11 @@ async function renderMensajes(){
     // técnico) para el "Comunicado oficial" con archivo adjunto.
     isMaestro ? supabase.from('profiles').select('id').eq('role', 'jugador').neq('id', profile.id) : Promise.resolve({ data: [] }),
   ]);
+  if(allContacts){
+    contacts = allContacts.filter(c=> c.id !== profile.id && contactRoles.includes(c.role)).sort((a,b)=> a.full_name.localeCompare(b.full_name));
+    if(isPlayerSide || canMassMessageTeam){ teammates = allContacts.filter(c=> c.id !== profile.id && ['jugador','fichaje'].includes(c.role)); teammatesError = null; }
+    if(isMaestro) soloJugadores = allContacts.filter(c=> c.id !== profile.id && c.role === 'jugador');
+  }
   // Si la consulta de compañeros falla (p. ej. por un permiso/RLS que
   // bloquea a un jugador leer los perfiles de otros jugadores), se avisa en
   // vez de simplemente no mostrar la opción de mensaje masivo sin explicación.
