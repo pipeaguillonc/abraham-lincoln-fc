@@ -1471,6 +1471,12 @@
   .piece-btns > *{flex:1;min-width:110px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   .piece-dl{background:var(--panel2);color:var(--text);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-weight:700;text-decoration:none}
 
+  /* Barra inferior estable (se esconde al bajar, vuelve al subir) */
+  #bottom-tabbar{transform:translateZ(0);will-change:transform;transition:transform .25s ease}
+  #bottom-tabbar.tb-hide{transform:translateY(110%)}
+  .st-jacket{background:#2A2D32!important;overflow:hidden}
+  .st-jacket svg{width:82%;height:82%;margin-top:12%}
+
 </style>
 <script>
 // Foto y textos de Acceso guardados de la visita anterior: se aplican antes de
@@ -1605,8 +1611,9 @@ function jerseySvg(label, variant, color){
       <circle cx="78" cy="38" r="5" fill="${trim}"/><circle cx="78" cy="38" r="2" fill="${fill}"/>
     </svg>`;
   }
-  const u2 = variant === 'u2';
-  const body = u2 ? '#F4F5F7' : '#121315', accent = u2 ? '#1D4ED8' : '#FFD21F', edge = u2 ? '#C9CCD2' : '#121315';
+  const u2 = variant === 'u2', gk = variant === 'gk';
+  // Portero: camiseta verde con detalles negros
+  const body = gk ? '#1F9D55' : u2 ? '#F4F5F7' : '#121315', accent = gk ? '#0A0B0C' : u2 ? '#1D4ED8' : '#FFD21F', edge = gk ? '#13773D' : u2 ? '#C9CCD2' : '#121315';
   const size = txt.length >= 3 ? 30 : (txt.length === 2 ? 40 : 44);
   return `<svg class="jersey" viewBox="0 0 120 110" aria-hidden="true">
     <path d="${shape}" fill="${body}" stroke="${edge}" stroke-width="2" stroke-linejoin="round"/>
@@ -1615,6 +1622,18 @@ function jerseySvg(label, variant, color){
     <path d="M70 104 94 62v-7L62 104zM79 104l15-26v8L87 104zM74 52l10-14 2 6-9 13z" fill="${accent}" opacity=".95"/>
     <path d="M90 30l4 4-2 6zM86 72l8-9v4z" fill="${accent}" opacity=".6"/>
     ${txt ? `<text x="60" y="${txt.length>=3?72:76}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="800" font-size="${size}" fill="${accent}">${txt}</text>` : ''}
+  </svg>`;
+}
+
+// Chaqueta del club (cuerpo técnico sin foto)
+function jacketSvg(){
+  return `<svg class="jacket" viewBox="0 0 120 120" aria-hidden="true">
+    <path d="M40 14 18 24 6 60l6 46h20l4-40v44h48V70l4 36h20l6-46-12-36-22-10c-4 6-12 9-20 9s-16-3-20-9z" fill="#121315" stroke="#2A2D32" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M40 14c4 6 12 9 20 9s16-3 20-9l-6-6c-4 4-9 6-14 6s-10-2-14-6z" fill="#1E2024"/>
+    <path d="M60 23v87" stroke="#9AA0A6" stroke-width="2" stroke-dasharray="3 2"/>
+    <path d="M12 58l8 3M108 58l-8 3" stroke="#FFD21F" stroke-width="4"/>
+    <path d="M22 30l-6 18M98 30l6 18" stroke="#FFD21F" stroke-width="3" opacity=".9"/>
+    <circle cx="78" cy="40" r="7" fill="#FFD21F"/><circle cx="78" cy="40" r="3" fill="#121315"/>
   </svg>`;
 }
 
@@ -3131,7 +3150,7 @@ async function loadStaff(force){
 const escS = s=> String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 function staffAvatar(s, size){
   return s?.photo_url ? `<img class="st-av" style="width:${size}px;height:${size}px" src="${s.photo_url}" alt="" />`
-    : `<span class="st-av st-ini" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.38)}px">${escS(initials(s?.full_name||''))}</span>`;
+    : `<span class="st-av st-jacket" style="width:${size}px;height:${size}px">${jacketSvg()}</span>`;
 }
 async function renderStaffSection(){
   const el = $('#staff-section'); if(!el) return;
@@ -3791,6 +3810,89 @@ async function buildMatchPiece(matchId){
 }
 function hexA(hex, a){ const m = String(hex).trim().match(/^#?([0-9a-f]{6})$/i); if(!m) return `rgba(244,197,21,${a})`; const n = parseInt(m[1],16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
 function roundRect(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a+r, b); x.arcTo(a+w, b, a+w, b+h, r); x.arcTo(a+w, b+h, a, b+h, r); x.arcTo(a, b+h, a, b, r); x.arcTo(a, b, a+w, b, r); x.closePath(); }
+
+function svgToImg(svg){
+  if(!/xmlns=/.test(svg)) svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  return loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+}
+async function drawPlayerCard(p, s){
+  s = s || { pj:0, gol:0, ast:0, min:0, fig:0, vi:0 };
+  const r = playerRatings[p.id];
+  const media = r ? Math.round(Math.min(99, r * 20)) : null;
+  const tier = media == null ? 'bronce' : media >= 80 ? 'oro' : media >= 60 ? 'plata' : 'bronce';
+  const grads = { oro: ['#FFF1B0','#F5C400','#D9A800','#9C7600'], plata: ['#FFFFFF','#D7DBE0','#AEB5BE','#7E8791'], bronce: ['#F6D2AE','#D99A62','#B0703C','#7A4A23'] }[tier];
+  const D = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+  try{ await document.fonts.load(`800 100px 'Barlow Condensed'`); }catch(e){}
+  const S = 3, W = 300*S, H = 430*S, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.scale(S, S);
+  roundRect(x, 0, 0, 300, 430, 30); x.save(); x.clip();
+  const g = x.createLinearGradient(0, 0, 300, 430); grads.forEach((col, i)=> g.addColorStop([0,.38,.7,1][i], col));
+  x.fillStyle = g; x.fillRect(0, 0, 300, 430);
+  const sh = x.createLinearGradient(0, 0, 300, 430); sh.addColorStop(.3, 'rgba(255,255,255,0)'); sh.addColorStop(.45, 'rgba(255,255,255,.4)'); sh.addColorStop(.58, 'rgba(255,255,255,0)');
+  x.fillStyle = sh; x.fillRect(0, 0, 300, 430);
+  const crest = await loadImg(window.__BRAND?.crest_url || cssUrl('--crest-img'));
+  if(crest){ x.globalAlpha = .1; x.drawImage(crest, 110, 140, 250, 250); x.globalAlpha = 1; }
+  x.fillStyle = '#0A0B0C'; x.textAlign = 'center';
+  x.font = `800 62px ${D}`; x.fillText(media ?? '--', 55, 78);
+  x.font = `800 22px ${D}`; x.fillText(posShort(p.position), 55, 104);
+  x.fillStyle = 'rgba(10,11,12,.6)'; x.fillRect(38, 116, 34, 2);
+  if(crest) x.drawImage(crest, 35, 128, 40, 40);
+  x.fillStyle = '#0A0B0C'; x.font = `800 20px ${D}`; x.fillText('#' + (p.jersey_number ?? ''), 55, 194);
+  const jer = await svgToImg(jerseySvg(p.jersey_number, positionBucket(p.position) === 'porteros' ? 'gk' : ''));
+  if(jer) x.drawImage(jer, 112, 52, 176, 161);
+  x.fillStyle = '#0A0B0C'; roundRect(x, 18, 236, 264, 46, 10); x.fill();
+  const parts = String(p.full_name||'').trim().split(/\s+/); const nm = (parts.length > 1 ? parts[0] + ' ' + parts[parts.length-1] : parts[0] || '').toUpperCase();
+  x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#F5C400';
+  fitText(x, nm, 250, 30, 800, D); x.fillText(nm, 150, 270);
+  const isGk = positionBucket(p.position) === 'porteros';
+  const cells = [[s.pj,'PJ'], isGk ? [s.vi||0,'VI'] : [s.gol,'GOL'], [s.ast,'AST'], [s.fig,'FIG'], [s.min,'MIN'], [r ? r.toFixed(1).replace('.', ',') : '-', 'CAL']];
+  cells.forEach(([v, l], i)=>{
+    const cx = 60 + (i % 3) * 90, cy = 318 + Math.floor(i / 3) * 36;
+    x.fillStyle = '#0A0B0C'; x.font = `800 26px ${D}`; x.textAlign = 'right'; x.fillText(String(v), cx + 6, cy);
+    x.globalAlpha = .75; x.font = `700 15px ${D}`; x.textAlign = 'left'; x.fillText(l, cx + 10, cy); x.globalAlpha = 1;
+  });
+  x.textAlign = 'center'; x.globalAlpha = .7; x.font = `700 12.5px ${D}`;
+  x.fillText(`${teamName().toUpperCase()} · ${(currentSeasonCache?.name || new Date().getFullYear())}`, 150, 412); x.globalAlpha = 1;
+  x.restore();
+  x.lineWidth = 3; x.strokeStyle = 'rgba(10,11,12,.85)'; roundRect(x, 1.5, 1.5, 297, 427, 29); x.stroke();
+  return c;
+}
+window.__cardImage = async (btn)=>{
+  const el = btn.closest('.fc-wrap')?.querySelector('.fc-card'); if(!el) return;
+  const p = playersCache.find(x=> x.id === el.dataset.pid); if(!p) return;
+  const old = btn.innerHTML; btn.disabled = true; btn.textContent = 'Preparando…';
+  let canvas;
+  try{ const st = await loadCardStats(); canvas = await drawPlayerCard(p, st[p.id]); }
+  catch(e){ toast('No se pudo generar la carta: ' + (e.message || e), true); btn.disabled = false; btn.innerHTML = old; return; }
+  btn.disabled = false; btn.innerHTML = old;
+  let blob = null, url;
+  try{ blob = await new Promise(r=> canvas.toBlob(r, 'image/png')); url = URL.createObjectURL(blob); }catch(e){ url = canvas.toDataURL('image/png'); }
+  const name = 'carta-' + String(p.full_name||'jugador').toLowerCase().normalize('NFD').replace(/[^\w]+/g,'-') + '.png';
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  ov.innerHTML = `
+    <div class="panel st-modal-box piece-box" style="max-width:360px">
+      <h3 style="margin-top:0">Carta de ${escS(p.full_name)}</h3>
+      <img src="${url}" alt="Carta del jugador" class="piece-img" />
+      <p class="muted" style="font-size:13px;margin:8px 0 0">En el celular también puedes mantener presionada la imagen para guardarla.</p>
+      <div class="piece-btns">
+        <button type="button" id="cd-share">${ic('chat')} Compartir</button>
+        <a class="piece-dl" href="${url}" download="${name}">${ic('download')} Descargar</a>
+        <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cerrar</button>
+      </div>
+    </div>`;
+  document.getElementById('fc-overlay')?.classList.remove('open');
+  ov.classList.add('open');
+  $('#cd-share').addEventListener('click', async ()=>{
+    try{
+      const file = new File([blob], name, { type: 'image/png' });
+      if(blob && navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file], title: 'Mi carta · ' + teamName() }); return; }
+    }catch(e){ if(e?.name === 'AbortError') return; }
+    toast('En este dispositivo no se puede compartir directo: descarga la imagen y súbela a WhatsApp.');
+  });
+};
+
 window.__matchPiece = async (matchId, btn)=>{
   if(btn){ btn.disabled = true; btn.dataset.t = btn.innerHTML; btn.textContent = 'Creando pieza…'; }
   let canvas;
@@ -4254,14 +4356,17 @@ async function loadCardStats(){
   if(cardStatsCache) return cardStatsCache;
   const today = new Date().toISOString().slice(0,10);
   const [{ data: st }, { data: ms }] = await Promise.all([
-    supabase.from('player_match_stats').select('player_id,goals,assists,minutes_played,yellow_cards,red_cards'),
-    supabase.from('matches').select('id,mvp_player_id,match_date').lte('match_date', today),
+    supabase.from('player_match_stats').select('player_id,match_id,goals,assists,minutes_played,yellow_cards,red_cards'),
+    supabase.from('matches').select('id,mvp_player_id,match_date,result').lte('match_date', today),
   ]);
+  const conceded = {};
+  (ms||[]).forEach(m=>{ const mm = String(m.result||'').match(/(\d+)\s*[-–]\s*(\d+)/); if(mm) conceded[m.id] = +mm[2]; });
   const by = {};
   (st||[]).forEach(r=>{
     const o = by[r.player_id] = by[r.player_id] || { pj:0, gol:0, ast:0, min:0, ama:0, roj:0, fig:0, maxGol:0 };
     if((r.minutes_played||0) > 0) o.pj++;
     o.maxGol = Math.max(o.maxGol, r.goals||0);
+    if((r.minutes_played||0) > 0 && conceded[r.match_id] === 0) o.vi = (o.vi||0) + 1;
     o.gol += r.goals||0; o.ast += r.assists||0; o.min += r.minutes_played||0; o.ama += r.yellow_cards||0; o.roj += r.red_cards||0;
   });
   (ms||[]).forEach(m=>{ if(m.mvp_player_id){ const o = by[m.mvp_player_id] = by[m.mvp_player_id] || { pj:0, gol:0, ast:0, min:0, ama:0, roj:0, fig:0, maxGol:0 }; o.fig++; } });
@@ -4298,12 +4403,12 @@ function playerCardHTML(p, s){
           <span class="crest-badge fc-crest"></span>
           <div class="fc-num">#${p.jersey_number ?? ''}</div>
         </div>
-        <div class="fc-photo"><div class="fc-jersey">${jerseySvg(p.jersey_number)}</div></div>
+        <div class="fc-photo"><div class="fc-jersey">${jerseySvg(p.jersey_number, positionBucket(p.position) === 'porteros' ? 'gk' : '')}</div></div>
       </div>
       <div class="fc-name">${esc(shortName)}</div>
       <div class="fc-stats">
         <div><b>${s.pj}</b><span>PJ</span></div>
-        <div><b>${s.gol}</b><span>GOL</span></div>
+        ${positionBucket(p.position) === 'porteros' ? `<div><b>${s.vi||0}</b><span>VI</span></div>` : `<div><b>${s.gol}</b><span>GOL</span></div>`}
         <div><b>${s.ast}</b><span>AST</span></div>
         <div><b>${s.fig}</b><span>FIG</span></div>
         <div><b>${s.min}</b><span>MIN</span></div>
@@ -4328,12 +4433,31 @@ const BADGES = [
   { id:'min500',icon:'⏱️', name:'Incansable',    desc:'Sumar 500 minutos en cancha',     val:s=>s.min,    goal:500 },
   { id:'clean', icon:'😇', name:'Juego limpio',  desc:'10 partidos sin ninguna tarjeta', val:s=> (s.ama + s.roj) ? 0 : s.pj, goal:10 },
 ];
-function badgesFor(s){
-  s = s || { pj:0, gol:0, ast:0, min:0, ama:0, roj:0, fig:0, maxGol:0 };
-  return BADGES.map(b=>{ const v = Math.max(0, b.val(s)||0); return { ...b, v: Math.min(v, b.goal), done: v >= b.goal }; });
+const BADGE_EXTRA = {
+  vi1:  { id:'vi1',  icon:'🧤', name:'Valla invicta', desc:'Un partido sin goles en contra', val:s=>s.vi||0, goal:1 },
+  vi3:  { id:'vi3',  icon:'🧱', name:'Muralla',       desc:'3 vallas invictas',              val:s=>s.vi||0, goal:3 },
+  vi5:  { id:'vi5',  icon:'🔒', name:'Candado',       desc:'5 vallas invictas',              val:s=>s.vi||0, goal:5 },
+  dvi1: { id:'dvi1', icon:'🛡️', name:'Defensa invicta', desc:'Un partido sin goles en contra', val:s=>s.vi||0, goal:1 },
+  dvi5: { id:'dvi5', icon:'🧱', name:'Muro',          desc:'5 partidos sin goles en contra', val:s=>s.vi||0, goal:5 },
+  ast10:{ id:'ast10',icon:'🧠', name:'Cerebro',       desc:'Dar 10 asistencias',             val:s=>s.ast, goal:10 },
+};
+function badgeSetFor(pos){
+  const B = id=> BADGES.find(b=> b.id === id) || BADGE_EXTRA[id];
+  const common = ['fig1','fig3','pj10','pj25','min500','clean'];
+  const byPos = {
+    porteros:   ['vi1','vi3','vi5'],
+    defensas:   ['dvi1','dvi5','gol1'],
+    volantes:   ['ast5','ast10','gol1','gol5'],
+    delanteros: ['gol1','gol5','gol10','hat','ast5'],
+  };
+  return (byPos[positionBucket(pos)] || byPos.delanteros).concat(common).map(B).filter(Boolean);
 }
-function badgesHTML(s, compact){
-  const list = badgesFor(s);
+function badgesFor(s, pos){
+  s = s || { pj:0, gol:0, ast:0, min:0, ama:0, roj:0, fig:0, maxGol:0, vi:0 };
+  return badgeSetFor(pos).map(b=>{ const v = Math.max(0, b.val(s)||0); return { ...b, v: Math.min(v, b.goal), done: v >= b.goal }; });
+}
+function badgesHTML(s, compact, pos){
+  const list = badgesFor(s, pos);
   const got = list.filter(b=> b.done).length;
   return `<div class="bd-panel${compact ? ' compact' : ''}">
     <div class="bd-head"><b>Logros</b><span>${got} de ${list.length}</span></div>
@@ -4375,8 +4499,7 @@ window.__cardShare = async (btn)=>{
 };
 function cardActionsHTML(){
   return `<div class="fc-actions">
-    <button type="button" data-mode="share" onclick="window.__cardShare(this)">${ic('chat')} Compartir</button>
-    <button type="button" class="secondary" data-mode="download" onclick="window.__cardShare(this)">${ic('download')} Descargar</button>
+    <button type="button" onclick="window.__cardImage(this)">${ic('download')} Descargar / compartir carta</button>
   </div>`;
 }
 window.__playerCard = async (id)=>{
@@ -4387,7 +4510,7 @@ window.__playerCard = async (id)=>{
   if(!ov){ ov = document.createElement('div'); ov.id = 'fc-overlay'; ov.className = 'fc-overlay'; document.body.appendChild(ov);
     ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); });
     document.addEventListener('keydown', e=>{ if(e.key === 'Escape') ov.classList.remove('open'); }); }
-  ov.innerHTML = `<div class="fc-wrap"><button type="button" class="fc-x" onclick="document.getElementById('fc-overlay').classList.remove('open')" aria-label="Cerrar">✕</button>${playerCardHTML(p, stats[p.id])}${cardActionsHTML()}${badgesHTML(stats[p.id], true)}</div>`;
+  ov.innerHTML = `<div class="fc-wrap"><button type="button" class="fc-x" onclick="document.getElementById('fc-overlay').classList.remove('open')" aria-label="Cerrar">✕</button>${playerCardHTML(p, stats[p.id])}${cardActionsHTML()}${badgesHTML(stats[p.id], true, p.position)}</div>`;
   ov.classList.add('open');
 };
 
@@ -4523,7 +4646,7 @@ function renderPlayerCards(){
   });
   el.innerHTML = list.map(p=>`
     <div class="player-card">
-      <div class="player-jersey">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number)}</div>
+      <div class="player-jersey">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number, positionBucket(p.position) === 'porteros' ? 'gk' : '')}</div>
       <div class="player-card-body">
         <div class="player-card-num">${p.jersey_number}</div>
         <div class="player-card-name">${p.full_name}</div>
@@ -4579,7 +4702,7 @@ function openPlayerDetail(id){
     </div>
   `;
   $('#pd-back').addEventListener('click', closePlayerDetail);
-  loadCardStats().then(st=>{ const c = $('#pd-card'); if(c) c.innerHTML = playerCardHTML(p, st[p.id]) + cardActionsHTML() + badgesHTML(st[p.id]); });
+  loadCardStats().then(st=>{ const c = $('#pd-card'); if(c) c.innerHTML = playerCardHTML(p, st[p.id]) + cardActionsHTML() + badgesHTML(st[p.id], false, p.position); });
   if(editable){
     $('#pd-photo-save')?.addEventListener('click', ()=> $('#pd-photo-input').click());
     $('#pd-photo-input')?.addEventListener('change', async ()=>{
@@ -8664,6 +8787,21 @@ async function refreshMensajesBadge(){
     btn.appendChild(badge);
   }
 }
+</script>
+<script>
+(function(){
+  var last = window.scrollY || 0, ticking = false;
+  function onScroll(){
+    var y = window.scrollY || 0, bar = document.getElementById('bottom-tabbar');
+    if(bar){
+      var nearBottom = (window.innerHeight + y) >= (document.documentElement.scrollHeight - 40);
+      if(y > last + 6 && y > 120 && !nearBottom) bar.classList.add('tb-hide');
+      else if(y < last - 6 || y <= 120 || nearBottom) bar.classList.remove('tb-hide');
+    }
+    last = y; ticking = false;
+  }
+  window.addEventListener('scroll', function(){ if(!ticking){ ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+})();
 </script>
 </body>
 </html>
