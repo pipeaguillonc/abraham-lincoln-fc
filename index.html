@@ -1384,6 +1384,9 @@
   .tp-group > div{display:flex;flex-wrap:wrap;gap:5px}
   .tp-name{font-size:13px;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:3px 9px}
   .tp-mine{margin-top:10px;font-size:14px}
+  .lu-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--panel);border:1.5px dashed var(--border);border-radius:16px;padding:14px}
+  .lu-empty button{width:auto;display:inline-flex;align-items:center;gap:6px}
+  .match-cu-panel{margin:12px 0;background:var(--panel2)}
 
 </style>
 <script>
@@ -1824,7 +1827,7 @@ window.__setupTabbar = function(role){
     <button class="nav-btn" data-view="convocatoria"><svg class="ic" aria-hidden="true"><use href="#i-shirt"/></svg><span>Convocatoria</span></button>
     <button class="nav-btn" data-view="mensajes"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg><span>Mensajes</span></button>
     <button class="nav-btn" data-view="recomendaciones"><svg class="ic" aria-hidden="true"><use href="#i-whistle"/></svg><span>Recomendaciones</span></button>
-    <button class="nav-btn" data-view="equipacion"><svg class="ic" aria-hidden="true"><use href="#i-store"/></svg><span>Equipación</span></button>
+    <button class="nav-btn" data-view="equipacion"><svg class="ic" aria-hidden="true"><use href="#i-store"/></svg><span>Tienda del equipo</span></button>
     <button class="nav-btn" data-view="finanzas"><svg class="ic" aria-hidden="true"><use href="#i-bars"/></svg><span>Finanzas</span></button>
     <button class="nav-btn" data-view="temporadas"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg><span>Temporadas</span></button>
     <button class="nav-btn" data-view="usuarios"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span>Usuarios</span></button>
@@ -2812,7 +2815,7 @@ async function renderDashboardLineup(){
           ${canManage() ? `<button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button>` : ''}
         </div>
       </div>
-    ` : `<p class="muted">Todavía no hay formación armada para este partido.${canManage() ? ' Entra a Partidos para armarla.' : ''}</p>`}
+    ` : `<div class="lu-empty"><p class="muted" style="margin:0">Todavía no hay formación armada para este partido.</p>${canManage() ? `<button type="button" onclick="window.__goToMatchLineup('${nextMatch.id}')">${ic('tactic')} Armar formación</button>` : ''}</div>`}
   `;
 }
 
@@ -5013,7 +5016,9 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
   }
 
   if(canManageEvents()){
+    const cuBox = await callUpBoxHTML(callUp, callUp ? `window.__respondTraining.bind(null,'${callUp.id}','${trainingId}','${sessionDate}')` : '');
     container.innerHTML = `
+      <div class="panel" style="background:var(--panel2);margin:0 0 12px"><h4 style="margin-top:0">📋 Convocatoria</h4>${cuBox}</div>
       <p class="muted">Registra la asistencia de cada jugador en este entrenamiento. Si un jugador confirmó "Asiste" en la convocatoria y aún no le registras la asistencia aquí, esa confirmación ya cuenta como presente en su promedio.</p>
       <table>
         <thead><tr><th>#</th><th>Jugador</th><th>Estado</th><th>Llegada</th><th>Motivo (si ausente)</th><th>Notas</th><th></th></tr></thead>
@@ -6399,6 +6404,7 @@ window.__openMatch = async (matchId)=>{
         <div class="kit"><span class="j">${jerseySvg('', 'rival', m.rival_color)}</span>${m.rival_color ? rivalColorName(m.rival_color) : 'Color rival sin definir'}</div>
       </div>
       ${m.mvp_player_id ? `<div class="mvp-badge">${playerAvatarHtml(m.mvp_player_id,'mvp-badge-photo')} 🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
+      <div class="panel match-cu-panel"><h4 style="margin-top:0">📋 Convocatoria</h4><div id="match-cu"><p class="muted">Cargando…</p></div></div>
       <div class="embed-wrap">
         ${m.youtube_video_id ? `<iframe width="320" height="180" src="https://www.youtube.com/embed/${m.youtube_video_id}" allowfullscreen></iframe>` : ''}
         ${m.instagram_url ? `<blockquote class="instagram-media" data-instgrm-permalink="${m.instagram_url}" style="width:320px"></blockquote>` : ''}
@@ -6539,6 +6545,7 @@ window.__openMatch = async (matchId)=>{
     </div>
   `;
 
+  renderMatchCallUp(matchId);
   // load instagram embed script (official, público)
   if(m.instagram_url && !window.instgrm){
     const s = document.createElement('script'); s.src = 'https://www.instagram.com/embed.js'; s.async = true;
@@ -6970,7 +6977,7 @@ async function renderEquipacion(){
   main.innerHTML = `
     <div class="store-banner">
       <div class="store-brand"><span class="crest-badge xs" role="img" aria-label="Escudo Abraham Lincoln FC"></span> Abraham Lincoln FC</div>
-      <h1>MERCHANDISING</h1>
+      <h1>TIENDA DEL EQUIPO</h1>
       <p>Lleva los colores del equipo</p>
     </div>
     <p class="muted" style="margin-top:0">Uniformes, medias, bandas elásticas y personalización de guayos. Elige lo que necesites y envíalo como solicitud — el Comité confirma precio, talla y entrega contigo.</p>
@@ -7930,6 +7937,51 @@ async function renderCallUpBody(callUp){
   }
 }
 
+
+// ---- Convocatoria de un partido/entrenamiento puntual (se ve al abrirlo) ----
+async function callUpBoxHTML(callUp, respondFn){
+  const esc = s=> String(s||'').replace(/</g,'&lt;');
+  if(!callUp) return `<p class="muted" style="margin:0">Este evento todavía no tiene convocatoria.</p>`;
+  const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', callUp.id);
+  const resp = Object.fromEntries((rs||[]).map(r=>[r.player_id, r.response]));
+  const roster = playersCache.filter(p=> p.active && !p.injured);
+  const van = roster.filter(p=> resp[p.id] === 'asiste');
+  const noVan = roster.filter(p=> resp[p.id] && resp[p.id] !== 'asiste');
+  const pend = roster.filter(p=> !resp[p.id]);
+  const me = playersCache.find(p=> p.id === profile?.player_id);
+  const my = resp[profile?.player_id];
+  const open = typeof isCallUpOpen === 'function' ? isCallUpOpen(callUp) : true;
+  const chips = list=> list.length ? list.map(p=>`<span class="tp-name">#${p.jersey_number} ${esc(p.full_name)}</span>`).join('') : '<span class="muted">Nadie todavía</span>';
+  return `
+    <div class="tp-conv">
+      <div class="tp-counts">
+        <span class="tp-c ok">✅ ${van.length} van</span>
+        <span class="tp-c no">❌ ${noVan.length} no van</span>
+        <span class="tp-c pe">⏳ ${pend.length} sin responder</span>
+      </div>
+      ${me && !me.injured ? `
+      <div class="tp-me">
+        <span>Tu respuesta: <b>${my === 'asiste' ? 'Voy ✅' : my ? 'No voy ❌' : 'Sin responder'}</b></span>
+        ${open ? `<div class="tp-btns">
+          <button type="button" class="small${my === 'asiste' ? '' : ' secondary'}" onclick="${respondFn}('asiste')">Voy</button>
+          <button type="button" class="small${my && my !== 'asiste' ? '' : ' secondary'}" onclick="${respondFn}('no_asiste')">No voy</button>
+        </div>` : `<span class="muted" style="font-size:13px">Ya cerró el plazo para responder</span>`}
+      </div>` : ''}
+      <div class="tp-group"><b>Van (${van.length})</b><div>${chips(van)}</div></div>
+      <div class="tp-group"><b>No van (${noVan.length})</b><div>${chips(noVan)}</div></div>
+      <div class="tp-group"><b>Sin responder (${pend.length})</b><div>${chips(pend)}</div></div>
+    </div>`;
+}
+async function renderMatchCallUp(matchId){
+  const el = document.getElementById('match-cu'); if(!el) return;
+  const { data: cu } = await supabase.from('call_ups').select('*').eq('match_id', matchId).maybeSingle();
+  el.innerHTML = await callUpBoxHTML(cu, cu ? `window.__respondMatch.bind(null,'${cu.id}','${matchId}')` : '');
+}
+window.__respondMatch = async (callUpId, matchId, response)=>{
+  await window.__respondCallUp(callUpId, response);
+  renderMatchCallUp(matchId);
+};
+
 window.__respondTraining = async (callUpId, trainingId, sessionDate, response)=>{
   await window.__respondCallUp(callUpId, response);
   renderAttendanceForTraining(trainingId, sessionDate);
@@ -8000,7 +8052,7 @@ async function renderMensajes(){
     ? ['cuerpo_tecnico','jugador','fichaje']
     : isStaffSide
       ? ['jugador','fichaje','usuario_maestro']
-      : ['cuerpo_tecnico','usuario_maestro'];
+      : ['cuerpo_tecnico','usuario_maestro','jugador','fichaje'];
   // Los jugadores/fichajes se cargan aparte — solo se usan para armar la
   // opción de "mensaje masivo", no como contactos de chat 1 a 1
   // individuales. Jugador/fichaje la usan para escribirle a "todos mis
@@ -8050,7 +8102,7 @@ async function renderMensajes(){
     : '';
   contactSel.innerHTML = massOption + comunicadoOption + (sorted.length
     ? sorted.map(c=>{
-        const tag = c.players?.jersey_number ? `#${c.players.jersey_number} ` : '';
+        const tag = (c.players?.jersey_number ? `#${c.players.jersey_number} ` : '') + (c.role === 'cuerpo_tecnico' ? '🧑‍🏫 ' : c.role === 'usuario_maestro' ? '⭐ ' : '');
         const unreadTag = unreadBySender[c.id] ? ` — ${unreadBySender[c.id]} sin leer` : '';
         return `<option value="${c.id}">${tag}${c.full_name}${unreadTag}</option>`;
       }).join('')
