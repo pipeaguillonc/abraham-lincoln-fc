@@ -1476,6 +1476,9 @@
   #bottom-tabbar.tb-hide{transform:translateY(110%)}
   .st-jacket{background:#2A2D32!important;overflow:hidden}
   .st-jacket svg{width:82%;height:82%;margin-top:12%}
+  .fc-badges{position:absolute;left:0;right:0;bottom:34px;display:flex;justify-content:center;align-items:center;gap:6px}
+  .fc-badges span{width:28px;height:28px;border-radius:50%;background:rgba(10,11,12,.88);display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
+  .fc-badges em{font-style:normal;font-weight:800;font-size:15px}
 
 </style>
 <script>
@@ -3851,6 +3854,17 @@ async function drawPlayerCard(p, s){
     x.fillStyle = '#0A0B0C'; x.font = `800 26px ${D}`; x.textAlign = 'right'; x.fillText(String(v), cx + 6, cy);
     x.globalAlpha = .75; x.font = `700 15px ${D}`; x.textAlign = 'left'; x.fillText(l, cx + 10, cy); x.globalAlpha = 1;
   });
+  const got = badgesFor(s, p.position).filter(b=> b.done);
+  if(got.length){
+    const show = got.slice(0, 6), n = show.length + (got.length > 6 ? 1 : 0), gap = 34, sx = 150 - (n - 1) * gap / 2;
+    show.forEach((b, i)=>{
+      const cx = sx + i * gap;
+      x.fillStyle = 'rgba(10,11,12,.88)'; x.beginPath(); x.arc(cx, 380, 14.5, 0, Math.PI*2); x.fill();
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `15px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif`; x.fillText(b.icon, cx, 381);
+    });
+    if(got.length > 6){ x.fillStyle = '#0A0B0C'; x.font = `800 15px ${D}`; x.fillText('+' + (got.length - 6), sx + 6 * gap, 381); }
+    x.textBaseline = 'alphabetic';
+  }
   x.textAlign = 'center'; x.globalAlpha = .7; x.font = `700 12.5px ${D}`;
   x.fillText(`${teamName().toUpperCase()} · ${(currentSeasonCache?.name || new Date().getFullYear())}`, 150, 412); x.globalAlpha = 1;
   x.restore();
@@ -4414,7 +4428,8 @@ function playerCardHTML(p, s){
         <div><b>${s.min}</b><span>MIN</span></div>
         <div><b>${r ? r.toFixed(1).replace('.', ',') : '-'}</b><span>CAL</span></div>
       </div>
-      <div class="fc-foot">ABRAHAM LINCOLN FC · ${esc(season)}${p.injured ? ' · 🩹' : ''}</div>
+      ${(()=>{ const got = badgesFor(s, p.position).filter(b=> b.done); return got.length ? `<div class="fc-badges">${got.slice(0,6).map(b=>`<span title="${b.name}">${b.icon}</span>`).join('')}${got.length > 6 ? `<em>+${got.length-6}</em>` : ''}</div>` : ''; })()}
+      <div class="fc-foot">${esc(teamName().toUpperCase())} · ${esc(season)}${p.injured ? ' · 🩹' : ''}</div>
     </div>`;
 }
 
