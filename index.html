@@ -1501,6 +1501,34 @@
   .crest-badge.xs{width:44px;height:44px}
   .hdr-pill{justify-content:space-between!important}
   .hdr-pill .pill-spacer{width:54px;flex-shrink:0}
+
+.store-mgr-list{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.store-mgr-chip{display:inline-flex;align-items:center;gap:6px;background:var(--brand,#F5C400);color:#0A0B0C;font-weight:700;border-radius:999px;padding:6px 6px 6px 12px;font-size:14px}
+.store-mgr-chip small{font-weight:600;opacity:.7}
+.store-mgr-chip button{background:rgba(0,0,0,.15);color:#0A0B0C;border:0;border-radius:50%;width:24px;height:24px;padding:0;font-size:12px;line-height:24px;cursor:pointer;min-height:0}
+.store-mgr-add{display:flex;gap:8px;flex-wrap:wrap}
+.store-mgr-add select{flex:1 1 180px;min-width:0}
+.store-mgr-orders{display:grid;gap:10px}
+.store-mgr-order{border:1px solid rgba(127,127,127,.25);border-radius:12px;padding:10px 12px}
+.store-mgr-order.is-pend{border-color:var(--brand,#F5C400);box-shadow:inset 3px 0 0 var(--brand,#F5C400)}
+.smo-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.smo-item{margin:4px 0 8px}
+.smo-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.smo-actions select{flex:1 1 140px;min-width:0}
+.store-wa-btn{display:inline-flex;align-items:center;gap:6px;background:#1FA855;color:#fff;font-weight:700;border-radius:10px;padding:9px 14px;font-size:14px;text-decoration:none;margin-top:4px}
+.store-wa-btn.alt{padding:7px 12px;margin-top:0}
+
+.inj-phase{display:grid;gap:8px;margin:2px 0 4px}
+.inj-ph{display:flex;align-items:flex-start;gap:10px;border:1.5px solid rgba(127,127,127,.3);border-radius:12px;padding:10px 12px;cursor:pointer}
+.inj-ph input[type=radio]{width:18px!important;height:18px;flex:0 0 18px;margin:3px 0 0;padding:0;min-height:0;accent-color:#0A0B0C}
+.inj-ph span{flex:1;text-align:left}
+.inj-ph span{display:flex;flex-direction:column}
+.inj-ph small{opacity:.7}
+.inj-ph:has(input:checked){border-color:var(--brand,#F5C400);background:rgba(245,196,0,.10)}
+.med-card.recon{border-left:4px solid #2F80ED}
+.med-card.recon .med-bar i{background:#2F80ED}
+.med-phase{font-style:normal;font-weight:700;color:#2F80ED}
+.recon-banner{border-color:#2F80ED;background:rgba(47,128,237,.08)}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -2948,6 +2976,7 @@ async function renderDashboard(){
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos ${teamName()}! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
     <div id="notify-banner"></div>
     <div id="unread-msgs-banner"></div>
+    <div id="store-mgr-banner"></div>
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
     <div id="monthly-highlights"></div>
@@ -2986,6 +3015,7 @@ async function renderDashboard(){
     // (Oculto a pedido) aviso de convocatorias pendientes en el Inicio del jugador;
     // las convocatorias siguen en el módulo Convocatoria y en la insignia del menú.
     renderUnreadMessagesBanner();
+    renderStoreMgrBanner();
     const pid = profile.player_id;
     // El % de participación (y el resto de estadísticas de partidos/entrenos) se
     // calculan solo sobre eventos que YA pasaron a la fecha — así el numerador
@@ -3369,7 +3399,7 @@ async function renderCoachPanel(){
   }
   // Lesionados que ya deberían estar de vuelta
   active.filter(p=> p.injured && p.injury_return && daysUntil(p.injury_return) <= 0).forEach(p=>
-    items.push({ icon:'run', t:`¿Ya volvió ${escS(p.full_name)}?`, s:`Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Dar de alta', go:`window.__setInjury('${p.id}', false)`, warn:true }));
+    items.push({ icon:'run', t: isRecon(p) ? `¿${escS(p.full_name)} ya puede jugar partidos?` : `¿Ya volvió ${escS(p.full_name)}?`, s: isRecon(p) ? `Terminaba reacondicionamiento el ${fmtDate(p.injury_return)}` : `Su regreso estaba previsto para el ${fmtDate(p.injury_return)}`, b:'Dar de alta', go:`window.__setInjury('${p.id}', false)`, warn:true }));
   // Palabra del profe
   const noteFresh = ts?.coach_note && ts?.coach_note_at && (Date.now() - new Date(ts.coach_note_at).getTime()) < 7*86400000;
   if(nm && !noteFresh) items.push({ key:'note:'+nm.id, icon:'chat', t:'Escribir la palabra del profe', s:'Un mensaje para el equipo antes del partido', b:'Escribir', go:'window.__coachNoteEdit()' });
@@ -3421,9 +3451,22 @@ async function renderCoachPanel(){
 
 // ---------------- LESIONADOS ----------------
 const INJURY_TYPES = ['Molestia muscular','Desgarre','Esguince','Golpe / contusión','Rodilla','Tobillo','Fractura','Otra'];
+// Reacondicionamiento: el jugador sigue en el departamento médico (injured=true)
+// pero con injury_phase='reacond' — puede entrenar, todavía no jugar partidos.
+function isRecon(p){ return !!(p && p.injured && p.injury_phase === 'reacond'); }
+function canTrain(p){ return !!p && (!p.injured || isRecon(p)); }
+function cuIsMatch(c){ return !!c && (c.type === 'partido' || !!c.match_id); }
+function cuEligible(p, c){ return !!p && (cuIsMatch(c) ? !p.injured : canTrain(p)); }
 function daysUntil(d){ if(!d) return null; const t = new Date(); t.setHours(0,0,0,0); return Math.round((new Date(d+'T00:00:00') - t) / 86400000); }
 function returnText(p){
   const n = daysUntil(p.injury_return);
+  if(isRecon(p)){
+    if(n == null) return 'Fecha para volver a jugar por definir';
+    if(n <= 0) return 'Ya puede volver a jugar partidos';
+    if(n === 1) return 'Apto para partidos mañana';
+    if(n < 14) return `Apto para partidos en ${n} días`;
+    return `Apto para partidos en ~${Math.round(n/7)} semanas`;
+  }
   if(n == null) return 'Fecha de regreso por definir';
   if(n < 0) return 'Ya debería estar de vuelta';
   if(n === 0) return 'Vuelve hoy';
@@ -3431,12 +3474,13 @@ function returnText(p){
   if(n < 14) return `Vuelve en ${n} días`;
   return `Vuelve en ~${Math.round(n/7)} semanas`;
 }
-function injuryLine(p){ return `🩹 ${p.injury_type ? p.injury_type + ' · ' : ''}${returnText(p)}`; }
+function injuryLine(p){ return `${isRecon(p) ? '🔄 Reacondicionamiento · ' : '🩹 '}${p.injury_type ? p.injury_type + ' · ' : ''}${returnText(p)}`; }
 // Marcar lesión: pide tipo y fecha estimada de regreso. Quitar lesión: limpia todo.
-window.__setInjury = async (id, makeInjured, after)=>{
+window.__setInjury = async (id, makeInjured, after, phase)=>{
   const done = async ()=>{ await loadPlayersCache(); if($('#players-tbody')) renderPlayersRows(); if($('#player-cards-list')) renderPlayerCards(); after && after(); if($('#coach-panel')) renderCoachPanel(); if($('#med-list')) renderMedico(); };
   if(!makeInjured){
-    let r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, injury_since: null, accompany_match_id: null }).eq('id', id);
+    let r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, injury_since: null, accompany_match_id: null, injury_phase: null }).eq('id', id);
+    if(r.error && /injury_phase/.test(r.error.message)) r = await supabase.from('players').update({ injured: false, injury_type: null, injury_return: null, injury_since: null, accompany_match_id: null }).eq('id', id);
     if(r.error && /injury_|accompany/.test(r.error.message)) r = await supabase.from('players').update({ injured: false }).eq('id', id);
     if(r.error){ toast(r.error.message, true); return; }
     toast('Jugador dado de alta 💪'); done(); return;
@@ -3448,32 +3492,48 @@ window.__setInjury = async (id, makeInjured, after)=>{
   const def = new Date(); def.setDate(def.getDate() + 14);
   const pick = !id;
   const editing = !!p.injured;
+  const ph0 = phase || (isRecon(p) ? 'reacond' : 'lesion');
+  if(ph0 === 'reacond' && !isRecon(p)){ const d2 = new Date(); d2.setDate(d2.getDate() + 10); p.__reconDef = d2.toISOString().slice(0,10); }
   ov.innerHTML = `
     <div class="panel st-modal-box">
-      <h3 style="margin-top:0">🩹 ${editing ? 'Actualizar lesión' : 'Reportar lesión'}</h3>
+      <h3 style="margin-top:0">${ph0 === 'reacond' ? '🔄' : '🩹'} ${ph0 === 'reacond' && !isRecon(p) ? 'Pasar a reacondicionamiento' : (editing ? 'Actualizar lesión' : 'Reportar lesión')}</h3>
       ${pick ? `<label class="field-label" for="inj-player">Jugador</label>
       <select id="inj-player">${playersCache.filter(x=> x.active && !x.injured).map(x=>`<option value="${x.id}">#${x.jersey_number} ${escS(x.full_name)}</option>`).join('')}</select>`
-        : `<p class="muted" style="margin-top:-4px">#${p.jersey_number ?? ''} ${escS(p.full_name)} · no le llegarán convocatorias hasta que vuelva.</p>`}
+        : `<p class="muted" style="margin-top:-4px">#${p.jersey_number ?? ''} ${escS(p.full_name)} · ${ph0 === 'reacond' ? 'puede entrenar, pero no le llegarán convocatorias a partidos.' : 'no le llegarán convocatorias hasta que vuelva.'}</p>`}
       <label class="field-label" for="inj-type">Tipo de lesión</label>
       <select id="inj-type">${INJURY_TYPES.map(t=>`<option ${p.injury_type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <label class="field-label" for="inj-date">Fecha estimada de regreso</label>
-      <input type="date" id="inj-date" value="${p.injury_return || def.toISOString().slice(0,10)}" />
+      <label class="field-label">Etapa</label>
+      <div class="inj-phase">
+        <label class="inj-ph"><input type="radio" name="inj-ph" value="lesion" ${ph0 !== 'reacond' ? 'checked' : ''}><span><b>🩹 Lesión</b><small>No entrena ni juega</small></span></label>
+        <label class="inj-ph"><input type="radio" name="inj-ph" value="reacond" ${ph0 === 'reacond' ? 'checked' : ''}><span><b>🔄 Reacondicionamiento</b><small>Entrena, pero no juega partidos</small></span></label>
+      </div>
+      <label class="field-label" for="inj-date" id="inj-date-l">${ph0 === 'reacond' ? 'Apto para partidos desde' : 'Fecha estimada de regreso'}</label>
+      <input type="date" id="inj-date" value="${p.__reconDef || p.injury_return || def.toISOString().slice(0,10)}" />
       <div style="display:flex;gap:8px;margin-top:12px">
         <button type="button" id="inj-save" style="flex:1">${editing ? 'Guardar' : 'Reportar lesión'}</button>
         <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cancelar</button>
       </div>
     </div>`;
   ov.classList.add('open');
+  delete p.__reconDef;
+  ov.querySelectorAll('input[name="inj-ph"]').forEach(r=> r.addEventListener('change', ()=>{
+    $('#inj-date-l').textContent = r.value === 'reacond' ? 'Apto para partidos desde' : 'Fecha estimada de regreso';
+  }));
   $('#inj-save').addEventListener('click', async ()=>{
     const pid = id || $('#inj-player')?.value;
     if(!pid){ toast('Elige el jugador', true); return; }
-    const upd = { injured: true, injury_type: $('#inj-type').value, injury_return: $('#inj-date').value || null };
+    const phSel = ov.querySelector('input[name="inj-ph"]:checked')?.value || 'lesion';
+    const upd = { injured: true, injury_type: $('#inj-type').value, injury_return: $('#inj-date').value || null, injury_phase: phSel === 'reacond' ? 'reacond' : null };
     if(!editing) upd.injury_since = new Date().toISOString().slice(0,10);
     let r = await supabase.from('players').update(upd).eq('id', pid);
+    if(r.error && /injury_phase/.test(r.error.message)){
+      toast('Falta correr en Supabase el SQL de reacondicionamiento.', true);
+      return;
+    }
     if(r.error && /injury_/.test(r.error.message)){ toast('Se marcó la lesión, pero falta correr el SQL del departamento médico para guardar tipo y fecha.', true); r = await supabase.from('players').update({ injured: true }).eq('id', pid); }
     if(r.error){ toast(r.error.message, true); return; }
     ov.classList.remove('open');
-    toast(editing ? 'Lesión actualizada' : 'Lesión reportada'); done();
+    toast(phSel === 'reacond' ? 'Jugador en reacondicionamiento 🔄 — ya puede entrenar' : (editing ? 'Lesión actualizada' : 'Lesión reportada')); done();
   });
 };
 // "¡Fuerza!" de un compañero
@@ -3512,7 +3572,7 @@ async function renderInjuryBlock(){
       <div class="inj-me">
         <div class="inj-me-top">
           <div class="inj-count">${n != null && n >= 0 ? `<b>${n}</b><span>${n === 1 ? 'día' : 'días'}</span>` : '<b>🩹</b>'}</div>
-          <div><small>Estás en recuperación</small><b>${escS(me.injury_type || 'Lesión')}</b><span>${me.injury_return ? returnText(me) + ' · ' + fmtDate(me.injury_return) : 'El cuerpo técnico definirá tu regreso'}</span></div>
+          <div><small>${isRecon(me) ? 'Estás en reacondicionamiento · puedes entrenar' : 'Estás en recuperación'}</small><b>${escS(me.injury_type || 'Lesión')}</b><span>${me.injury_return ? returnText(me) + ' · ' + fmtDate(me.injury_return) : 'El cuerpo técnico definirá tu regreso'}</span></div>
         </div>
         ${names.length ? `<div class="inj-cheers">💪 Te mandaron fuerza: <b>${names.slice(0,6).map(escS).join(', ')}${names.length > 6 ? ` y ${names.length - 6} más` : ''}</b></div>` : `<div class="inj-cheers">💪 Todo el equipo te espera de vuelta.</div>`}
         ${next ? `<div class="inj-acc"><span>¿Acompañas al equipo vs ${escS(next.opponent)} (${fmtDayMon(next.match_date)})?</span>
@@ -3548,15 +3608,15 @@ async function renderMedico(){
         <h2 class="section-title">Departamento médico</h2>
         ${canManage() ? `<button type="button" onclick="window.__setInjury(null, true)">${ic('plus')} Reportar lesión</button>` : ''}
       </div>
-      <p class="muted" style="margin-top:-8px">Seguimiento de lesiones y regresos del plantel.</p>
+      <p class="muted" style="margin-top:-8px">Seguimiento de lesiones y regresos del plantel. En reacondicionamiento el jugador entrena, pero no juega partidos.</p>
       <div id="med-stats"></div>
       <div id="med-me"></div>
       <div id="med-list"></div>`;
   }
   $('#med-stats').innerHTML = `
     <div class="med-stats">
-      <div class="med-stat red"><b>${injured.length}</b><span>En recuperación</span></div>
-      <div class="med-stat amber"><b>${soon}</b><span>Vuelven esta semana</span></div>
+      <div class="med-stat red"><b>${injured.filter(p=> !isRecon(p)).length}</b><span>Lesionados</span></div>
+      <div class="med-stat amber"><b>${injured.filter(isRecon).length}</b><span>Reacondicionamiento</span></div>
       <div class="med-stat green"><b>${available}/${active.length}</b><span>Disponibles</span></div>
     </div>`;
   renderInjuryBlock();
@@ -3582,20 +3642,21 @@ async function renderMedico(){
     ${injured.filter(p=> p.id !== profile?.player_id).map(p=>{
       const n = daysUntil(p.injury_return); const pct = pctOf(p); const mine = p.id === profile?.player_id;
       return `
-      <div class="med-card${n != null && n <= 0 ? ' due' : ''}">
+      <div class="med-card${n != null && n <= 0 ? ' due' : ''}${isRecon(p) ? ' recon' : ''}">
         <div class="med-top">
           <div class="med-av">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number)}</div>
           <div class="med-info">
             <b>#${p.jersey_number} ${escS(p.full_name)}${mine ? ' <em>(tú)</em>' : ''}</b>
-            <span class="med-type">🩹 ${escS(p.injury_type || 'Lesión')}</span>
+            <span class="med-type">${isRecon(p) ? '<em class="med-phase">🔄 Reacondicionamiento</em> ' : '🩹 '}${escS(p.injury_type || 'Lesión')}</span>
             <span class="med-ret">${returnText(p)}${p.injury_return ? ' · ' + fmtDayMon(p.injury_return) : ''}</span>
           </div>
           <div class="med-days">${n != null && n > 0 ? `<b>${n}</b><span>${n === 1 ? 'día' : 'días'}</span>` : `<b>✓</b><span>alta</span>`}</div>
         </div>
-        ${pct != null ? `<div class="med-bar"><i style="width:${pct}%"></i></div><div class="med-bar-l"><span>Recuperación</span><span>${pct}%</span></div>` : ''}
+        ${pct != null ? `<div class="med-bar"><i style="width:${pct}%"></i></div><div class="med-bar-l"><span>${isRecon(p) ? 'Hacia partidos' : 'Recuperación'}</span><span>${pct}%</span></div>` : ''}
         <div class="med-actions">
           <span class="med-cheers">💪 ${cheerCount[p.id]||0} ${cheerCount[p.id] === 1 ? 'mensaje' : 'mensajes'} de fuerza</span>
           ${!mine ? `<button type="button" class="small" onclick="window.__sendCheer('${p.id}', this)">💪 ¡Fuerza!</button>` : ''}
+          ${canManage() && !isRecon(p) ? `<button type="button" class="small" onclick="window.__setInjury('${p.id}', true, null, 'reacond')">🔄 Pasar a reacondicionamiento</button>` : ''}
           ${canManage() ? `<button type="button" class="small secondary" onclick="window.__setInjury('${p.id}', true)">${ic('edit','sm')} Editar</button>
             <button type="button" class="small secondary" onclick="window.__setInjury('${p.id}', false)">Dar de alta</button>` : ''}
         </div>
@@ -4319,7 +4380,7 @@ async function exportPlayersToExcel(){
       posicion: p.position || '-',
       telefono: p.phone || '-',
       correo: p.email || '-',
-      estado: p.injured ? 'Lesionado' : (p.active ? 'Activo' : 'Inactivo'),
+      estado: p.injured ? (isRecon(p) ? 'Reacondicionamiento' : 'Lesionado') : (p.active ? 'Activo' : 'Inactivo'),
     });
   });
 
@@ -4640,7 +4701,7 @@ function renderPlayersRows(){
       <td>${canManage() ? `<input type="tel" class="phone-input" style="width:130px" value="${p.phone||''}" placeholder="Teléfono">` : (p.phone||'-')}</td>
       <td>${canManage() ? `<input type="email" class="email-input" style="width:160px" value="${p.email||''}" placeholder="correo@ejemplo.com">` : (p.id === profile?.player_id ? (p.email||'-') : '<span class="muted">Privado</span>')}</td>
       <td>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : '<span class="muted">Sin calificar</span>'}</td>
-      <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</td>
+      <td>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? (isRecon(p) ? ' <span class="badge tarde">🔄 Reacondicionamiento</span>' : ' <span class="badge ausente">🩹 Lesionado</span>') : ''}</td>
       ${canManage() ? `<td><button class="small" onclick="window.__editPlayer('${p.id}')">Editar ficha</button> <button class="small secondary" onclick="window.__savePlayerRow('${p.id}', this)">Guardar cambios</button> <button class="small secondary" onclick="window.__toggleActive('${p.id}', ${p.active})">${p.active?'Desactivar':'Activar'}</button> <button class="small secondary" onclick="window.__toggleInjured('${p.id}', ${p.injured})">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button></td>` : ''}
     </tr>
   `;
@@ -4665,7 +4726,7 @@ function renderPlayerCards(){
       <div class="player-card-body">
         <div class="player-card-num">${p.jersey_number}</div>
         <div class="player-card-name">${p.full_name}</div>
-        <div class="player-card-position">${p.position||'Posición sin definir'}${p.injured ? ' · 🩹 Lesionado' : (!p.active ? ' · Inactivo' : '')}</div>
+        <div class="player-card-position">${p.position||'Posición sin definir'}${p.injured ? (isRecon(p) ? ' · 🔄 Reacondicionamiento' : ' · 🩹 Lesionado') : (!p.active ? ' · Inactivo' : '')}</div>
         <div class="player-card-rating">${playerRatings[p.id] ? `${ic('star','star')} <b>${playerRatings[p.id].toFixed(1)}</b> / 5` : '<span class="muted">Sin calificar</span>'}</div>
       </div>
       <div class="player-card-actions">
@@ -4709,7 +4770,7 @@ function openPlayerDetail(id){
       <div class="player-detail-field"><label>Correo</label><p>${p.email||'-'}</p></div>` : `
       <div class="player-detail-field"><label>Edad</label><p>${age!=null ? age+' años' : '-'}</p></div>`}
       <div class="player-detail-field"><label>Calificación promedio</label><p>${playerRatings[p.id] ? '⭐ ' + playerRatings[p.id].toFixed(1) + ' / 5' : 'Sin calificar'}</p></div>
-      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? ' <span class="badge ausente">🩹 Lesionado</span>' : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p><button type="button" class="small secondary" style="margin-top:8px;width:auto" onclick="window.__navigate('medico')">Ver en Departamento médico</button>` : ''}</div>
+      <div class="player-detail-field"><label>Estado</label><p>${p.active ? '<span class="badge presente">Activo</span>' : '<span class="badge ausente">Inactivo</span>'}${p.injured ? (isRecon(p) ? ' <span class="badge tarde">🔄 Reacondicionamiento</span>' : ' <span class="badge ausente">🩹 Lesionado</span>') : ''}</p>${p.injured ? `<p class="muted" style="margin:4px 0 0">${escS(p.injury_type || 'Lesión')} · ${returnText(p)}${p.injury_return ? ' ('+fmtDate(p.injury_return)+')' : ''}</p><button type="button" class="small secondary" style="margin-top:8px;width:auto" onclick="window.__navigate('medico')">Ver en Departamento médico</button>` : ''}</div>
       ${editable ? `
         <button class="secondary" id="pd-toggle-active" style="width:100%;margin-top:8px">${p.active?'Desactivar':'Activar'}</button>
         <button class="secondary" id="pd-toggle-injured" style="width:100%;margin-top:8px">${p.injured?'Quitar lesión':'🩹 Marcar lesionado'}</button>
@@ -4854,7 +4915,7 @@ async function openPlayerEditor(id, returnTo){
   main.innerHTML = `
     ${fromPerfil ? '' : `<button class="section-back-btn" id="pe-back">${ic('chevron-left')} Volver al equipo</button>`}
     <h2 class="section-title">${isSelf && !isStaff ? 'Mi perfil' : 'Editar ficha'}</h2>
-    ${isSelf && p.injured ? `<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>` : ''}
+    ${isSelf && p.injured ? `${isRecon(p) ? '<div class="notify-banner">🔄 <strong>Estás en reacondicionamiento.</strong> Puedes entrenar y responder las convocatorias a entrenamientos, pero todavía no jugar partidos.</div>' : '<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>'}` : ''}
     <div class="panel profile-hero">
       <label class="pe-photo" title="Cambiar foto">
         <span class="profile-photo" id="pe-photo-view">${p.photo_url ? `<img src="${esc(p.photo_url)}" alt="" />` : jerseySvg(p.jersey_number)}</span>
@@ -4955,7 +5016,7 @@ async function renderPerfil(){
   return openPlayerEditor(p.id, 'perfil');
   main.innerHTML = `
     <h2 class="section-title">Mi perfil</h2>
-    ${p.injured ? `<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>` : ''}
+    ${p.injured ? `${isRecon(p) ? '<div class="notify-banner">🔄 <strong>Estás en reacondicionamiento.</strong> Puedes entrenar y responder las convocatorias a entrenamientos, pero todavía no jugar partidos.</div>' : '<div class="notify-banner">🩹 <strong>Te encuentras lesionado.</strong> El cuerpo técnico te marcó así, por lo que no te llegarán convocatorias a partidos ni entrenamientos hasta que te reactiven.</div>'}` : ''}
     <div class="panel">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         ${p.photo_url ? `<img src="${p.photo_url}" alt="${(p.full_name||'').replace(/"/g,'&quot;')}" style="width:64px;height:64px;border-radius:50%;object-fit:cover" />` : ''}
@@ -5596,7 +5657,7 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
     } else {
       const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', callUp.id);
       const resp = Object.fromEntries((rs||[]).map(r=>[r.player_id, r.response]));
-      const roster = playersCache.filter(p=> p.active && !p.injured);
+      const roster = playersCache.filter(p=> p.active && canTrain(p));
       const van = roster.filter(p=> resp[p.id] === 'asiste');
       const noVan = roster.filter(p=> resp[p.id] && resp[p.id] !== 'asiste');
       const pend = roster.filter(p=> !resp[p.id]);
@@ -5610,7 +5671,7 @@ async function renderAttendanceForTraining(trainingId, sessionDate){
           <span class="tp-c no">❌ ${noVan.length} no van</span>
           <span class="tp-c pe">⏳ ${pend.length} sin responder</span>
         </div>
-        ${me && !me.injured ? `
+        ${me && canTrain(me) ? `
         <div class="tp-me">
           <span>Tu respuesta: <b>${my === 'asiste' ? 'Voy ✅' : my ? 'No voy ❌' : 'Sin responder'}</b></span>
           ${open ? `<div class="tp-btns">
@@ -7503,6 +7564,27 @@ async function loadRecHistory(){
 const STORE_CATEGORY_LABELS = { uniforme:'Uniformes', medias:'Medias', bandas:'Bandas elásticas', guayos:'Guayos', chaqueta:'Chaqueta', otro:'Otros' };
 const STORE_CATEGORY_ICONS = { uniforme:'👕', medias:'🧦', bandas:'➰', guayos:'👟', chaqueta:'🧥', otro:'🛍️' };
 function isStoreStaff(){ return isAdmin() || isMaster(); }
+// Encargado(s) de pedidos: jugadores (o cualquier usuario) que el Comité
+// nombra para recibir un aviso por cada pedido nuevo y gestionar los pedidos.
+// Se guardan en team_settings.store_manager_ids; el aviso lo manda la base
+// de datos (trigger) como mensaje interno, así llega aunque el jugador cierre la app.
+let storeManagerIds = [];
+const stEsc = v=> String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function loadStoreManagers(){
+  const { data, error } = await supabase.from('team_settings').select('store_manager_ids').eq('id', 1).maybeSingle();
+  storeManagerIds = (!error && Array.isArray(data?.store_manager_ids)) ? data.store_manager_ids : [];
+  return storeManagerIds;
+}
+function isStoreManager(){ return !!profile && storeManagerIds.includes(profile.id); }
+async function storeManagerOrders(){
+  const { data, error } = await supabase.rpc('store_manager_orders');
+  if(error) return { error };
+  return { data: Array.isArray(data) ? data : [] };
+}
+function storeWaLink(phone, text){
+  const ph = (typeof waPhone === 'function') ? waPhone(phone) : String(phone||'').replace(/\D/g,'');
+  return `https://wa.me/${ph}?text=${encodeURIComponent(text)}`;
+}
 let equipacionCart = []; // [{item_id, name, price, variant, personalization, quantity}], solo en memoria hasta enviar el pedido
 let equipacionItemsCache = [];
 let equipacionCategoryFilter = 'todos';
@@ -7522,6 +7604,8 @@ async function renderEquipacion(){
       <p>Lleva los colores del equipo</p>
     </div>
     <p class="muted" style="margin-top:0">Uniformes, medias, bandas elásticas y personalización de guayos. Elige lo que necesites y envíalo como solicitud — el Comité confirma precio, talla y entrega contigo.</p>
+    <div id="equipacion-flash"></div>
+    <div id="equipacion-mgr"></div>
     <div id="equipacion-admin"></div>
     <div id="equipacion-catalog">Cargando catálogo…</div>
     <div id="equipacion-cart"></div>
@@ -7564,10 +7648,115 @@ async function renderEquipacion(){
     </tbody></table></div>`;
   }
 
+  await loadStoreManagers();
   if(isStoreStaff()){
+    await renderStoreManagerPicker();
     await renderEquipacionAdmin();
     await renderEquipacionStaffOrders();
+  } else if(isStoreManager()){
+    await renderEquipacionManagerOrders();
   }
+}
+
+// --------- Encargado de pedidos: el Comité lo elige ---------
+async function renderStoreManagerPicker(){
+  const el = $('#equipacion-mgr');
+  if(!el) return;
+  const { data: people } = await supabase.from('profiles').select('id, full_name, role, player_id').order('full_name', {ascending:true});
+  const all = (people||[]).filter(p=> p.full_name);
+  const byId = Object.fromEntries(all.map(p=>[p.id, p]));
+  const roleTag = r=> ({ jugador:'Jugador', fichaje:'Fichaje', cuerpo_tecnico:'Cuerpo técnico', usuario_maestro:'Comité' }[r] || '');
+  const current = storeManagerIds.filter(id=> byId[id]);
+  const options = all.filter(p=> !current.includes(p.id))
+    .sort((a,b)=> (a.role==='jugador'?0:1) - (b.role==='jugador'?0:1) || a.full_name.localeCompare(b.full_name));
+  el.innerHTML = `
+    <div class="panel store-mgr-panel">
+      <h3>🔔 Encargado de pedidos</h3>
+      <p class="muted" style="margin-top:0">Recibe un mensaje en la app cada vez que alguien hace un pedido, y puede ver los pedidos y cambiarles el estado.</p>
+      <div class="store-mgr-list">
+        ${current.length ? current.map(id=>`<span class="store-mgr-chip">${stEsc(byId[id].full_name)}${roleTag(byId[id].role) ? ` <small>${roleTag(byId[id].role)}</small>` : ''}<button type="button" aria-label="Quitar encargado" data-mgr-remove="${id}">✕</button></span>`).join('') : '<span class="muted">Todavía no hay encargado. Los pedidos solo los ve el Comité.</span>'}
+      </div>
+      <div class="store-mgr-add">
+        <select id="store-mgr-select">
+          <option value="">Elegir jugador…</option>
+          ${options.map(p=>`<option value="${p.id}">${stEsc(p.full_name)}${p.role!=='jugador' && roleTag(p.role) ? ' · '+roleTag(p.role) : ''}</option>`).join('')}
+        </select>
+        <button type="button" class="small" id="store-mgr-add-btn">Agregar encargado</button>
+      </div>
+    </div>`;
+  const save = async (ids, okMsg)=>{
+    const { error } = await supabase.from('team_settings').upsert({ id: 1, store_manager_ids: ids, updated_at: new Date().toISOString() });
+    if(error){
+      toast(/store_manager_ids/.test(error.message) ? 'Falta ejecutar en Supabase el SQL del encargado de pedidos.' : 'No se pudo guardar: ' + error.message, true);
+      return;
+    }
+    storeManagerIds = ids;
+    toast(okMsg);
+    await renderStoreManagerPicker();
+  };
+  $('#store-mgr-add-btn')?.addEventListener('click', async ()=>{
+    const id = $('#store-mgr-select').value;
+    if(!id){ toast('Elige primero a quién nombrar', true); return; }
+    await save([...current, id], `${byId[id]?.full_name || 'El jugador'} ahora es encargado de pedidos`);
+  });
+  $$('[data-mgr-remove]').forEach(b=> b.addEventListener('click', async ()=>{
+    const id = b.dataset.mgrRemove;
+    if(!confirm(`¿Quitar a ${byId[id]?.full_name || 'este usuario'} como encargado de pedidos?`)) return;
+    await save(current.filter(x=> x!==id), 'Encargado quitado');
+  }));
+}
+
+// --------- Pedidos recibidos para el encargado (no es Comité) ---------
+async function renderEquipacionManagerOrders(){
+  const el = $('#equipacion-staff-orders');
+  if(!el) return;
+  const { data: orders, error } = await storeManagerOrders();
+  if(error){
+    el.innerHTML = `<div class="panel"><h3>📋 Pedidos recibidos</h3><p class="muted" style="color:var(--danger)">No se pudieron cargar los pedidos (${stEsc(error.message)}).</p></div>`;
+    return;
+  }
+  const pend = orders.filter(o=> o.status==='pendiente').length;
+  el.innerHTML = `
+    <div class="panel">
+      <h3>📋 Pedidos recibidos <span class="badge tarde" style="margin-left:6px">Eres encargado</span></h3>
+      <p class="muted" style="margin-top:0">${pend ? `${pend} pendiente${pend>1?'s':''} por confirmar.` : 'No hay pedidos pendientes.'} Cambia el estado a medida que los gestionas.</p>
+      ${!orders.length ? '<p class="muted">Todavía no hay pedidos.</p>' : `
+      <div class="store-mgr-orders">
+        ${orders.map(o=>`<div class="store-mgr-order${o.status==='pendiente'?' is-pend':''}">
+          <div class="smo-top"><b>${stEsc(o.buyer_name || '—')}</b><span class="muted">${new Date(o.created_at).toLocaleDateString('es-ES')}</span></div>
+          <div class="smo-item">${o.quantity||1}× ${stEsc(o.item_name || '—')}${o.variant ? ` · ${stEsc(o.variant)}` : (o.personalization ? ` · ${stEsc(personalizationSummary(o.personalization))}` : '')}</div>
+          <div class="smo-actions">
+            <select data-mgr-order-status="${o.id}">
+              ${['pendiente','confirmado','entregado','cancelado'].map(s=>`<option value="${s}" ${s===o.status?'selected':''}>${storeOrderStatusLabel(s)}</option>`).join('')}
+            </select>
+            ${o.buyer_phone ? `<a class="store-wa-btn alt" target="_blank" rel="noopener" href="${storeWaLink(o.buyer_phone, `Hola ${(o.buyer_name||'').split(' ')[0]}, te escribo por tu pedido de la tienda del ${teamName()}: ${o.quantity||1}× ${o.item_name||''}${o.variant ? ' ('+o.variant+')' : ''}.`)}">💬 WhatsApp</a>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>`}
+    </div>`;
+  $$('[data-mgr-order-status]').forEach(sel=> sel.addEventListener('change', async ()=>{
+    const { error } = await supabase.rpc('set_store_order_status', { p_id: String(sel.dataset.mgrOrderStatus), p_status: sel.value });
+    if(error){ toast('No se pudo actualizar el estado: ' + error.message, true); return; }
+    toast('Estado actualizado');
+    sel.closest('.store-mgr-order')?.classList.toggle('is-pend', sel.value==='pendiente');
+  }));
+}
+
+// Aviso en el Inicio para el encargado cuando hay pedidos pendientes.
+async function renderStoreMgrBanner(){
+  const el = $('#store-mgr-banner');
+  if(!el) return;
+  await loadStoreManagers();
+  if(!isStoreManager()){ el.innerHTML = ''; return; }
+  const { data, error } = await storeManagerOrders();
+  const pend = error ? 0 : data.filter(o=> o.status==='pendiente').length;
+  if(!pend){ el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="notify-banner">
+      <h3>🛍️ Tienes ${pend} pedido${pend>1?'s':''} pendiente${pend>1?'s':''} en la tienda</h3>
+      <p class="muted" style="margin-bottom:10px">Eres el encargado de pedidos de la Tienda del equipo.</p>
+      <button class="small" onclick="window.__navigate ? window.__navigate('equipacion') : document.querySelector('.nav-btn[data-view=\'equipacion\']')?.click()">Ver pedidos</button>
+    </div>`;
 }
 
 function personalizationSummary(p){
@@ -7702,8 +7891,22 @@ async function submitEquipacionOrder(){
   }));
   const { error } = await supabase.from('store_orders').insert(rows);
   if(error){ toast('No se pudo enviar el pedido: ' + error.message, true); btn.disabled = false; return; }
-  toast('Pedido enviado. El Comité te contactará para confirmar precio y entrega.');
+  const sent = equipacionCart.map(c=> `• ${c.quantity||1}× ${c.name}${c.variant ? ' ('+c.variant+')' : ''}`).join('\n');
+  toast('Pedido enviado');
   await renderEquipacion();
+  let mgrs = [];
+  try { const r = await supabase.rpc('store_managers'); if(!r.error && Array.isArray(r.data)) mgrs = r.data.filter(m=> m.id !== profile.id); } catch(e){}
+  const flash = $('#equipacion-flash');
+  if(flash){
+    const who = mgrs.map(m=> stEsc(m.full_name)).join(' y ');
+    const text = `Hola, acabo de hacer un pedido en la tienda del ${teamName()}:\n${sent}`;
+    flash.innerHTML = `<div class="notify-banner store-flash">
+      <h3>✅ Pedido enviado</h3>
+      <p class="muted" style="margin-bottom:${mgrs.some(m=>m.phone)?'10px':'0'}">${mgrs.length ? `${who} ${mgrs.length>1?'ya recibieron':'ya recibió'} un aviso en la app. Te contactarán para confirmar precio y entrega.` : 'El Comité te contactará para confirmar precio y entrega.'}</p>
+      ${mgrs.filter(m=>m.phone).map(m=>`<a class="store-wa-btn" target="_blank" rel="noopener" href="${storeWaLink(m.phone, text)}">💬 Avisar a ${stEsc((m.full_name||'').split(' ')[0])} por WhatsApp</a>`).join(' ')}
+    </div>`;
+    flash.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
 }
 
 // El jugador solo puede cancelar su propio pedido mientras siga "pendiente"
@@ -8030,13 +8233,13 @@ async function getPendingCallUpsForPlayer(){
   // Un jugador lesionado no es convocable: no se le muestran convocatorias
   // pendientes ni se le cuenta en la insignia del menú.
   const me = playersCache.find(p=>p.id===profile.player_id);
-  if(me?.injured) return [];
+  if(me?.injured && !isRecon(me)) return [];
   const [{data: callUps}, {data: myResponses}] = await Promise.all([
     supabase.from('call_ups').select('*, matches(opponent,match_time), trainings(start_time)').order('event_date', {ascending:true}),
     supabase.from('call_up_responses').select('call_up_id,response').eq('player_id', profile.player_id),
   ]);
   const answered = new Set((myResponses||[]).filter(r=>r.response).map(r=>r.call_up_id));
-  return (callUps||[]).filter(c => isCallUpOpen(c) && !answered.has(c.id));
+  return (callUps||[]).filter(c => isCallUpOpen(c) && !answered.has(c.id) && (!me || cuEligible(me, c)));
 }
 
 // Banner de notificación en el Dashboard del jugador: solo la próxima
@@ -8046,7 +8249,7 @@ async function renderPlayerNotifications(){
   const container = $('#notify-banner');
   if(!container) return;
   const me = playersCache.find(p=>p.id===profile.player_id);
-  if(me?.injured){
+  if(me?.injured && !isRecon(me)){
     container.innerHTML = `
       <div class="notify-banner">
         <h3>🩹 Te encuentras lesionado</h3>
@@ -8056,12 +8259,13 @@ async function renderPlayerNotifications(){
     return;
   }
   const pending = await getPendingCallUpsForPlayer();
-  if(!pending.length){ container.innerHTML = ''; return; }
+  const reconHtml = isRecon(me) ? `<div class="notify-banner recon-banner"><h3>🔄 Estás en reacondicionamiento</h3><p class="muted" style="margin:0">Puedes entrenar con el equipo, pero todavía no jugar partidos${me.injury_return ? ` (apto desde el ${fmtDate(me.injury_return)})` : ''}. Solo te llegan las convocatorias a entrenamientos.</p></div>` : '';
+  if(!pending.length){ container.innerHTML = reconHtml; return; }
   // Para no saturar el Dashboard, solo se muestra la convocatoria más
   // próxima en el tiempo (sea de partido o de entreno) — si hay más
   // pendientes, el aviso de abajo manda a la sección "Convocatoria" a verlas.
   const shown = [...pending].sort((a,b)=>a.event_date.localeCompare(b.event_date)).slice(0,1);
-  container.innerHTML = `
+  container.innerHTML = reconHtml + `
     <div class="notify-banner">
       <h3>📣 Tienes ${pending.length} convocatoria${pending.length>1?'s':''} por responder</h3>
       <p class="muted">Responde antes de que falten 3 horas para el entrenamiento o el partido, para que el cuerpo técnico pueda organizarlo.</p>
@@ -8283,7 +8487,8 @@ async function loadCallUpsList(){
     }
   });
   // Los jugadores lesionados no cuentan como disponibles para la convocatoria.
-  const eligiblePlayers = playersCache.filter(p=>p.active && !p.injured);
+  const eligibleAll = playersCache.filter(p=>p.active && canTrain(p));
+  const eligiblePlayers = eligibleAll.filter(p=> !p.injured);
   const totalActive = eligiblePlayers.length;
 
   // Respuesta de cada jugador por convocatoria (para la lista con estados).
@@ -8294,6 +8499,7 @@ async function loadCallUpsList(){
   list.innerHTML = pickerHtml + visibleCallUps.map(c=>{
     const open = isCallUpOpen(c);
     const isMatch = c.type === 'partido';
+    const eligiblePlayers = eligibleAll.filter(p=> cuEligible(p, c));
     const eventLocation = isMatch ? c.matches?.location : c.trainings?.location;
     const eventLocationUrl = isMatch ? c.matches?.location_url : c.trainings?.location_url;
     const mapUrl = eventLocationUrl || (eventLocation ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventLocation)}` : '');
@@ -8470,12 +8676,17 @@ async function renderCallUpBody(callUp){
   if(canManage()){
     const { data: responses } = await supabase.from('call_up_responses').select('*, players(full_name,jersey_number)').eq('call_up_id', callUp.id);
     const byPlayer = Object.fromEntries((responses||[]).map(r=>[r.player_id, r]));
-    const injuredActive = playersCache.filter(p=>p.active && p.injured);
+    const injuredActive = playersCache.filter(p=>p.active && p.injured && !cuEligible(p, callUp));
     container.innerHTML = `
       <p class="muted" style="margin:0 0 6px">Toca un jugador para marcar su asistencia directamente, sin esperar su respuesta ni la hora límite.</p>
-      ${injuredActive.length ? `<p class="muted" style="margin:0">🩹 No convocados por lesión: ${injuredActive.map(p=>`#${p.jersey_number} ${p.full_name}${callUp.match_id && p.accompany_match_id === callUp.match_id ? ' (acompaña como hincha 🙌)' : ''}`).join(', ')}</p>` : ''}
+      ${injuredActive.length ? `<p class="muted" style="margin:0">🩹 No convocados por lesión: ${injuredActive.map(p=>`#${p.jersey_number} ${p.full_name}${isRecon(p) ? ' (🔄 reacondicionamiento, solo entrena)' : ''}${callUp.match_id && p.accompany_match_id === callUp.match_id ? ' (acompaña como hincha 🙌)' : ''}`).join(', ')}</p>` : ''}
     `;
   } else if(profile.player_id){
+    const meP = playersCache.find(p=> p.id === profile.player_id);
+    if(meP && meP.injured && !cuEligible(meP, callUp)){
+      container.innerHTML = `<div class="panel cu-mine"><span class="cu-chip no">${isRecon(meP) ? '🔄 En reacondicionamiento: entrenas, pero aún no juegas partidos' : '🩹 Lesionado: no estás convocado'}</span></div>`;
+      return;
+    }
     const { data: mine } = await supabase.from('call_up_responses').select('*').eq('call_up_id', callUp.id).eq('player_id', profile.player_id).maybeSingle();
     if(mine?.response){
       container.innerHTML = `<div class="panel cu-mine"><div class="cu-mine-head">Tu respuesta: ${mine.response==='asiste' ? `<span class="cu-chip ok">${ic('check')} Asiste</span>` : '<span class="cu-chip no">✕ No asiste</span>'}</div>
@@ -8505,7 +8716,7 @@ async function callUpBoxHTML(callUp, respondFn){
   if(!callUp) return `<p class="muted" style="margin:0">Este evento todavía no tiene convocatoria.</p>`;
   const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', callUp.id);
   const resp = Object.fromEntries((rs||[]).map(r=>[r.player_id, r.response]));
-  const roster = playersCache.filter(p=> p.active && !p.injured);
+  const roster = playersCache.filter(p=> p.active && cuEligible(p, callUp));
   const van = roster.filter(p=> resp[p.id] === 'asiste');
   const noVan = roster.filter(p=> resp[p.id] && resp[p.id] !== 'asiste');
   const pend = roster.filter(p=> !resp[p.id]);
@@ -8520,7 +8731,8 @@ async function callUpBoxHTML(callUp, respondFn){
         <span class="tp-c no">❌ ${noVan.length} no van</span>
         <span class="tp-c pe">⏳ ${pend.length} sin responder</span>
       </div>
-      ${me && !me.injured ? `
+      ${me && isRecon(me) && !cuEligible(me, callUp) ? `<div class="tp-me"><span>🔄 Estás en reacondicionamiento: entrenas con el equipo, pero todavía no juegas partidos.</span></div>` : ''}
+      ${me && cuEligible(me, callUp) ? `
       <div class="tp-me">
         <span>Tu respuesta: <b>${my === 'asiste' ? 'Voy ✅' : my ? 'No voy ❌' : 'Sin responder'}</b></span>
         ${open ? `<div class="tp-btns">
