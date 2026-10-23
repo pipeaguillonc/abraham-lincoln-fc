@@ -1529,6 +1529,41 @@
 .med-card.recon .med-bar i{background:#2F80ED}
 .med-phase{font-style:normal;font-weight:700;color:#2F80ED}
 .recon-banner{border-color:#2F80ED;background:rgba(47,128,237,.08)}
+
+.fm-match{margin-bottom:10px}
+.fm-presets{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.fm-presets::-webkit-scrollbar{display:none}
+.fm-preset{flex:0 0 auto;width:auto;min-height:0;padding:8px 14px;border-radius:999px;background:#EEF0F2;color:#0A0B0C;font-weight:700;border:0}
+.fm-preset.on{background:var(--brand,#F5C400);color:#0A0B0C}
+.fm-status{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted,#6B7280);margin:2px 0 6px}
+.fm-status b{color:var(--text,#0A0B0C);font-size:15px}
+.fm-hint{font-size:14px;margin:0 0 10px;padding:8px 12px;border-radius:10px;background:rgba(245,196,0,.14)}
+.fm-pitch{position:relative;width:100%;max-width:440px;margin:0 auto;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:repeating-linear-gradient(180deg,#2E8B3E 0 11.1%,#2A8139 11.1% 22.2%)}
+.fm-pitch .lineup-lines{position:absolute;inset:0;width:100%;height:100%}
+.fm-slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:0;width:auto;min-height:0;cursor:pointer;color:#fff}
+.fm-slot,.fm-slot:hover,.fm-slot:focus,.fm-slot:active{background:none!important;box-shadow:none!important;outline:none}
+.fm-slot:disabled{cursor:default;opacity:1}
+.fm-dot{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:800 18px/1 'Barlow Condensed',sans-serif;border:2px dashed rgba(255,255,255,.75);color:#fff;background:rgba(0,0,0,.12)}
+.fm-slot.full .fm-dot{border:2px solid #0A0B0C;background:#0A0B0C;color:var(--brand,#F5C400);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.fm-slot.gk.full .fm-dot{background:#1F9D55;color:#fff;border-color:#13773D}
+.fm-slot.sel .fm-dot{border:3px solid var(--brand,#F5C400);background:rgba(245,196,0,.35);transform:scale(1.12)}
+.fm-name{font:700 12px/1.1 'Barlow',sans-serif;background:rgba(0,0,0,.55);padding:2px 6px;border-radius:6px;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm-slot:not(.full) .fm-name{background:none;opacity:.85;font-size:11px}
+.fm-selbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px auto 0;max-width:440px;padding:8px 12px;border-radius:12px;background:#0A0B0C;color:#fff;font-weight:700}
+.fm-selbar button{width:auto}
+.fm-tools{display:flex;gap:8px;margin:12px auto 0;max-width:440px}
+.fm-tools button{flex:1}
+.fm-bench{margin-top:14px}
+.fm-bench-l{font-size:13px;font-weight:700;color:var(--muted,#6B7280);margin:6px 0}
+.fm-subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.fm-sub{display:flex;align-items:center;gap:10px;text-align:left;width:100%;min-height:0;padding:8px 10px;border-radius:12px;border:1px solid rgba(127,127,127,.25);background:#fff;color:#0A0B0C}
+.fm-sub:disabled{opacity:1;cursor:default}
+.fm-sub:not(:disabled):active{transform:scale(.98)}
+.fm-num{flex:0 0 32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#0A0B0C;color:var(--brand,#F5C400);font:800 15px/1 'Barlow Condensed',sans-serif}
+.fm-sub-t{display:flex;flex-direction:column;min-width:0}
+.fm-sub-t b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fm-sub-t small{font-size:12px;color:var(--muted,#6B7280)}
+.fm-share{margin-top:12px;width:100%}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -1729,6 +1764,7 @@ const VIEW_LAYOUT = {
   dashboard:{hdr:'dash', tab:'dark'},
   jugadores:{hdr:'light', tab:'light'},
   medico:{hdr:'light', tab:'light'},
+  formacion:{hdr:'light', tab:'light'},
   tablas:{hdr:'light', tab:'light'},
   galeria:{hdr:'light', tab:'light'},
   partidos:{hdr:'light', tab:'light'},
@@ -1958,6 +1994,7 @@ window.__setupTabbar = function(role){
     <button class="nav-btn" data-view="entrenamientos"><svg class="ic" aria-hidden="true"><use href="#i-run"/></svg><span>Entrenamientos</span></button>
     <button class="nav-btn" data-view="partidos"><svg class="ic" aria-hidden="true"><use href="#i-ball"/></svg><span>Partidos</span></button>
     <button class="nav-btn" data-view="convocatoria"><svg class="ic" aria-hidden="true"><use href="#i-shirt"/></svg><span>Convocatoria</span></button>
+    <button class="nav-btn" data-view="formacion"><svg class="ic" aria-hidden="true"><use href="#i-tactic"/></svg><span>Formación</span></button>
     <button class="nav-btn" data-view="mensajes"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg><span>Mensajes</span></button>
     <button class="nav-btn" data-view="recomendaciones"><svg class="ic" aria-hidden="true"><use href="#i-whistle"/></svg><span>Recomendaciones</span></button>
     <button class="nav-btn" data-view="equipacion"><svg class="ic" aria-hidden="true"><use href="#i-store"/></svg><span>Tienda del equipo</span></button>
@@ -2270,6 +2307,11 @@ function buildNav(){
   // activaron el permiso individual, se le agrega el ítem de menú aunque su
   // rol normalmente no lo incluya (ver canManageFinance()).
   if(canManageFinance() && !items.includes('finanzas')) items.push('finanzas');
+  // Formación: cuerpo técnico / Comité la arman; jugadores con el permiso la ven.
+  if(canViewLineup() && !items.includes('formacion')){
+    const i = items.indexOf('convocatoria');
+    items.splice(i >= 0 ? i + 1 : items.length, 0, 'formacion');
+  }
   $$('.nav-btn').forEach(b=>{
     b.style.display = items.includes(b.dataset.view) ? 'block' : 'none';
     b.addEventListener('click', ()=> navigate(b.dataset.view));
@@ -2360,6 +2402,7 @@ function navigate(view){
     galeria: renderGaleria,
     jugadores: renderJugadores,
     medico: renderMedico,
+    formacion: renderFormacion,
     'resumen-financiero': renderResumenFinanciero,
     entrenamientos: renderEntrenamientos,
     convocatoria: renderConvocatoria,
@@ -2956,6 +2999,10 @@ async function renderDashboardLineup(){
 // Atajo desde el Dashboard: abre directo el detalle de ese partido (dentro
 // de Partidos) ya con el panel de Formación listo para editar.
 window.__goToMatchLineup = async (matchId)=>{
+  window.__fmFocus = matchId;
+  return navigate('formacion');
+};
+window.__goToMatchLineupOld = async (matchId)=>{
   currentView = 'partidos';
   window.__onViewChange && window.__onViewChange('partidos');
   updateBottomTabbar('partidos');
@@ -7091,8 +7138,8 @@ window.__openMatch = async (matchId)=>{
       ${canManage() ? `
       <div class="panel" style="background:var(--panel2)">
         <h4 style="margin-top:0">⚽ Formación</h4>
-        <p class="muted">Pizarrón táctico solo para cuerpo técnico y Comité ALS — arma la alineación de este partido arrastrando a los jugadores disponibles hacia la cancha.</p>
-        <button class="small secondary" id="lineup-toggle-btn" onclick="window.__openLineup('${matchId}')">Ver/editar formación</button>
+        <p class="muted">Arma la alineación de este partido tocando cada posición de la cancha.</p>
+        <button class="small" id="lineup-toggle-btn" onclick="window.__goToMatchLineup('${matchId}')">Abrir formación</button>
         <div id="lineup-panel" style="margin-top:12px"></div>
       </div>` : ''}
 
@@ -7315,6 +7362,266 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
 // "disponibles" (banca, todavía sin ubicar) salen de quién confirmó
 // asistencia en la Convocatoria de ese partido; si todavía nadie ha
 // respondido, se muestra el plantel activo completo como respaldo.
+
+// ---------------- FORMACIÓN (módulo propio) ----------------
+// Elegir partido → esquema → tocar una posición → elegir jugador. Se guarda
+// solo, en las mismas tablas de siempre (lineups / lineup_players), así que el
+// Inicio y la Convocatoria siguen mostrando la misma formación.
+const FM_PRESETS = {
+  '4-4-2':   [[1],[4],[4],[2]],
+  '4-3-3':   [[1],[4],[3],[3]],
+  '4-2-3-1': [[1],[4],[2],[3],[1]],
+  '3-5-2':   [[1],[3],[5],[2]],
+  '5-3-2':   [[1],[5],[3],[2]],
+  '3-4-3':   [[1],[3],[4],[3]],
+};
+const FM_LINE_Y = { 4:[88,68,44,20], 5:[88,70,54,36,17] };
+const FM_X = { 1:[50], 2:[34,66], 3:[22,50,78], 4:[13,37,63,87], 5:[9,29,50,71,91] };
+function fmRoleOf(preset, li){
+  const n = FM_PRESETS[preset].length;
+  if(li === 0) return 'POR';
+  if(li === 1) return 'DEF';
+  if(li === n - 1) return 'DEL';
+  return 'MED';
+}
+function fmSlots(preset){
+  const lines = FM_PRESETS[preset] || FM_PRESETS['4-4-2'];
+  const ys = FM_LINE_Y[lines.length];
+  const out = [];
+  lines.forEach(([k], li)=> FM_X[k].forEach(x=> out.push({ x, y: ys[li], role: fmRoleOf(preset, li) })));
+  return out;
+}
+function fmGroup(pos){
+  pos = String(pos||'').toLowerCase();
+  if(!pos) return '';
+  if(pos.includes('portero') || pos.includes('arquero')) return 'POR';
+  if(pos.includes('defensa') || pos.includes('lateral') || pos.includes('central')) return 'DEF';
+  if(pos.includes('delantero') || pos.includes('extremo')) return 'DEL';
+  return 'MED';
+}
+const FM_ROLE_LABEL = { POR:'Portero', DEF:'Defensa', MED:'Mediocampo', DEL:'Delantera' };
+const fmEsc = v=> String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmFirst = n=> (n||'').split(' ')[0];
+let FM = null; // estado de la vista
+
+async function renderFormacion(){
+  if(!canViewLineup()){ main.innerHTML = '<p class="muted">No tienes acceso a la formación.</p>'; return; }
+  if(!playersCache.length) await loadPlayersCache();
+  main.innerHTML = `<div class="fm-head"><h2 class="section-title" style="margin:0">Formación</h2></div><div id="fm-body"><p class="muted">Cargando…</p></div>`;
+  const today = new Date().toISOString().slice(0,10);
+  const [{ data: up }, { data: past }] = await Promise.all([
+    supabase.from('matches').select('id,opponent,match_date,match_time').gte('match_date', today).order('match_date', {ascending:true}).limit(12),
+    supabase.from('matches').select('id,opponent,match_date,match_time').lt('match_date', today).order('match_date', {ascending:false}).limit(8),
+  ]);
+  const seenM = new Set();
+  const matches = [...(up||[]), ...(past||[])].filter(m=> !seenM.has(m.id) && seenM.add(m.id));
+  if(!matches.length){ $('#fm-body').innerHTML = `<div class="panel empty-state"><p>Todavía no hay partidos creados. Crea el partido en <b>Partidos</b> y luego arma aquí la formación.</p></div>`; return; }
+  const focus = window.__fmFocus && matches.find(m=> m.id === window.__fmFocus) ? window.__fmFocus : matches[0].id;
+  window.__fmFocus = null;
+  FM = { matches, upIds: new Set((up||[]).map(m=> m.id)), matchId: focus, edit: canManage(), sel: null };
+  await fmLoad();
+}
+
+async function fmLoad(){
+  const matchId = FM.matchId;
+  const [{ data: lineup }, { data: callUp }] = await Promise.all([
+    supabase.from('lineups').select('*').eq('match_id', matchId).maybeSingle(),
+    supabase.from('call_ups').select('id').eq('match_id', matchId).maybeSingle(),
+  ]);
+  let confirmed = [];
+  if(callUp){
+    const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', callUp.id);
+    confirmed = (rs||[]).filter(r=> r.response === 'asiste').map(r=> r.player_id);
+    FM.declined = new Set((rs||[]).filter(r=> r.response === 'no_asiste').map(r=> r.player_id));
+  } else FM.declined = new Set();
+  let placed = [];
+  if(lineup){
+    const { data: lp } = await supabase.from('lineup_players').select('*').eq('lineup_id', lineup.id);
+    placed = lp || [];
+  }
+  FM.lineup = lineup || null;
+  FM.confirmed = new Set(confirmed);
+  FM.hasCallUp = !!callUp;
+  FM.preset = (lineup?.formation_label && FM_PRESETS[lineup.formation_label]) ? lineup.formation_label : '4-4-2';
+  // Ubicar a cada jugador guardado en la posición libre más cercana del esquema.
+  const slots = fmSlots(FM.preset);
+  FM.assign = new Array(slots.length).fill(null);
+  const rest = [];
+  placed.slice().sort((a,b)=> b.pos_y - a.pos_y).forEach(pp=>{
+    let best = -1, bd = 1e9;
+    slots.forEach((s,i)=>{ if(FM.assign[i]) return; const d = (s.x-pp.pos_x)**2 + (s.y-pp.pos_y)**2; if(d < bd){ bd = d; best = i; } });
+    if(best >= 0) FM.assign[best] = pp.player_id; else rest.push(pp.player_id);
+  });
+  FM.sel = null;
+  fmRender();
+}
+
+function fmPools(){
+  const onPitch = new Set(FM.assign.filter(Boolean));
+  const avail = playersCache.filter(p=> p.active && !p.injured);
+  const conf = avail.filter(p=> FM.confirmed.has(p.id) && !onPitch.has(p.id));
+  const others = avail.filter(p=> !FM.confirmed.has(p.id) && !FM.declined.has(p.id) && !onPitch.has(p.id));
+  const byNum = (a,b)=> (a.jersey_number||0)-(b.jersey_number||0);
+  return { conf: conf.sort(byNum), others: others.sort(byNum) };
+}
+
+function fmRender(){
+  const body = $('#fm-body'); if(!body) return;
+  const m = FM.matches.find(x=> x.id === FM.matchId);
+  const slots = fmSlots(FM.preset);
+  const filled = FM.assign.filter(Boolean).length;
+  const { conf, others } = fmPools();
+  if(FM.sel != null){
+    const role = slots[FM.sel].role;
+    const fit = p=> fmGroup(p.position) === role ? 1 : 0;
+    conf.sort((a,b)=> fit(b) - fit(a)); others.sort((a,b)=> fit(b) - fit(a));
+  }
+  const chip = (p, extra='')=> `<button type="button" class="fm-sub" data-fm-pick="${p.id}" ${FM.edit ? '' : 'disabled'}><span class="fm-num">${p.jersey_number ?? ''}</span><span class="fm-sub-t"><b>${fmEsc(p.full_name)}</b><small>${fmEsc(p.position || 'Sin posición')}${extra}</small></span></button>`;
+  body.innerHTML = `
+    <label class="field-label" for="fm-match">Partido</label>
+    <select id="fm-match" class="fm-match">
+      ${FM.matches.map(x=> `<option value="${x.id}" ${x.id===FM.matchId?'selected':''}>${FM.upIds.has(x.id) ? '' : '(jugado) '}vs ${fmEsc(x.opponent)} · ${fmtDayMon(x.match_date)}${x.match_time ? ' · '+x.match_time.slice(0,5) : ''}</option>`).join('')}
+    </select>
+    ${FM.edit ? `
+    <div class="fm-presets" role="group" aria-label="Esquema">
+      ${Object.keys(FM_PRESETS).map(k=> `<button type="button" class="fm-preset${k===FM.preset?' on':''}" data-fm-preset="${k}">${k}</button>`).join('')}
+    </div>` : `<p class="muted" style="margin:6px 0 10px">Esquema <b>${FM.preset}</b></p>`}
+    <div class="fm-status">
+      <span><b>${filled}</b>/11 titulares</span>
+      ${FM.hasCallUp ? `<span>${FM.confirmed.size} confirmaron en Convocatoria</span>` : '<span>Sin convocatoria: se muestran todos los disponibles</span>'}
+    </div>
+    ${FM.edit ? `<p class="fm-hint">${FM.sel != null ? `Elige quién juega de <b>${FM_ROLE_LABEL[slots[FM.sel].role]}</b> en la lista de abajo 👇` : 'Toca una posición de la cancha y luego elige al jugador. Toca un jugador ya ubicado para cambiarlo o quitarlo.'}</p>` : ''}
+    <div class="fm-pitch${FM.edit ? ' editable' : ''}" id="fm-pitch">
+      <svg class="lineup-lines" viewBox="0 0 300 450" preserveAspectRatio="none">
+        <rect x="4" y="4" width="292" height="442" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <line x1="4" y1="225" x2="296" y2="225" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <circle cx="150" cy="225" r="40" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <rect x="70" y="4" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <rect x="70" y="386" width="160" height="60" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+      </svg>
+      ${slots.map((s,i)=>{
+        const p = FM.assign[i] ? playersCache.find(x=> x.id === FM.assign[i]) : null;
+        return `<button type="button" class="fm-slot${p ? ' full' : ''}${FM.sel===i ? ' sel' : ''}${s.role==='POR' ? ' gk' : ''}" style="left:${s.x}%;top:${s.y}%" data-fm-slot="${i}" ${FM.edit || p ? '' : 'disabled'}>
+          <span class="fm-dot">${p ? (p.jersey_number ?? '') : (FM.edit ? '+' : '')}</span>
+          <span class="fm-name">${p ? fmEsc(fmFirst(p.full_name)) : s.role}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    ${FM.edit && FM.sel != null && FM.assign[FM.sel] ? `<div class="fm-selbar"><span>${fmEsc(playersCache.find(x=> x.id === FM.assign[FM.sel])?.full_name || '')}</span><button type="button" class="small secondary" data-fm-remove="${FM.sel}">Quitar de la cancha</button></div>` : ''}
+    ${FM.edit ? `<div class="fm-tools">
+      <button type="button" data-fm-auto>⚡ Armar automático</button>
+      <button type="button" class="secondary" data-fm-clear>Vaciar</button>
+    </div>` : ''}
+    <div class="panel fm-bench" id="fm-bench">
+      <h3 style="margin-top:0">${FM.edit ? (FM.sel != null ? `Elegir ${FM_ROLE_LABEL[slots[FM.sel].role].toLowerCase()}` : 'Suplentes') : 'Suplentes'}</h3>
+      ${conf.length ? `${FM.hasCallUp ? '<div class="fm-bench-l">✅ Confirmaron asistencia</div>' : ''}<div class="fm-subs">${conf.map(p=> chip(p)).join('')}</div>` : (FM.hasCallUp ? '<p class="muted">Todos los confirmados ya están en la cancha.</p>' : '')}
+      ${others.length && (FM.edit || !FM.hasCallUp) ? `<div class="fm-bench-l">${FM.hasCallUp ? '⏳ No han confirmado' : 'Disponibles'}</div><div class="fm-subs">${others.map(p=> chip(p)).join('')}</div>` : ''}
+    </div>
+    <button type="button" class="wa-btn fm-share" data-fm-share>${ic('chat')} Compartir formación por WhatsApp</button>
+  `;
+  $('#fm-match').addEventListener('change', e=>{ FM.matchId = e.target.value; fmLoad(); });
+  body.querySelectorAll('[data-fm-preset]').forEach(b=> b.addEventListener('click', ()=> fmSetPreset(b.dataset.fmPreset)));
+  body.querySelectorAll('[data-fm-slot]').forEach(b=> b.addEventListener('click', ()=>{
+    if(!FM.edit) return;
+    const i = Number(b.dataset.fmSlot);
+    FM.sel = FM.sel === i ? null : i;
+    fmRender();
+    if(FM.sel != null && !FM.assign[FM.sel]) document.getElementById('fm-bench')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }));
+  body.querySelectorAll('[data-fm-pick]').forEach(b=> b.addEventListener('click', ()=> fmPick(b.dataset.fmPick)));
+  body.querySelector('[data-fm-remove]')?.addEventListener('click', ()=> fmRemove(FM.sel));
+  body.querySelector('[data-fm-auto]')?.addEventListener('click', fmAuto);
+  body.querySelector('[data-fm-clear]')?.addEventListener('click', fmClear);
+  body.querySelector('[data-fm-share]')?.addEventListener('click', fmShare);
+}
+
+async function fmSaveAll(){
+  const lineup = FM.lineup || await ensureLineup(FM.matchId);
+  if(!lineup) return false;
+  FM.lineup = lineup;
+  const slots = fmSlots(FM.preset);
+  const rows = FM.assign.map((pid,i)=> pid ? { lineup_id: lineup.id, player_id: pid, pos_x: slots[i].x, pos_y: slots[i].y } : null).filter(Boolean);
+  const keep = rows.map(r=> r.player_id);
+  let q = supabase.from('lineup_players').delete().eq('lineup_id', lineup.id);
+  if(keep.length) q = q.not('player_id', 'in', `(${keep.join(',')})`);
+  const del = await q;
+  if(del.error){ toast('No se pudo guardar: ' + del.error.message, true); return false; }
+  if(rows.length){
+    const { error } = await supabase.from('lineup_players').upsert(rows, { onConflict: 'lineup_id,player_id' });
+    if(error){ toast('No se pudo guardar: ' + error.message, true); return false; }
+  }
+  if(lineup.formation_label !== FM.preset){
+    await supabase.from('lineups').update({ formation_label: FM.preset, updated_at: new Date().toISOString() }).eq('id', lineup.id);
+    lineup.formation_label = FM.preset;
+  }
+  return true;
+}
+
+async function fmPick(pid){
+  if(!FM.edit) return;
+  const slots = fmSlots(FM.preset);
+  let i = FM.sel;
+  if(i == null){
+    // Sin posición elegida: va a la primera libre de su línea, o a la primera libre.
+    const g = fmGroup(playersCache.find(p=> p.id === pid)?.position);
+    i = slots.findIndex((s,k)=> !FM.assign[k] && s.role === g);
+    if(i < 0) i = FM.assign.findIndex(x=> !x);
+    if(i < 0){ toast('La cancha ya tiene 11 titulares. Toca uno para cambiarlo.', true); return; }
+  }
+  FM.assign[i] = pid;
+  FM.sel = null;
+  fmRender();
+  if(await fmSaveAll()) toast('Formación guardada');
+}
+async function fmRemove(i){
+  if(i == null) return;
+  FM.assign[i] = null; FM.sel = null; fmRender();
+  if(await fmSaveAll()) toast('Jugador enviado a suplentes');
+}
+async function fmSetPreset(k){
+  if(k === FM.preset) return;
+  // Pasa a los titulares al nuevo esquema respetando su línea (portero, defensa…).
+  const oldSlots = fmSlots(FM.preset);
+  const ids = FM.assign.map((pid,i)=> pid ? { pid, role: oldSlots[i].role } : null).filter(Boolean);
+  FM.preset = k;
+  const slots = fmSlots(k);
+  FM.assign = new Array(slots.length).fill(null);
+  const left = [];
+  ids.forEach(o=>{ const i = slots.findIndex((s,j)=> !FM.assign[j] && s.role === o.role); if(i >= 0) FM.assign[i] = o.pid; else left.push(o.pid); });
+  left.forEach(pid=>{ const i = FM.assign.findIndex(x=> !x); if(i >= 0) FM.assign[i] = pid; });
+  FM.sel = null; fmRender();
+  if(await fmSaveAll()) toast(`Esquema ${k} guardado`);
+}
+async function fmAuto(){
+  const slots = fmSlots(FM.preset);
+  const { conf, others } = fmPools();
+  const pool = [...conf, ...(FM.hasCallUp && conf.length ? [] : others)];
+  if(!pool.length){ toast('No hay jugadores disponibles para ubicar', true); return; }
+  const take = role=>{ const i = pool.findIndex(p=> fmGroup(p.position) === role); return i >= 0 ? pool.splice(i,1)[0] : null; };
+  slots.forEach((s,i)=>{ if(!FM.assign[i]){ const p = take(s.role); if(p) FM.assign[i] = p.id; } });
+  slots.forEach((s,i)=>{ if(!FM.assign[i] && pool.length){ const p = s.role === 'POR' ? null : pool.shift(); if(p) FM.assign[i] = p.id; } });
+  FM.sel = null; fmRender();
+  if(await fmSaveAll()) toast('Formación armada según la posición de cada jugador. Ajústala si quieres.');
+}
+async function fmClear(){
+  if(!FM.assign.some(Boolean)) return;
+  if(!confirm('¿Vaciar la cancha de este partido?')) return;
+  FM.assign = FM.assign.map(()=> null); FM.sel = null; fmRender();
+  if(await fmSaveAll()) toast('Cancha vaciada');
+}
+function fmShare(){
+  const m = FM.matches.find(x=> x.id === FM.matchId);
+  const slots = fmSlots(FM.preset);
+  const lines = ['DEL','MED','DEF','POR'].map(r=>{
+    const names = slots.map((s,i)=> s.role === r && FM.assign[i] ? playersCache.find(p=> p.id === FM.assign[i]) : null).filter(Boolean).map(p=> `${fmFirst(p.full_name)} (${p.jersey_number})`);
+    return names.length ? `${{POR:'🧤',DEF:'🛡️',MED:'⚙️',DEL:'🎯'}[r]} ${names.join(' · ')}` : '';
+  }).filter(Boolean);
+  if(!lines.length){ toast('Todavía no hay titulares en la cancha', true); return; }
+  const { conf } = fmPools();
+  const txt = `⚽ *Formación ${teamName()}* (${FM.preset})\nvs ${m?.opponent || ''} · ${m ? fmtDayMon(m.match_date) : ''}\n\n${lines.join('\n')}${conf.length ? `\n\n🔄 Suplentes: ${conf.map(p=> fmFirst(p.full_name)).join(', ')}` : ''}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
+
 async function ensureLineup(matchId){
   const { data: existing } = await supabase.from('lineups').select('*').eq('match_id', matchId).maybeSingle();
   if(existing) return existing;
@@ -8560,8 +8867,8 @@ async function loadCallUpsList(){
         <div class="cu-pane-formacion" style="display:none">
           <div class="panel pitch-box" style="padding:34px 16px 22px">
             <svg class="pitch-lines" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none" stroke="#C9CCD2" stroke-width="1.5"><rect x="1" y="1" width="298" height="118"/><line x1="150" y1="1" x2="150" y2="119"/><circle cx="150" cy="60" r="18"/><rect x="1" y="25" width="40" height="70"/><rect x="259" y="25" width="40" height="70"/></svg>
-            <p>La formación de este partido se arma en su detalle.</p>
-            <button type="button" class="block" onclick="window.__goToMatchLineup('${c.match_id}')">Ver partido</button>
+            <p>${canManage() ? 'Arma la formación tocando cada posición de la cancha.' : 'Mira cómo va a jugar el equipo.'}</p>
+            <button type="button" class="block" onclick="window.__goToMatchLineup('${c.match_id}')">${canManage() ? 'Armar formación' : 'Ver formación'}</button>
           </div>
         </div>` : ''}
         <div class="cu-pane-lista">
