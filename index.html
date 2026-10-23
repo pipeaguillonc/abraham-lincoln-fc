@@ -1551,6 +1551,10 @@
 .fm-slot:not(.full) .fm-name{background:none;opacity:.85;font-size:11px}
 .fm-selbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px auto 0;max-width:440px;padding:8px 12px;border-radius:12px;background:#0A0B0C;color:#fff;font-weight:700}
 .fm-selbar button{width:auto}
+.fm-selbar-b{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.fm-selbar{flex-wrap:wrap}
+.fm-slot.sel.full .fm-dot{box-shadow:0 0 0 4px var(--brand,#F5C400),0 2px 8px rgba(0,0,0,.4)!important;transform:scale(1.12)}
+.fm-slot.sel .fm-name{background:var(--brand,#F5C400);color:#0A0B0C}
 .fm-tools{display:flex;gap:8px;margin:12px auto 0;max-width:440px}
 .fm-tools button{flex:1}
 .fm-bench{margin-top:14px}
@@ -2123,7 +2127,8 @@ function canManageEvents(){ return canManage() || profile?.can_manage_events ===
 // individual "can_view_lineup" desde Usuarios — solo mirar la formación ya
 // armada, sin poder arrastrar ni mover fichas (eso lo sigue haciendo
 // exclusivamente canManage()).
-function canViewLineup(){ return canManage() || profile?.can_view_lineup === true; }
+function canEditLineup(){ return canManage() || profile?.can_edit_lineup === true; }
+function canViewLineup(){ return canEditLineup() || profile?.can_view_lineup === true; }
 
 function fmtDate(d){ if(!d) return '-'; return new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtMoney(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n||0).replace(/^(-?)\$\s+/, '$1$'); }
@@ -2989,10 +2994,10 @@ async function renderDashboardLineup(){
               ${suplentes.map(p=>`<li><span class="lineup-roster-num">${p.jersey_number}</span> ${p.full_name}</li>`).join('')}
             </ul>
           ` : ''}
-          ${canManage() ? `<button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button>` : ''}
+          ${canEditLineup() ? `<button class="small secondary" onclick="window.__goToMatchLineup('${nextMatch.id}')">Editar formación</button>` : ''}
         </div>
       </div>
-    ` : `<div class="lu-empty"><p class="muted" style="margin:0">Todavía no hay formación armada para este partido.</p>${canManage() ? `<button type="button" onclick="window.__goToMatchLineup('${nextMatch.id}')">${ic('tactic')} Armar formación</button>` : ''}</div>`}
+    ` : `<div class="lu-empty"><p class="muted" style="margin:0">Todavía no hay formación armada para este partido.</p>${canEditLineup() ? `<button type="button" onclick="window.__goToMatchLineup('${nextMatch.id}')">${ic('tactic')} Armar formación</button>` : ''}</div>`}
   `;
 }
 
@@ -5248,7 +5253,11 @@ async function renderUsuarios(){
             <td class="c-more" data-label="Cumpleaños">${p.player_id ? '<span class="muted">De su ficha de jugador</span>' : `<input type="date" class="bday-input" data-uid="${p.id}" value="${p.birth_date || ''}" style="width:150px;margin-bottom:0" />`}</td>
             <td class="c-more c-perm" data-label="Finanzas">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="finance-permission-cb" data-uid="${p.id}" ${p.can_manage_finance ? 'checked' : ''} /> Puede editar</label>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more c-perm" data-label="Partidos y entrenamientos">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="events-permission-cb" data-uid="${p.id}" ${p.can_manage_events ? 'checked' : ''} /> Puede administrar</label>` : '<span class="muted">Según rol</span>'}</td>
-            <td class="c-more c-perm" data-label="Formación">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="lineup-permission-cb" data-uid="${p.id}" ${p.can_view_lineup ? 'checked' : ''} /> Puede ver</label>` : '<span class="muted">Según rol</span>'}</td>
+            <td class="c-more c-perm" data-label="Formación">${(p.role === 'jugador' || p.role === 'fichaje') ? `<select class="lineup-perm-sel" data-uid="${p.id}" style="min-width:130px">
+                <option value="no" ${!p.can_view_lineup && !p.can_edit_lineup ? 'selected' : ''}>No</option>
+                <option value="ver" ${p.can_view_lineup && !p.can_edit_lineup ? 'selected' : ''}>Puede ver</option>
+                <option value="armar" ${p.can_edit_lineup ? 'selected' : ''}>Puede armar</option>
+              </select>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more" data-label="Creado">${fmtDate(p.created_at?.slice(0,10))}</td>
             <td class="c-more" data-label="Restablecer contraseña">
               <input type="text" class="rp-password" data-uid="${p.id}" placeholder="Nueva contraseña" style="width:140px;margin-bottom:0;display:inline-block" />
@@ -5289,13 +5298,19 @@ async function renderUsuarios(){
     });
   });
 
-  $$('.lineup-permission-cb').forEach(cb=>{
-    cb.addEventListener('change', async ()=>{
-      cb.disabled = true;
-      const { error } = await supabase.from('profiles').update({ can_view_lineup: cb.checked }).eq('id', cb.dataset.uid);
-      cb.disabled = false;
-      if(error){ toast(error.message, true); cb.checked = !cb.checked; return; }
-      toast(cb.checked ? 'Ahora puede ver la Formación en su dashboard' : 'Ya no puede ver la Formación');
+  $$('.lineup-perm-sel').forEach(sel=>{
+    let prev = sel.value;
+    sel.addEventListener('change', async ()=>{
+      const v = sel.value;
+      sel.disabled = true;
+      const { error } = await supabase.from('profiles').update({ can_view_lineup: v !== 'no', can_edit_lineup: v === 'armar' }).eq('id', sel.dataset.uid);
+      sel.disabled = false;
+      if(error){
+        toast(/can_edit_lineup/.test(error.message) ? 'Falta correr en Supabase el SQL del permiso para armar la formación.' : error.message, true);
+        sel.value = prev; return;
+      }
+      prev = v;
+      toast(v === 'armar' ? 'Ahora puede armar la formación' : v === 'ver' ? 'Ahora puede ver la formación' : 'Ya no tiene acceso a la formación');
     });
   });
 
@@ -6899,7 +6914,7 @@ async function renderPartidos(){
           <svg class="pitch-lines" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="298" height="118"/><line x1="150" y1="1" x2="150" y2="119"/><rect x="1" y="25" width="48" height="70"/><rect x="251" y="25" width="48" height="70"/><path d="M49 48a14 14 0 0 1 0 24M251 48a14 14 0 0 0 0 24"/></svg>
           ${ic('users','xl')}
           <p>${nextLineup ? 'Formación lista' : 'Formación por definir'}</p>
-          <button type="button" onclick="window.__goToMatchLineup('${proximos[0].id}')">${ic('tactic')} ${canManage() ? (nextLineup ? 'Editar formación' : 'Armar formación') : 'Ver formación'}</button>
+          <button type="button" onclick="window.__goToMatchLineup('${proximos[0].id}')">${ic('tactic')} ${canEditLineup() ? (nextLineup ? 'Editar formación' : 'Armar formación') : 'Ver formación'}</button>
         </div>
       </div>`;
   }
@@ -7418,7 +7433,7 @@ async function renderFormacion(){
   if(!matches.length){ $('#fm-body').innerHTML = `<div class="panel empty-state"><p>Todavía no hay partidos creados. Crea el partido en <b>Partidos</b> y luego arma aquí la formación.</p></div>`; return; }
   const focus = window.__fmFocus && matches.find(m=> m.id === window.__fmFocus) ? window.__fmFocus : matches[0].id;
   window.__fmFocus = null;
-  FM = { matches, upIds: new Set((up||[]).map(m=> m.id)), matchId: focus, edit: canManage(), sel: null };
+  FM = { matches, upIds: new Set((up||[]).map(m=> m.id)), matchId: focus, edit: canEditLineup(), sel: null };
   await fmLoad();
 }
 
@@ -7490,7 +7505,9 @@ function fmRender(){
       <span><b>${filled}</b>/11 titulares</span>
       ${FM.hasCallUp ? `<span>${FM.confirmed.size} confirmaron en Convocatoria</span>` : '<span>Sin convocatoria: se muestran todos los disponibles</span>'}
     </div>
-    ${FM.edit ? `<p class="fm-hint">${FM.sel != null ? `Elige quién juega de <b>${FM_ROLE_LABEL[slots[FM.sel].role]}</b> en la lista de abajo 👇` : 'Toca una posición de la cancha y luego elige al jugador. Toca un jugador ya ubicado para cambiarlo o quitarlo.'}</p>` : ''}
+    ${FM.edit ? `<p class="fm-hint">${FM.sel == null ? 'Toca una posición de la cancha y luego elige al jugador. Para cambiar a alguien, tócalo y elige quién entra.'
+      : FM.assign[FM.sel] ? `<b>Cambiar a ${fmEsc(fmFirst(playersCache.find(x=> x.id === FM.assign[FM.sel])?.full_name))}:</b> toca el suplente que entra 👇, o toca otra posición de la cancha para intercambiarlos.`
+      : `Elige quién juega de <b>${FM_ROLE_LABEL[slots[FM.sel].role]}</b> en la lista de abajo 👇, o toca un jugador de la cancha para moverlo aquí.`}</p>` : ''}
     <div class="fm-pitch${FM.edit ? ' editable' : ''}" id="fm-pitch">
       <svg class="lineup-lines" viewBox="0 0 300 450" preserveAspectRatio="none">
         <rect x="4" y="4" width="292" height="442" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
@@ -7507,7 +7524,7 @@ function fmRender(){
         </button>`;
       }).join('')}
     </div>
-    ${FM.edit && FM.sel != null && FM.assign[FM.sel] ? `<div class="fm-selbar"><span>${fmEsc(playersCache.find(x=> x.id === FM.assign[FM.sel])?.full_name || '')}</span><button type="button" class="small secondary" data-fm-remove="${FM.sel}">Quitar de la cancha</button></div>` : ''}
+    ${FM.edit && FM.sel != null && FM.assign[FM.sel] ? `<div class="fm-selbar"><span>${fmEsc(playersCache.find(x=> x.id === FM.assign[FM.sel])?.full_name || '')}</span><span class="fm-selbar-b"><button type="button" class="small" data-fm-gobench>Elegir reemplazo ↓</button><button type="button" class="small secondary" data-fm-remove="${FM.sel}">Quitar</button></span></div>` : ''}
     ${FM.edit ? `<div class="fm-tools">
       <button type="button" data-fm-auto>⚡ Armar automático</button>
       <button type="button" class="secondary" data-fm-clear>Vaciar</button>
@@ -7524,10 +7541,19 @@ function fmRender(){
   body.querySelectorAll('[data-fm-slot]').forEach(b=> b.addEventListener('click', ()=>{
     if(!FM.edit) return;
     const i = Number(b.dataset.fmSlot);
-    FM.sel = FM.sel === i ? null : i;
+    const s = FM.sel;
+    if(s != null && s !== i && (FM.assign[s] || FM.assign[i])){
+      // Intercambiar / mover entre dos posiciones de la cancha.
+      [FM.assign[s], FM.assign[i]] = [FM.assign[i], FM.assign[s]];
+      FM.sel = null; fmRender();
+      fmSaveAll().then(ok=> ok && toast('Posiciones intercambiadas'));
+      return;
+    }
+    FM.sel = s === i ? null : i;
     fmRender();
     if(FM.sel != null && !FM.assign[FM.sel]) document.getElementById('fm-bench')?.scrollIntoView({ behavior:'smooth', block:'start' });
   }));
+  body.querySelector('[data-fm-gobench]')?.addEventListener('click', ()=> document.getElementById('fm-bench')?.scrollIntoView({ behavior:'smooth', block:'start' }));
   body.querySelectorAll('[data-fm-pick]').forEach(b=> b.addEventListener('click', ()=> fmPick(b.dataset.fmPick)));
   body.querySelector('[data-fm-remove]')?.addEventListener('click', ()=> fmRemove(FM.sel));
   body.querySelector('[data-fm-auto]')?.addEventListener('click', fmAuto);
@@ -7568,10 +7594,14 @@ async function fmPick(pid){
     if(i < 0) i = FM.assign.findIndex(x=> !x);
     if(i < 0){ toast('La cancha ya tiene 11 titulares. Toca uno para cambiarlo.', true); return; }
   }
+  const out = FM.assign[i];
   FM.assign[i] = pid;
   FM.sel = null;
   fmRender();
-  if(await fmSaveAll()) toast('Formación guardada');
+  if(await fmSaveAll()){
+    const nm = id=> fmFirst(playersCache.find(p=> p.id === id)?.full_name);
+    toast(out && out !== pid ? `Entra ${nm(pid)}, sale ${nm(out)}` : 'Formación guardada');
+  }
 }
 async function fmRemove(i){
   if(i == null) return;
@@ -8867,8 +8897,8 @@ async function loadCallUpsList(){
         <div class="cu-pane-formacion" style="display:none">
           <div class="panel pitch-box" style="padding:34px 16px 22px">
             <svg class="pitch-lines" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none" stroke="#C9CCD2" stroke-width="1.5"><rect x="1" y="1" width="298" height="118"/><line x1="150" y1="1" x2="150" y2="119"/><circle cx="150" cy="60" r="18"/><rect x="1" y="25" width="40" height="70"/><rect x="259" y="25" width="40" height="70"/></svg>
-            <p>${canManage() ? 'Arma la formación tocando cada posición de la cancha.' : 'Mira cómo va a jugar el equipo.'}</p>
-            <button type="button" class="block" onclick="window.__goToMatchLineup('${c.match_id}')">${canManage() ? 'Armar formación' : 'Ver formación'}</button>
+            <p>${canEditLineup() ? 'Arma la formación tocando cada posición de la cancha.' : 'Mira cómo va a jugar el equipo.'}</p>
+            <button type="button" class="block" onclick="window.__goToMatchLineup('${c.match_id}')">${canEditLineup() ? 'Armar formación' : 'Ver formación'}</button>
           </div>
         </div>` : ''}
         <div class="cu-pane-lista">
