@@ -1568,6 +1568,19 @@
 .fm-sub-t b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fm-sub-t small{font-size:12px;color:var(--muted,#6B7280)}
 .fm-share{margin-top:12px;width:100%}
+
+.fm-sheet{position:fixed;inset:0;z-index:9500;background:rgba(10,11,12,.6);display:none;align-items:flex-end;justify-content:center}
+.fm-sheet.open{display:flex}
+.fm-sheet-box{background:#fff;color:#0A0B0C;width:100%;max-width:520px;max-height:82vh;border-radius:20px 20px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;animation:fmUp .18s ease-out}
+@keyframes fmUp{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+.fm-sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.fm-sheet-head small{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#6B7280)}
+.fm-sheet-head b{font:800 22px/1.1 'Barlow Condensed',sans-serif}
+.fm-sheet-x{width:36px;height:36px;min-height:0;padding:0;border-radius:50%;background:#EEF0F2;color:#0A0B0C;border:0;flex:0 0 36px}
+.fm-sheet-list{overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
+.fm-sheet-item{position:relative;justify-content:flex-start!important;flex:0 0 auto}
+.fm-fit{margin-left:auto;font-style:normal;font-size:11px;font-weight:700;background:rgba(31,157,85,.12);color:#1F7A45;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.fm-sheet-out{width:100%}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7505,7 +7518,7 @@ function fmRender(){
       <span><b>${filled}</b>/11 titulares</span>
       ${FM.hasCallUp ? `<span>${FM.confirmed.size} confirmaron en Convocatoria</span>` : '<span>Sin convocatoria: se muestran todos los disponibles</span>'}
     </div>
-    ${FM.edit ? `<p class="fm-hint">${FM.sel == null ? 'Toca una posición de la cancha y luego elige al jugador. Para cambiar a alguien, tócalo y elige quién entra.'
+    ${FM.edit ? `<p class="fm-hint">${FM.sel == null ? 'Toca cualquier posición de la cancha para elegir o <b>cambiar</b> a ese jugador.'
       : FM.assign[FM.sel] ? `<b>Cambiar a ${fmEsc(fmFirst(playersCache.find(x=> x.id === FM.assign[FM.sel])?.full_name))}:</b> toca el suplente que entra 👇, o toca otra posición de la cancha para intercambiarlos.`
       : `Elige quién juega de <b>${FM_ROLE_LABEL[slots[FM.sel].role]}</b> en la lista de abajo 👇, o toca un jugador de la cancha para moverlo aquí.`}</p>` : ''}
     <div class="fm-pitch${FM.edit ? ' editable' : ''}" id="fm-pitch">
@@ -7542,6 +7555,7 @@ function fmRender(){
     if(!FM.edit) return;
     const i = Number(b.dataset.fmSlot);
     const s = FM.sel;
+    if(s == null){ fmOpenSheet(i); return; }
     if(s != null && s !== i && (FM.assign[s] || FM.assign[i])){
       // Intercambiar / mover entre dos posiciones de la cancha.
       [FM.assign[s], FM.assign[i]] = [FM.assign[i], FM.assign[s]];
@@ -7559,6 +7573,64 @@ function fmRender(){
   body.querySelector('[data-fm-auto]')?.addEventListener('click', fmAuto);
   body.querySelector('[data-fm-clear]')?.addEventListener('click', fmClear);
   body.querySelector('[data-fm-share]')?.addEventListener('click', fmShare);
+}
+
+
+// Lista para elegir quién va en una posición (o cambiar al que está).
+function fmOpenSheet(i){
+  const slots = fmSlots(FM.preset);
+  const role = slots[i].role;
+  const cur = FM.assign[i] ? playersCache.find(p=> p.id === FM.assign[i]) : null;
+  const onPitch = new Map(FM.assign.map((pid,k)=> [pid, k]).filter(([pid])=> pid));
+  const avail = playersCache.filter(p=> p.active && !p.injured && p.id !== cur?.id);
+  const fit = p=> fmGroup(p.position) === role ? 1 : 0;
+  const byFit = (a,b)=> fit(b) - fit(a) || (a.jersey_number||0) - (b.jersey_number||0);
+  const groups = [
+    ['✅ Confirmaron (suplentes)', avail.filter(p=> !onPitch.has(p.id) && FM.confirmed.has(p.id))],
+    [FM.hasCallUp ? '⏳ No han respondido' : 'Disponibles', avail.filter(p=> !onPitch.has(p.id) && !FM.confirmed.has(p.id) && !FM.declined.has(p.id))],
+    ['❌ Dijeron que no van', avail.filter(p=> !onPitch.has(p.id) && FM.declined.has(p.id))],
+    ['🔁 En la cancha (intercambiar posición)', avail.filter(p=> onPitch.has(p.id))],
+  ].map(([t, list])=> [t, list.sort(byFit)]).filter(([, list])=> list.length);
+  let ov = document.getElementById('fm-sheet');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'fm-sheet'; ov.className = 'fm-sheet';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); });
+  }
+  ov.innerHTML = `
+    <div class="fm-sheet-box" role="dialog" aria-label="Elegir jugador">
+      <div class="fm-sheet-head">
+        <div><small>${FM_ROLE_LABEL[role]}</small><b>${cur ? `Cambiar a ${fmEsc(cur.full_name)}` : '¿Quién juega aquí?'}</b></div>
+        <button type="button" class="fm-sheet-x" aria-label="Cerrar" data-fm-x>✕</button>
+      </div>
+      <div class="fm-sheet-list">
+        ${groups.length ? groups.map(([t, list])=> `
+          <div class="fm-bench-l">${t}</div>
+          ${list.map(p=> `<button type="button" class="fm-sub fm-sheet-item" data-fm-to="${p.id}">
+            <span class="fm-num">${p.jersey_number ?? ''}</span>
+            <span class="fm-sub-t"><b>${fmEsc(p.full_name)}</b><small>${fmEsc(p.position || 'Sin posición')}${onPitch.has(p.id) ? ' · está de ' + FM_ROLE_LABEL[slots[onPitch.get(p.id)].role].toLowerCase() : ''}</small></span>
+            ${fit(p) ? '<em class="fm-fit">Su posición</em>' : ''}
+          </button>`).join('')}`).join('') : '<p class="muted">No hay más jugadores disponibles.</p>'}
+      </div>
+      ${cur ? `<button type="button" class="secondary fm-sheet-out" data-fm-out>Quitar a ${fmEsc(fmFirst(cur.full_name))} de la cancha</button>` : ''}
+    </div>`;
+  ov.classList.add('open');
+  ov.querySelector('[data-fm-x]').addEventListener('click', ()=> ov.classList.remove('open'));
+  ov.querySelector('[data-fm-out]')?.addEventListener('click', ()=>{ ov.classList.remove('open'); fmRemove(i); });
+  ov.querySelectorAll('[data-fm-to]').forEach(b=> b.addEventListener('click', async ()=>{
+    ov.classList.remove('open');
+    const pid = b.dataset.fmTo;
+    const nm = id=> fmFirst(playersCache.find(p=> p.id === id)?.full_name);
+    if(onPitch.has(pid)){
+      const j = onPitch.get(pid);
+      [FM.assign[i], FM.assign[j]] = [FM.assign[j], FM.assign[i]];
+      FM.sel = null; fmRender();
+      if(await fmSaveAll()) toast(cur ? `${nm(pid)} y ${nm(cur.id)} cambiaron de posición` : `${nm(pid)} cambió de posición`);
+      return;
+    }
+    FM.sel = i;
+    await fmPick(pid);
+  }));
 }
 
 async function fmSaveAll(){
