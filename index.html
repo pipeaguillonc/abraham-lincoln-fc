@@ -2141,7 +2141,7 @@ function canManageEvents(){ return canManage() || profile?.can_manage_events ===
 // individual "can_view_lineup" desde Usuarios — solo mirar la formación ya
 // armada, sin poder arrastrar ni mover fichas (eso lo sigue haciendo
 // exclusivamente canManage()).
-function canEditLineup(){ return canManage() || profile?.can_edit_lineup === true; }
+function canEditLineup(){ return canManage() || profile?.can_edit_lineup === true || profile?.can_view_lineup === true; }
 function canViewLineup(){ return canEditLineup() || profile?.can_view_lineup === true; }
 
 function fmtDate(d){ if(!d) return '-'; return new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
@@ -5267,10 +5267,9 @@ async function renderUsuarios(){
             <td class="c-more" data-label="Cumpleaños">${p.player_id ? '<span class="muted">De su ficha de jugador</span>' : `<input type="date" class="bday-input" data-uid="${p.id}" value="${p.birth_date || ''}" style="width:150px;margin-bottom:0" />`}</td>
             <td class="c-more c-perm" data-label="Finanzas">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="finance-permission-cb" data-uid="${p.id}" ${p.can_manage_finance ? 'checked' : ''} /> Puede editar</label>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more c-perm" data-label="Partidos y entrenamientos">${(p.role === 'jugador' || p.role === 'fichaje') ? `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="events-permission-cb" data-uid="${p.id}" ${p.can_manage_events ? 'checked' : ''} /> Puede administrar</label>` : '<span class="muted">Según rol</span>'}</td>
-            <td class="c-more c-perm" data-label="Formación">${(p.role === 'jugador' || p.role === 'fichaje') ? `<select class="lineup-perm-sel" data-uid="${p.id}" style="min-width:130px">
+            <td class="c-more c-perm" data-label="Formación">${(p.role === 'jugador' || p.role === 'fichaje') ? `<select class="lineup-perm-sel" data-uid="${p.id}" style="min-width:150px">
                 <option value="no" ${!p.can_view_lineup && !p.can_edit_lineup ? 'selected' : ''}>No</option>
-                <option value="ver" ${p.can_view_lineup && !p.can_edit_lineup ? 'selected' : ''}>Puede ver</option>
-                <option value="armar" ${p.can_edit_lineup ? 'selected' : ''}>Puede armar</option>
+                <option value="armar" ${p.can_view_lineup || p.can_edit_lineup ? 'selected' : ''}>Ver y armar</option>
               </select>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more" data-label="Creado">${fmtDate(p.created_at?.slice(0,10))}</td>
             <td class="c-more" data-label="Restablecer contraseña">
@@ -5317,14 +5316,15 @@ async function renderUsuarios(){
     sel.addEventListener('change', async ()=>{
       const v = sel.value;
       sel.disabled = true;
-      const { error } = await supabase.from('profiles').update({ can_view_lineup: v !== 'no', can_edit_lineup: v === 'armar' }).eq('id', sel.dataset.uid);
+      let { error } = await supabase.from('profiles').update({ can_view_lineup: v !== 'no', can_edit_lineup: v !== 'no' }).eq('id', sel.dataset.uid);
+      if(error && /can_edit_lineup/.test(error.message)) ({ error } = await supabase.from('profiles').update({ can_view_lineup: v !== 'no' }).eq('id', sel.dataset.uid));
       sel.disabled = false;
       if(error){
         toast(/can_edit_lineup/.test(error.message) ? 'Falta correr en Supabase el SQL del permiso para armar la formación.' : error.message, true);
         sel.value = prev; return;
       }
       prev = v;
-      toast(v === 'armar' ? 'Ahora puede armar la formación' : v === 'ver' ? 'Ahora puede ver la formación' : 'Ya no tiene acceso a la formación');
+      toast(v === 'armar' ? 'Ahora puede ver y armar la formación' : 'Ya no tiene acceso a la formación');
     });
   });
 
