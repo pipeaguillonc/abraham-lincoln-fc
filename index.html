@@ -1531,7 +1531,8 @@
 .recon-banner{border-color:#2F80ED;background:rgba(47,128,237,.08)}
 
 .fm-match{margin-bottom:10px}
-.fm-presets{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.fm-presets{display:flex;gap:8px;flex-wrap:wrap;padding:2px 0 8px}
+.fm-more{margin:0 0 10px}
 .fm-presets::-webkit-scrollbar{display:none}
 .fm-preset{flex:0 0 auto;width:auto;min-height:0;padding:8px 14px;border-radius:999px;background:#EEF0F2;color:#0A0B0C;font-weight:700;border:0}
 .fm-preset.on{background:var(--brand,#F5C400);color:#0A0B0C}
@@ -7396,14 +7397,29 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
 // solo, en las mismas tablas de siempre (lineups / lineup_players), así que el
 // Inicio y la Convocatoria siguen mostrando la misma formación.
 const FM_PRESETS = {
-  '4-4-2':   [[1],[4],[4],[2]],
-  '4-3-3':   [[1],[4],[3],[3]],
-  '4-2-3-1': [[1],[4],[2],[3],[1]],
-  '3-5-2':   [[1],[3],[5],[2]],
-  '5-3-2':   [[1],[5],[3],[2]],
-  '3-4-3':   [[1],[3],[4],[3]],
+  '4-4-2':     [[1],[4],[4],[2]],
+  '4-3-3':     [[1],[4],[3],[3]],
+  '4-2-3-1':   [[1],[4],[2],[3],[1]],
+  '4-1-4-1':   [[1],[4],[1],[4],[1]],
+  '4-4-1-1':   [[1],[4],[4],[1],[1]],
+  '3-5-2':     [[1],[3],[5],[2]],
+  '4-3-2-1':   [[1],[4],[3],[2],[1]],
+  '4-1-2-1-2': [[1],[4],[1],[2],[1],[2]],
+  '4-3-1-2':   [[1],[4],[3],[1],[2]],
+  '4-2-2-2':   [[1],[4],[2],[2],[2]],
+  '4-5-1':     [[1],[4],[5],[1]],
+  '4-2-4':     [[1],[4],[2],[4]],
+  '3-4-3':     [[1],[3],[4],[3]],
+  '3-4-2-1':   [[1],[3],[4],[2],[1]],
+  '3-4-1-2':   [[1],[3],[4],[1],[2]],
+  '3-1-4-2':   [[1],[3],[1],[4],[2]],
+  '5-3-2':     [[1],[5],[3],[2]],
+  '5-4-1':     [[1],[5],[4],[1]],
+  '5-2-3':     [[1],[5],[2],[3]],
 };
-const FM_LINE_Y = { 4:[88,68,44,20], 5:[88,70,54,36,17] };
+const FM_PRESET_NAMES = { '4-1-2-1-2':'4-1-2-1-2 (rombo)', '4-3-2-1':'4-3-2-1 (árbol de Navidad)', '4-2-2-2':'4-2-2-2 (cuadrado)', '3-1-4-2':'3-1-4-2', '5-2-3':'5-2-3' };
+const FM_TOP = ['4-4-2','4-3-3','4-2-3-1','4-1-4-1','4-4-1-1','3-5-2'];
+const FM_LINE_Y = { 4:[88,68,44,20], 5:[88,70,54,36,17], 6:[88,71,57,44,31,16] };
 const FM_X = { 1:[50], 2:[34,66], 3:[22,50,78], 4:[13,37,63,87], 5:[9,29,50,71,91] };
 function fmRoleOf(preset, li){
   const n = FM_PRESETS[preset].length;
@@ -7482,6 +7498,8 @@ async function fmLoad(){
   });
   FM.sel = null;
   fmRender();
+  // Si en la base quedaron jugadores de más (p. ej. dos en la misma posición), se limpia.
+  if(FM.edit && placed.length > FM.assign.filter(Boolean).length) fmSaveAll();
 }
 
 function fmPools(){
@@ -7512,8 +7530,12 @@ function fmRender(){
     </select>
     ${FM.edit ? `
     <div class="fm-presets" role="group" aria-label="Esquema">
-      ${Object.keys(FM_PRESETS).map(k=> `<button type="button" class="fm-preset${k===FM.preset?' on':''}" data-fm-preset="${k}">${k}</button>`).join('')}
-    </div>` : `<p class="muted" style="margin:6px 0 10px">Esquema <b>${FM.preset}</b></p>`}
+      ${[...FM_TOP, ...(FM_TOP.includes(FM.preset) ? [] : [FM.preset])].map(k=> `<button type="button" class="fm-preset${k===FM.preset?' on':''}" data-fm-preset="${k}">${k}</button>`).join('')}
+    </div>
+    <select id="fm-more-presets" class="fm-more" aria-label="Más esquemas">
+      <option value="">Más esquemas…</option>
+      ${Object.keys(FM_PRESETS).filter(k=> !FM_TOP.includes(k)).map(k=> `<option value="${k}" ${k===FM.preset?'selected':''}>${FM_PRESET_NAMES[k] || k}</option>`).join('')}
+    </select>` : `<p class="muted" style="margin:6px 0 10px">Esquema <b>${FM.preset}</b></p>`}
     <div class="fm-status">
       <span><b>${filled}</b>/11 titulares</span>
       ${FM.hasCallUp ? `<span>${FM.confirmed.size} confirmaron en Convocatoria</span>` : '<span>Sin convocatoria: se muestran todos los disponibles</span>'}
@@ -7551,6 +7573,7 @@ function fmRender(){
   `;
   $('#fm-match').addEventListener('change', e=>{ FM.matchId = e.target.value; fmLoad(); });
   body.querySelectorAll('[data-fm-preset]').forEach(b=> b.addEventListener('click', ()=> fmSetPreset(b.dataset.fmPreset)));
+  body.querySelector('#fm-more-presets')?.addEventListener('change', e=>{ if(e.target.value) fmSetPreset(e.target.value); });
   body.querySelectorAll('[data-fm-slot]').forEach(b=> b.addEventListener('click', ()=>{
     if(!FM.edit) return;
     const i = Number(b.dataset.fmSlot);
@@ -7633,7 +7656,15 @@ function fmOpenSheet(i){
   }));
 }
 
-async function fmSaveAll(){
+// Los guardados van en fila: si se hacen dos cambios seguidos, el segundo
+// espera al primero y siempre queda en la base exactamente lo que se ve.
+let fmSaveChain = Promise.resolve(true);
+function fmSaveAll(){
+  fmSaveChain = fmSaveChain.catch(()=> false).then(()=> fmSaveAllNow());
+  return fmSaveChain;
+}
+async function fmSaveAllNow(){
+  if(!FM) return false;
   const lineup = FM.lineup || await ensureLineup(FM.matchId);
   if(!lineup) return false;
   FM.lineup = lineup;
