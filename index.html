@@ -1652,6 +1652,15 @@
 .ft-rule b.neg{color:#B3261E}
 .ft-faq{margin-top:10px;font-size:14px}.ft-faq p{margin:0 0 8px}
 .ft-share-panel button,.ft-share-btn{width:100%;margin-bottom:8px}
+
+.vt-voters{margin-top:12px;border-top:1px solid #EEF0F2;padding-top:10px}
+.vt-voters summary{cursor:pointer;font-weight:700}
+.vt-vlist{display:grid;gap:6px;max-height:340px;overflow-y:auto}
+.vt-v{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid #E6E7EA;border-radius:10px;font-size:14px;background:#fff}
+.vt-v input{width:20px;height:20px;margin:0;flex:0 0 20px}
+.vt-v span{flex:1}
+.vt-v em{font-style:normal;font-size:12px;color:#6B7280}
+.vt-v.on{border-color:var(--brand,#F5C400);background:#FFFBEA}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -3832,10 +3841,13 @@ async function voteData(m){
   }
   if(!ids.size) ids = new Set(playersCache.filter(p=> p.active && !p.injured).map(p=> p.id));
   const players = [...ids].map(id=> playersCache.find(p=> p.id === id)).filter(Boolean).sort((a,b)=> a.jersey_number - b.jersey_number);
+  // Votantes: los que jugaron + los que el Comité habilitó a mano (p. ej. lesionados que fueron a acompañar).
+  const extra = new Set((m.vote_extra_voters || []).map(String));
+  const voters = new Set([...ids].map(String).concat([...extra]));
   const tally = {}; (votes||[]).forEach(v=>{ tally[v.voted_player_id] = (tally[v.voted_player_id]||0) + 1; });
   const ranking = Object.entries(tally).map(([pid,n])=>({ p: playersCache.find(x=> x.id === pid), n })).filter(x=> x.p).sort((a,b)=> b.n - a.n);
   const mine = (votes||[]).find(v=> v.voter_player_id === profile?.player_id);
-  return { players, total: (votes||[]).length, ranking, mine, canVote: !!profile?.player_id && ids.has(profile.player_id) };
+  return { players, baseIds: new Set([...ids].map(String)), extra, total: (votes||[]).length, ranking, mine, canVote: !!profile?.player_id && voters.has(String(profile.player_id)) };
 }
 function hoursLeft(end){ const h = Math.max(0, Math.round((end - Date.now()) / 3600000)); return h >= 24 ? `${Math.floor(h/24)} d ${h%24} h` : `${h} h`; }
 function voteResultsHTML(d){
@@ -3860,7 +3872,7 @@ async function renderVoteCard(){
       ${d.mine ? `<div class="vt-done">✓ Votaste por <b>${escS(playersCache.find(p=> p.id === d.mine.voted_player_id)?.full_name || '')}</b></div>${voteResultsHTML(d)}`
         : d.canVote ? `<p class="vt-q">¿Quién fue el mejor de la cancha?</p>
           <div class="vt-grid">${cands.map(p=>`<button type="button" class="vt-opt" onclick="window.__vote('${m.id}','${p.id}', this)"><span class="vt-j">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number)}</span><b>${escS(p.full_name.split(' ')[0])}</b><small>#${p.jersey_number}</small></button>`).join('')}</div>`
-        : `<p class="muted" style="margin:8px 0 0">Votan los jugadores que estuvieron en el partido.</p>${voteResultsHTML(d)}`}
+        : `<p class="muted" style="margin:8px 0 0">Votan los jugadores que estuvieron en el partido (los que jugaron y los que el Comité agregó).</p>${voteResultsHTML(d)}`}
     </div>`;
 }
 window.__vote = async (matchId, pid, btn)=>{
@@ -3879,14 +3891,44 @@ async function renderMatchVote(matchId){
   const { data: m } = await supabase.from('matches').select('*').eq('id', matchId).single();
   if(!m || m.mvp_player_id){ el.closest('.panel')?.remove(); return; }
   const w = voteWindow(m);
-  if(Date.now() < w.start.getTime()){ el.innerHTML = `<p class="muted" style="margin:0">La votación abre cuando termine el partido.</p>`; return; }
   const d = await voteData(m);
   const lead = d.ranking[0];
+  const notYet = Date.now() < w.start.getTime();
   el.innerHTML = `
+    ${notYet ? `<p class="muted" style="margin:0 0 6px">La votación abre cuando termine el partido.</p>` : `
     <p class="muted" style="margin:0 0 6px">${w.closed ? 'Votación cerrada.' : `Abierta · cierra en ${hoursLeft(w.end)}.`} Votan los jugadores que estuvieron en el partido.</p>
     ${voteResultsHTML(d)}
-    ${canManage() && lead ? `<button type="button" style="margin-top:10px" onclick="window.__confirmMvp('${m.id}','${lead.p.id}')">🏅 Nombrar figura a ${escS(lead.p.full_name)}</button>` : ''}`;
+    ${canManage() && lead ? `<button type="button" style="margin-top:10px" onclick="window.__confirmMvp('${m.id}','${lead.p.id}')">🏅 Nombrar figura a ${escS(lead.p.full_name)}</button>` : ''}`}
+    ${canManage() ? voteVotersHTML(m, d) : ''}`;
+  el.querySelectorAll('[data-vt-extra]').forEach(cb=> cb.addEventListener('change', ()=> window.__toggleVoter(m.id, cb.dataset.vtExtra, cb.checked, cb)));
 }
+// Quiénes pueden votar: por defecto los que jugaron (o confirmaron); el Comité chulea a otros que fueron.
+function voteVotersHTML(m, d){
+  const others = playersCache.filter(p=> p.active && !d.baseIds.has(String(p.id))).sort((a,b)=> (a.jersey_number||0) - (b.jersey_number||0));
+  const base = playersCache.filter(p=> d.baseIds.has(String(p.id))).sort((a,b)=> (a.jersey_number||0) - (b.jersey_number||0));
+  return `
+    <details class="vt-voters" ${d.extra.size ? 'open' : ''}>
+      <summary>👥 Quiénes pueden votar · ${base.length + d.extra.size}</summary>
+      <p class="muted" style="margin:6px 0 8px;font-size:13px">Por defecto votan los que jugaron (o confirmaron que iban). Chulea a los que fueron sin jugar (por ejemplo, lesionados que acompañaron) para que también puedan votar. Ellos votan, pero no reciben votos.</p>
+      <div class="vt-vlist">
+        ${base.map(p=> `<label class="vt-v on"><input type="checkbox" checked disabled><span>#${p.jersey_number} ${escS(p.full_name)}</span><em>en el partido</em></label>`).join('')}
+        ${others.map(p=> `<label class="vt-v${d.extra.has(String(p.id)) ? ' on' : ''}"><input type="checkbox" data-vt-extra="${p.id}" ${d.extra.has(String(p.id)) ? 'checked' : ''}><span>#${p.jersey_number} ${escS(p.full_name)}</span>${p.injured ? '<em>🩹 lesionado</em>' : ''}</label>`).join('')}
+      </div>
+    </details>`;
+}
+window.__toggleVoter = async (matchId, pid, on, cb)=>{
+  if(cb) cb.disabled = true;
+  const { data: m, error: e1 } = await supabase.from('matches').select('vote_extra_voters').eq('id', matchId).single();
+  if(e1){ toast(/vote_extra_voters/.test(e1.message) ? 'Falta correr en Supabase el SQL de votantes adicionales.' : e1.message, true); if(cb){ cb.disabled = false; cb.checked = !on; } return; }
+  const cur = new Set((m?.vote_extra_voters || []).map(String));
+  if(on) cur.add(String(pid)); else cur.delete(String(pid));
+  const { error } = await supabase.from('matches').update({ vote_extra_voters: [...cur] }).eq('id', matchId);
+  if(cb) cb.disabled = false;
+  if(error){ toast(/vote_extra_voters/.test(error.message) ? 'Falta correr en Supabase el SQL de votantes adicionales.' : error.message, true); if(cb) cb.checked = !on; return; }
+  cb?.closest('.vt-v')?.classList.toggle('on', on);
+  const name = playersCache.find(p=> String(p.id) === String(pid))?.full_name?.split(' ')[0] || 'El jugador';
+  toast(on ? `${name} ya puede votar` : `${name} ya no vota en este partido`);
+};
 window.__confirmMvp = async (matchId, pid)=>{
   const { error } = await supabase.from('matches').update({ mvp_player_id: pid }).eq('id', matchId);
   if(error){ toast(error.message, true); return; }
