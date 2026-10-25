@@ -1656,7 +1656,7 @@
 .vt-voters{margin-top:12px;border-top:1px solid #EEF0F2;padding-top:10px}
 .vt-voters summary{cursor:pointer;font-weight:700}
 .vt-vlist{display:grid;gap:6px;max-height:340px;overflow-y:auto}
-.vt-v{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid #E6E7EA;border-radius:10px;font-size:14px;background:#fff}
+.vt-v{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid #E6E7EA;border-radius:10px;font-size:14px;background:#fff;color:#0A0B0C}
 .vt-v input{width:20px;height:20px;margin:0;flex:0 0 20px}
 .vt-v span{flex:1}
 .vt-v em{font-style:normal;font-size:12px;color:#6B7280}
@@ -3873,7 +3873,9 @@ async function renderVoteCard(){
         : d.canVote ? `<p class="vt-q">¿Quién fue el mejor de la cancha?</p>
           <div class="vt-grid">${cands.map(p=>`<button type="button" class="vt-opt" onclick="window.__vote('${m.id}','${p.id}', this)"><span class="vt-j">${p.photo_url ? `<img src="${p.photo_url}" alt="" />` : jerseySvg(p.jersey_number)}</span><b>${escS(p.full_name.split(' ')[0])}</b><small>#${p.jersey_number}</small></button>`).join('')}</div>`
         : `<p class="muted" style="margin:8px 0 0">Votan los jugadores que estuvieron en el partido (los que jugaron y los que el Comité agregó).</p>${voteResultsHTML(d)}`}
+      ${canManage() ? voteVotersHTML(m, d) : ''}
     </div>`;
+  el.querySelectorAll('[data-vt-extra]').forEach(cb=> cb.addEventListener('change', ()=> window.__toggleVoter(m.id, cb.dataset.vtExtra, cb.checked, cb)));
 }
 window.__vote = async (matchId, pid, btn)=>{
   const p = playersCache.find(x=> x.id === pid);
