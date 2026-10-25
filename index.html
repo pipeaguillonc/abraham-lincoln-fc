@@ -1642,6 +1642,16 @@
 .ft-pz-edit{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #EEF0F2}.ft-pz-edit small{display:block;font-size:12px;color:#6B7280}.ft-pz-edit button{width:auto}
 .ft-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0A0B0C;color:#fff;border-radius:16px;padding:12px 14px;margin:10px 0}
 .ft-banner small{display:block;font:700 11px 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--brand,#F5C400)}.ft-banner b{display:block;font:800 20px 'Barlow Condensed',sans-serif}.ft-banner span{font-size:12px;color:#cfd2d6}.ft-banner button{width:auto}
+
+.ft-tabs button{font-size:13px;padding:9px 2px}
+.ft-steps{margin:0;padding:0;list-style:none;counter-reset:s}
+.ft-steps li{counter-increment:s;display:grid;grid-template-columns:36px 1fr;column-gap:10px;padding:8px 0;border-bottom:1px solid #EEF0F2}
+.ft-steps li::before{content:counter(s);grid-row:span 2;width:32px;height:32px;border-radius:50%;background:var(--brand,#F5C400);display:grid;place-items:center;font:800 17px 'Barlow Condensed',sans-serif}
+.ft-steps b{font:800 17px 'Barlow Condensed',sans-serif}.ft-steps span{font-size:14px;color:#4B5058}
+.ft-note{margin:10px 0 0;font-size:13px;padding:8px 12px;border-radius:10px;background:rgba(245,196,0,.14)}
+.ft-rule b.neg{color:#B3261E}
+.ft-faq{margin-top:10px;font-size:14px}.ft-faq p{margin:0 0 8px}
+.ft-share-panel button,.ft-share-btn{width:100%;margin-bottom:8px}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7483,7 +7493,7 @@ async function ftBase(){
     supabase.from('fantasy_prizes').select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
   ]);
   return {
-    missing: !!st.error, settings: st.data || { active:false, budget:85 },
+    missing: !!st.error, settings: st.data || { active:false, budget:70 },
     prices: Object.fromEntries((pr.data||[]).map(r=> [String(r.player_id), r])),
     prizes: pz.data || [],
   };
@@ -7508,20 +7518,21 @@ async function renderFantasy(){
   if(!FT.settings.active && !FT.comite){
     $('#ft-body').innerHTML = `
       <div class="ft-hero"><div class="ft-kick">Próximamente</div><h1>Fantasy ALS</h1><p>Cada fecha arma tu quinteto con 5 jugadores del equipo, elige capitán y predice el marcador. El que más puntos sume se lleva los premios.</p></div>
-      ${ftRulesHTML()}${ftPrizesHTML()}`;
+      <div id="ft-pane"></div>`;
+    ftComo();
     return;
   }
   ftRender();
 }
 function ftRender(){
   const body = $('#ft-body'); if(!body) return;
-  const tabs = [['quinteto','Mi quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios']];
+  const tabs = [['quinteto','Mi quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios'],['como','Cómo jugar']];
   body.innerHTML = `
     ${!FT.settings.active ? `<div class="notify-banner" style="margin-bottom:10px"><b>El Fantasy está apagado.</b> Solo el Comité lo ve. Actívalo en la pestaña Premios cuando arranque la temporada.</div>` : ''}
     <div class="ft-tabs">${tabs.map(([k,l])=> `<button type="button" class="${FT.tab===k?'on':''}" data-ft-tab="${k}">${l}</button>`).join('')}</div>
     <div id="ft-pane"><p class="muted">Cargando…</p></div>`;
   body.querySelectorAll('[data-ft-tab]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftTab; ftRender(); }));
-  ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios })[FT.tab]();
+  ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo })[FT.tab]();
 }
 
 // ---- Mi quinteto ----
@@ -7542,7 +7553,7 @@ async function ftQuinteto(){
 function ftPrice(pid){ return FT.prices[pid]?.price ?? 12; }
 function ftQRender(){
   const pane = $('#ft-pane'); const q = FT.q; const m = q.m;
-  const budget = FT.settings.budget || 85;
+  const budget = FT.settings.budget || 70;
   const cost = q.sel.reduce((s,pid)=> s + ftPrice(pid), 0);
   const left = budget - cost;
   const ko = ftKickoff(m);
@@ -7699,7 +7710,8 @@ function ftPremios(){
     <div class="panel"><h3 style="margin-top:0">⚙️ Configuración (Comité)</h3>
       <label class="ft-switch"><input type="checkbox" id="ft-active" ${FT.settings.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
       <label class="field-label" for="ft-budget">Presupuesto por quinteto ($)</label>
-      <input type="number" id="ft-budget" min="40" max="150" value="${FT.settings.budget || 85}">
+      <input type="number" id="ft-budget" min="40" max="150" value="${FT.settings.budget || 70}">
+      <p class="muted" style="margin:4px 0 0;font-size:12px">Con menos presupuesto es más difícil: no alcanza para escoger solo a los mejores. Recomendado: $70.</p>
       <button type="button" id="ft-save-set" style="margin-top:8px">Guardar configuración</button>
     </div>` : ''}
     <h3 class="section-title" style="margin:6px 0 8px">Premios</h3>
@@ -7717,9 +7729,10 @@ function ftPremios(){
       <input id="ft-pz-sp" placeholder="Ej. nombre del patrocinador">
       <button type="button" id="ft-pz-add" style="margin-top:8px">Agregar premio</button>
     </div>` : ''}
-    ${ftRulesHTML()}`;
+    <button type="button" class="secondary ft-share-btn" data-ft-card="premios">${ic('chat')} Compartir premios por WhatsApp</button>`;
+  pane.querySelector('[data-ft-card]')?.addEventListener('click', e=> ftShareCard('premios', e.currentTarget));
   $('#ft-save-set')?.addEventListener('click', async ()=>{
-    const upd = { id: 1, active: $('#ft-active').checked, budget: Math.max(40, parseInt($('#ft-budget').value,10) || 85), updated_at: new Date().toISOString() };
+    const upd = { id: 1, active: $('#ft-active').checked, budget: Math.max(40, parseInt($('#ft-budget').value,10) || 70), updated_at: new Date().toISOString() };
     const { error } = await supabase.from('fantasy_settings').upsert(upd);
     if(error){ toast(error.message, true); return; }
     FT.settings = { ...FT.settings, ...upd }; toast(upd.active ? 'Fantasy activado ⚽' : 'Configuración guardada'); ftRender();
@@ -7738,6 +7751,156 @@ function ftPremios(){
     if(error){ toast(error.message, true); return; }
     FT.prizes = FT.prizes.filter(p=> String(p.id) !== b.dataset.ftPzDel); ftPremios();
   }));
+}
+
+// ---- Cómo jugar: explicación simple + tarjetas para WhatsApp ----
+const FT_STEPS = [
+  ['Arma tu quinteto', 'Escoge 5 jugadores del equipo. Puedes escogerte a ti mismo.'],
+  ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no.'],
+  ['Elige tu capitán', 'Sus puntos valen doble.'],
+  ['Predice el marcador', 'Si aciertas, sumas puntos extra.'],
+  ['Cumple con el equipo', 'Responder la convocatoria en la app e ir a entrenar también te da puntos.'],
+];
+const FT_PTS_PLAYER = [
+  ['Jugó de titular', '+3'], ['Entró de cambio', '+2'], ['Gol', '+5'], ['Asistencia', '+3'],
+  ['Figura del partido', '+5'], ['Calificación del DT', '0 a +4'], ['Valla invicta (portero y defensas)', '+4'],
+  ['Tarjeta amarilla', '−2'], ['Tarjeta roja', '−5'], ['Capitán', 'x2'],
+];
+const FT_PTS_BONUS = [
+  ['Responder la convocatoria en la app', '+2'], ['Ir a entrenar esa semana', '+2'],
+  ['Predicción exacta del marcador', '+5'], ['Acertar quién gana (o empate)', '+2'],
+];
+function ftComo(){
+  const pane = $('#ft-pane'); if(!pane) return;
+  const budget = FT.settings?.budget || 70;
+  const row = ([a,b])=> `<div class="ft-rule"><span>${a}</span><b class="${String(b).startsWith('−')?'neg':''}">${b}</b></div>`;
+  pane.innerHTML = `
+    <div class="panel"><h3 style="margin-top:0">¿Cómo se juega?</h3>
+      <ol class="ft-steps">${FT_STEPS.map(([t,d])=> `<li><b>${t}</b><span>${d.replace('Los mejores cuestan más.', `Tienes $${budget}. Los mejores cuestan más.`)}</span></li>`).join('')}</ol>
+      <p class="ft-note">⏱ Puedes armarlo o cambiarlo hasta que empiece el partido. Si no lo armas, juegas con el de la fecha anterior, pero sin capitán.</p>
+    </div>
+    <div class="panel"><h3 style="margin-top:0">Puntos de cada jugador de tu quinteto</h3>${FT_PTS_PLAYER.map(row).join('')}</div>
+    <div class="panel"><h3 style="margin-top:0">Tus bonos (son tuyos, no del quinteto)</h3>${FT_PTS_BONUS.map(row).join('')}
+      <div class="ft-faq">
+        <p><b>¿La predicción suma?</b> Sí: +5 si aciertas el marcador exacto, +2 si aciertas quién gana o que empatan.</p>
+        <p><b>¿Ir a entrenar suma?</b> Sí: +2 si fuiste al menos a un entreno en la semana antes del partido.</p>
+        <p><b>¿Responder la convocatoria suma?</b> Sí: +2 por responder en la app (vayas o no).</p>
+      </div></div>
+    ${ftPrizesHTML() ? `<h3 class="section-title" style="margin:6px 0 8px">Premios</h3>${ftPrizesHTML()}` : ''}
+    <div class="panel ft-share-panel"><h3 style="margin-top:0">Compartir por WhatsApp</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Imágenes listas para mandar al grupo del equipo.</p>
+      <button type="button" data-ft-card="como">${ic('chat')} ¿Cómo se juega?</button>
+      <button type="button" data-ft-card="puntos">${ic('chat')} Tabla de puntos</button>
+      <button type="button" data-ft-card="premios">${ic('chat')} Premios</button>
+    </div>`;
+  pane.querySelectorAll('[data-ft-card]').forEach(b=> b.addEventListener('click', ()=> ftShareCard(b.dataset.ftCard, b)));
+}
+
+async function ftDrawCard(kind){
+  const brand = (getComputedStyle(document.documentElement).getPropertyValue('--brand') || '#F4C515').trim() || '#F4C515';
+  const D = "'Barlow Condensed', 'Arial Narrow', sans-serif", T = "'Barlow', Arial, sans-serif";
+  try{ await Promise.all([document.fonts.load(`800 120px 'Barlow Condensed'`), document.fonts.load(`600 40px 'Barlow'`), document.fonts.load(`700 40px 'Barlow'`)]); }catch(e){}
+  const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0A0B0C'; x.fillRect(0, 0, W, H);
+  const rg = x.createRadialGradient(W*0.8, 120, 20, W*0.8, 120, 900); rg.addColorStop(0, hexA(brand, .22)); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = rg; x.fillRect(0, 0, W, H);
+  x.save(); x.beginPath(); x.moveTo(W - 300, 0); x.lineTo(W, 0); x.lineTo(W, 300); x.closePath(); x.clip();
+  x.fillStyle = brand; for(let i = -4; i < 14; i++){ x.save(); x.translate(W - 300 + i*46, 0); x.rotate(Math.PI/4); x.fillRect(0, -600, 20, 1400); x.restore(); }
+  x.restore();
+  const crest = await loadImg(window.__BRAND?.crest_url || cssUrl('--crest-img'));
+  if(crest) x.drawImage(crest, 64, 60, 120, 120);
+  x.textAlign = 'left'; x.fillStyle = brand; x.font = `800 30px ${T}`; x.fillText('FANTASY ALS', 206, 100);
+  x.fillStyle = '#fff'; fitText(x, teamName().toUpperCase(), 600, 46, 800, D); x.fillText(teamName().toUpperCase(), 206, 152);
+  const title = { como: '¿CÓMO SE JUEGA?', puntos: '¿CUÁNTOS PUNTOS SUMA?', premios: 'PREMIOS' }[kind];
+  x.fillStyle = '#fff'; fitText(x, title, W - 128, 110, 800, D); x.fillText(title, 64, 310);
+  x.fillStyle = brand; x.fillRect(64, 336, 140, 10);
+  const budget = FT?.settings?.budget || 70;
+  if(kind === 'como'){
+    let y = 392;
+    FT_STEPS.forEach(([t, d], i)=>{
+      x.fillStyle = brand; x.beginPath(); x.arc(112, y + 44, 44, 0, Math.PI*2); x.fill();
+      x.fillStyle = '#0A0B0C'; x.font = `800 54px ${D}`; x.textAlign = 'center'; x.fillText(String(i+1), 112, y + 63);
+      x.textAlign = 'left'; x.fillStyle = '#fff'; x.font = `800 50px ${D}`; x.fillText(t, 186, y + 36);
+      x.fillStyle = '#C9CCD2'; x.font = `500 30px ${T}`;
+      const desc = d.replace('Los mejores cuestan más.', `Tienes $${budget}. Los mejores cuestan más.`);
+      const words = desc.split(' '); let line = '', ly = y + 80;
+      words.forEach(w=>{ const test = line ? line + ' ' + w : w; if(x.measureText(test).width > W - 250){ x.fillText(line, 186, ly); line = w; ly += 38; } else line = test; });
+      if(line) x.fillText(line, 186, ly);
+      y = ly + 30;
+    });
+    roundRect(x, 64, H - 196, W - 128, 110, 24); x.fillStyle = hexA(brand, .14); x.fill();
+    x.fillStyle = brand; x.font = `700 30px ${T}`; x.fillText('⏱ Tienes hasta que empiece el partido.', 100, H - 148);
+    x.fillStyle = '#E6E7EA'; x.font = `500 26px ${T}`; x.fillText('Si no lo armas, juegas con el de la fecha anterior, sin capitán.', 100, H - 108);
+  } else if(kind === 'puntos'){
+    let y = 392;
+    const section = (label, rows)=>{
+      x.fillStyle = brand; x.font = `800 28px ${T}`; x.fillText(label, 64, y); y += 16;
+      rows.forEach(([a, b])=>{
+        roundRect(x, 64, y, W - 128, 48, 12); x.fillStyle = 'rgba(255,255,255,.06)'; x.fill();
+        x.fillStyle = '#fff'; x.font = `600 29px ${T}`; x.fillText(a, 88, y + 34);
+        const neg = String(b).startsWith('−');
+        x.font = `800 34px ${D}`; const bw = x.measureText(b).width + 32;
+        roundRect(x, W - 84 - bw, y + 6, bw, 36, 18); x.fillStyle = neg ? '#D93025' : brand; x.fill();
+        x.fillStyle = neg ? '#fff' : '#0A0B0C'; x.textAlign = 'center'; x.fillText(b, W - 84 - bw/2, y + 36); x.textAlign = 'left';
+        y += 56;
+      });
+      y += 40;
+    };
+    section('POR CADA JUGADOR DE TU QUINTETO', FT_PTS_PLAYER);
+    section('TUS BONOS', FT_PTS_BONUS);
+  } else {
+    const list = FT?.prizes || [];
+    let y = 410;
+    if(!list.length){ x.fillStyle = '#C9CCD2'; x.font = `600 40px ${T}`; x.fillText('Los premios se anuncian pronto.', 64, y + 40); }
+    list.slice(0, 6).forEach(p=>{
+      const hBox = p.description || p.sponsor ? 170 : 120;
+      roundRect(x, 64, y, W - 128, hBox, 24);
+      x.fillStyle = p.period === 'temporada' ? '#6B5600' : p.period === 'compromiso' ? '#17643A' : 'rgba(255,255,255,.08)'; x.fill();
+      x.fillStyle = '#fff'; x.font = `48px ${T}`; x.fillText(p.period === 'temporada' ? '🏆' : p.period === 'compromiso' ? '💪' : '🎁', 96, y + 76);
+      x.fillStyle = brand; x.font = `800 24px ${T}`; x.fillText((FT_PERIOD[p.period] || 'Premio').toUpperCase(), 180, y + 46);
+      x.fillStyle = '#fff'; fitText(x, p.title, W - 300, 50, 800, D); x.fillText(p.title, 180, y + 96);
+      x.fillStyle = '#D5D8DC'; x.font = `500 26px ${T}`;
+      const sub = [p.description, p.sponsor ? 'Presentado por ' + p.sponsor : ''].filter(Boolean).join(' · ');
+      if(sub){ fitText(x, sub, W - 300, 26, 500, T); x.fillText(sub, 180, y + 140); }
+      y += hBox + 22;
+    });
+  }
+  x.textAlign = 'center'; x.fillStyle = '#8A8F96'; x.font = `600 24px ${T}`;
+  x.fillText(`Juega en la app del equipo · Presupuesto $${budget} por quinteto`, W/2, H - 40);
+  return c;
+}
+async function ftShareCard(kind, btn){
+  const old = btn?.innerHTML; if(btn){ btn.disabled = true; btn.textContent = 'Preparando…'; }
+  let canvas;
+  try{ canvas = await ftDrawCard(kind); }
+  catch(e){ toast('No se pudo crear la imagen: ' + (e.message || e), true); if(btn){ btn.disabled = false; btn.innerHTML = old; } return; }
+  if(btn){ btn.disabled = false; btn.innerHTML = old; }
+  let blob = null, url;
+  try{ blob = await new Promise(r=> canvas.toBlob(r, 'image/png')); url = URL.createObjectURL(blob); }catch(e){ url = canvas.toDataURL('image/png'); }
+  const name = `fantasy-als-${kind}.png`;
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  ov.innerHTML = `
+    <div class="panel st-modal-box piece-box" style="max-width:380px">
+      <h3 style="margin-top:0">Fantasy ALS · ${{ como:'Cómo se juega', puntos:'Puntos', premios:'Premios' }[kind]}</h3>
+      <img src="${url}" alt="Tarjeta del Fantasy" class="piece-img" />
+      <p class="muted" style="font-size:13px;margin:8px 0 0">En el celular también puedes mantener presionada la imagen para guardarla.</p>
+      <div class="piece-btns">
+        <button type="button" id="ftc-share">${ic('chat')} Compartir</button>
+        <a class="piece-dl" href="${url}" download="${name}">${ic('download')} Descargar</a>
+        <button type="button" class="secondary" onclick="document.getElementById('st-modal').classList.remove('open')">Cerrar</button>
+      </div>
+    </div>`;
+  ov.classList.add('open');
+  $('#ftc-share').addEventListener('click', async ()=>{
+    try{
+      const file = new File([blob], name, { type: 'image/png' });
+      if(blob && navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file], title: 'Fantasy ALS' }); return; }
+    }catch(e){ if(e?.name === 'AbortError') return; }
+    toast('En este dispositivo no se puede compartir directo: descarga la imagen y súbela a WhatsApp.');
+  });
 }
 
 // ---- Aviso en el Inicio: arma tu quinteto ----
