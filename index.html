@@ -1697,7 +1697,21 @@
 .tp-opt i{position:absolute;left:0;top:0;bottom:0;background:rgba(245,196,0,.25)}.tp-opt span,.tp-opt em{position:relative;font-style:normal}.tp-opt em{font-weight:800;font-size:13px}
 .tp-opt.mine{border-color:var(--brand,#F5C400);border-width:2px}
 .tp-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tp-acts button{width:auto}
-.tp-home{margin:10px 0}
+.tp-home{margin:6px 0 14px;display:grid;gap:10px}
+.tp-home .tp-post{position:relative;background:#0A0B0C;color:#fff;border:0;border-radius:20px;padding:18px 18px 16px;margin:0;box-shadow:0 10px 26px rgba(10,11,12,.22);overflow:hidden}
+.tp-home .tp-post::after{content:'';position:absolute;right:-58px;top:-40px;width:110px;height:120px;background:repeating-linear-gradient(115deg,var(--brand,#F5C400) 0 10px,transparent 10px 22px);opacity:.35;transform:rotate(8deg);pointer-events:none}
+.tp-home .tp-post>*{position:relative;z-index:1}
+.tp-home .tp-k{color:var(--brand,#F5C400);font-size:12px;letter-spacing:.1em;padding-right:44px}
+.tp-home .tp-k::before{content:'NOVEDAD · ';font-weight:800}
+.tp-home .tp-post b{font-size:28px;line-height:1.05;margin:6px 0 6px;color:#fff;padding-right:20px}
+.tp-home .tp-post p{font-size:16px;color:#E6E7EA;line-height:1.4}
+.tp-home .tp-opts{gap:8px;margin:12px 0 8px}
+.tp-home .tp-opt{padding:13px 14px;font-size:16px;border-radius:12px;border-color:#2b2d31;background:#1A1C1F;color:#fff}
+.tp-home .tp-opt i{background:rgba(245,196,0,.35)}
+.tp-home .tp-opt.mine{border-color:var(--brand,#F5C400)}
+.tp-home small.muted{color:#B9BCC2}
+.tp-x{position:absolute!important;top:12px;right:12px;z-index:3!important;width:34px;height:34px;min-height:0;padding:0;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:15px;cursor:pointer}
+.tp-post:not(.tp-home .tp-post) .tp-x{background:#EEF0F2;color:#0A0B0C}
 .tp-form{margin-bottom:10px}
 </style>
 </head>
@@ -3160,14 +3174,13 @@ window.__goToMatchLineupOld = async (matchId)=>{
 };
 
 async function renderDashboard(){
-  main.innerHTML = helloLine() + `<div id="dash-bday"></div><div id="dash-coach-note"></div><div id="dash-vote"></div>` + `
+  main.innerHTML = helloLine() + `<div id="tp-home"></div><div id="dash-bday"></div><div id="dash-coach-note"></div><div id="dash-vote"></div>` + `
     <h1 class="display-xl">El equipo, en un solo lugar</h1>
     <p class="lead">Organización, compromiso y fútbol<br>para seguir haciendo historia.</p>
     <div id="dash-hero"><div class="dash-hero"><div class="dash-hero-inner"><span class="floating-ball">⚽</span> ¡Vamos ${teamName()}! <span class="floating-ball" style="animation-delay:.4s">⚽</span></div></div></div>
     <div id="notify-banner"></div>
     <div id="unread-msgs-banner"></div>
     <div id="store-mgr-banner"></div>
-    <div id="tp-home"></div>
     <div id="ft-banner"></div>
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
@@ -8260,12 +8273,12 @@ async function tpLoad(all){
 }
 function tpCard(p, votes, opts={}){
   const date = new Date(p.created_at).toLocaleDateString('es-CO', { day:'numeric', month:'short' });
-  if(p.kind !== 'encuesta') return `<div class="tp-post${p.active ? '' : ' off'}"><div class="tp-k">📣 Aviso · ${date}${p.active ? '' : ' · oculto'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body).replace(/\n/g,'<br>')}</p>` : ''}${opts.actions || ''}</div>`;
+  if(p.kind !== 'encuesta') return `<div class="tp-post${p.active ? '' : ' off'}">${opts.close || ''}<div class="tp-k">📣 Aviso · ${date}${p.active ? '' : ' · oculto'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body).replace(/\n/g,'<br>')}</p>` : ''}${opts.actions || ''}</div>`;
   const vs = (votes||[]).filter(v=> String(v.post_id) === String(p.id));
   const mine = vs.find(v=> String(v.profile_id) === String(profile?.id));
   const total = vs.length;
   const showRes = mine || opts.results;
-  return `<div class="tp-post poll${p.active ? '' : ' off'}"><div class="tp-k">🗳️ Encuesta · ${date} · ${total} voto${total===1?'':'s'}${p.active ? '' : ' · oculta'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body)}</p>` : ''}
+  return `<div class="tp-post poll${p.active ? '' : ' off'}">${opts.close || ''}<div class="tp-k">🗳️ Encuesta · ${date} · ${total} voto${total===1?'':'s'}${p.active ? '' : ' · oculta'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body)}</p>` : ''}
     <div class="tp-opts">${(p.options||[]).map((o,i)=>{
       const n = vs.filter(v=> v.option_idx === i).length; const pct = total ? Math.round(n/total*100) : 0;
       return `<button type="button" class="tp-opt${mine && mine.option_idx === i ? ' mine' : ''}" data-tp-poll="${p.id}" data-tp-opt="${i}" ${p.active ? '' : 'disabled'}>
@@ -8341,9 +8354,20 @@ async function renderTeamPostsHome(){
   const el = $('#tp-home'); if(!el) return;
   const d = await tpLoad(false);
   if(d.error){ el.innerHTML = ''; return; }
-  const show = d.posts.filter(p=> p.kind !== 'encuesta' || !d.votes.some(v=> String(v.post_id) === String(p.id) && String(v.profile_id) === String(profile.id))).slice(0, 3);
-  el.innerHTML = show.length ? `<div class="tp-home">${show.map(p=> tpCard(p, d.votes)).join('')}</div>` : '';
+  const manage = tpCanManage();
+  const show = d.posts.slice(0, 3);
+  el.innerHTML = show.length ? `<div class="tp-home">${show.map(p=> tpCard(p, d.votes, {
+    results: manage,
+    close: manage ? `<button type="button" class="tp-x" data-tp-hdel="${p.id}" aria-label="Eliminar">✕</button>` : '',
+  })).join('')}</div>` : '';
   tpBind(el, renderTeamPostsHome);
+  el.querySelectorAll('[data-tp-hdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('¿Eliminar esta publicación para todo el equipo?')) return;
+    await supabase.from('team_poll_votes').delete().eq('post_id', b.dataset.tpHdel);
+    const { error } = await supabase.from('team_posts').delete().eq('id', b.dataset.tpHdel);
+    if(error){ toast(error.message, true); return; }
+    toast('Publicación eliminada'); renderTeamPostsHome();
+  }));
 }
 
 // ---------------- FORMACIÓN (módulo propio) ----------------
