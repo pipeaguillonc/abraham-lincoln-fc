@@ -1661,6 +1661,30 @@
 .vt-v span{flex:1}
 .vt-v em{font-style:normal;font-size:12px;color:#6B7280}
 .vt-v.on{border-color:var(--brand,#F5C400);background:#FFFBEA}
+
+.ft-tabs{overflow-x:auto;scrollbar-width:none}.ft-tabs::-webkit-scrollbar{display:none}
+.ft-tabs button{flex:0 0 auto;padding:9px 12px}
+.ft-post{background:#fff;border:1px solid #E6E7EA;border-left:4px solid var(--brand,#F5C400);border-radius:14px;padding:10px 12px;margin-bottom:10px;color:#0A0B0C}
+.ft-post-k{font:700 11px 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6B7280}
+.ft-post b{display:block;font:800 18px 'Barlow Condensed',sans-serif;margin:2px 0}.ft-post p{margin:2px 0 0;font-size:14px}
+.ft-opts{display:grid;gap:6px;margin:8px 0 6px}
+.ft-opt{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;width:100%;min-height:0;padding:9px 12px;border-radius:10px;border:1px solid #D7DADF;background:#fff;color:#0A0B0C;text-align:left;font:600 14px 'Barlow',sans-serif}
+.ft-opt i{position:absolute;left:0;top:0;bottom:0;background:rgba(245,196,0,.25)}.ft-opt span,.ft-opt em{position:relative;font-style:normal}.ft-opt em{font-weight:800}
+.ft-opt.mine{border-color:var(--brand,#F5C400);border-width:2px}
+.ft-home-posts{margin:10px 0}
+.ft-adm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.ft-adm-stats div{background:#0A0B0C;color:#fff;border-radius:14px;padding:10px 8px;text-align:center}
+.ft-adm-stats b{display:block;font:800 22px 'Barlow Condensed',sans-serif;color:var(--brand,#F5C400)}.ft-adm-stats span{font-size:11px;color:#cfd2d6}
+.ft-adm-list{display:grid;gap:6px;max-height:520px;overflow-y:auto}
+.ft-adm-row{display:flex;align-items:center;gap:10px;border:1px solid #E6E7EA;border-radius:12px;padding:8px 10px;background:#fff}
+.ft-adm-row .t{flex:1;min-width:0}.ft-adm-row .t b{display:block;font:700 14px 'Barlow',sans-serif}.ft-adm-row .t small{font-size:12px;color:#6B7280}
+.ft-adm-chk{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:#6B7280}.ft-adm-chk input{width:20px;height:20px;margin:0}
+.ft-adm-pts{text-align:right}.ft-adm-pts b{display:block;font:800 20px 'Barlow Condensed',sans-serif}.ft-adm-pts small{font-size:11px;color:#6B7280}
+.ft-two{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
+.ft-adm-post{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;border-top:1px solid #EEF0F2;padding:8px 0;flex-wrap:wrap}
+.ft-adm-post.off{opacity:.55}.ft-adm-post .t small{display:block;font-size:12px;color:#6B7280}.ft-adm-post .t b{font:700 15px 'Barlow',sans-serif}
+.ft-adm-res{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;margin-top:2px}
+.ft-adm-btns{display:flex;gap:6px;flex-wrap:wrap}.ft-adm-btns button{width:auto}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -3138,6 +3162,7 @@ async function renderDashboard(){
   renderBirthdays();
   renderCoachNote();
   renderVoteCard();
+  if(profile?.role !== 'jugador' && profile?.role !== 'fichaje') renderFantasyBanner();
   renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
@@ -3822,10 +3847,13 @@ async function renderMedico(){
 // Vota quien jugó (o confirmó "Voy") el partido; no puede votarse a sí mismo.
 // La votación abre al terminar el día del partido y cierra 48 horas después.
 // Al cierre, el cuerpo técnico/Comité confirma la figura con un toque.
-const VOTE_HOURS = 48;
+const VOTE_HOURS = 24;
+// La votación abre cuando empieza el partido y dura 24 horas; al cerrar, la
+// figura queda nombrada sola con el más votado (función close_mvp_votes en Supabase).
+async function closeMvpVotes(){ try{ await supabase.rpc('close_mvp_votes'); }catch(e){} }
 function voteWindow(m){
   const start = new Date(m.match_date + 'T' + (m.match_time || '06:00:00'));
-  const end = new Date(m.match_date + 'T00:00:00'); end.setDate(end.getDate() + 1); end.setHours(end.getHours() + VOTE_HOURS);
+  const end = new Date(start.getTime() + VOTE_HOURS * 3600000);
   return { start, end, open: Date.now() >= start.getTime() && Date.now() < end.getTime(), closed: Date.now() >= end.getTime() };
 }
 async function voteData(m){
@@ -3860,6 +3888,7 @@ function voteResultsHTML(d){
 }
 async function renderVoteCard(){
   const el = $('#dash-vote'); if(!el) return;
+  await closeMvpVotes();
   const today = new Date(); const from = new Date(today); from.setDate(from.getDate() - 4);
   const { data: ms } = await supabase.from('matches').select('*').gte('match_date', from.toISOString().slice(0,10)).lte('match_date', today.toISOString().slice(0,10)).order('match_date', { ascending: false });
   const m = (ms||[]).find(x=> !x.mvp_player_id && voteWindow(x).open);
@@ -3890,6 +3919,7 @@ window.__vote = async (matchId, pid, btn)=>{
 };
 async function renderMatchVote(matchId){
   const el = document.getElementById('match-vote'); if(!el) return;
+  await closeMvpVotes();
   const { data: m } = await supabase.from('matches').select('*').eq('id', matchId).single();
   if(!m || m.mvp_player_id){ el.closest('.panel')?.remove(); return; }
   const w = voteWindow(m);
@@ -3898,7 +3928,7 @@ async function renderMatchVote(matchId){
   const notYet = Date.now() < w.start.getTime();
   el.innerHTML = `
     ${notYet ? `<p class="muted" style="margin:0 0 6px">La votación abre cuando termine el partido.</p>` : `
-    <p class="muted" style="margin:0 0 6px">${w.closed ? 'Votación cerrada.' : `Abierta · cierra en ${hoursLeft(w.end)}.`} Votan los jugadores que estuvieron en el partido.</p>
+    <p class="muted" style="margin:0 0 6px">${w.closed ? 'Votación cerrada.' : `Abierta · cierra en ${hoursLeft(w.end)}.`} Votan los jugadores que estuvieron en el partido. Al cerrar (24 h), el más votado queda como figura automáticamente.</p>
     ${voteResultsHTML(d)}
     ${canManage() && lead ? `<button type="button" style="margin-top:10px" onclick="window.__confirmMvp('${m.id}','${lead.p.id}')">🏅 Nombrar figura a ${escS(lead.p.full_name)}</button>` : ''}`}
     ${canManage() ? voteVotersHTML(m, d) : ''}`;
@@ -7531,16 +7561,51 @@ function ftLeft(ms){
   return d ? `${d} d ${hh} h` : hh ? `${hh} h ${mm} min` : `${mm} min`;
 }
 async function ftBase(){
-  const [st, pr, pz] = await Promise.all([
+  const [st, pr, pz, po] = await Promise.all([
     supabase.from('fantasy_settings').select('*').eq('id', 1).maybeSingle(),
     supabase.rpc('fantasy_prices'),
     supabase.from('fantasy_prizes').select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
+    supabase.from('fantasy_posts').select('*').eq('active', true).order('created_at', {ascending:false}),
   ]);
+  const posts = po.error ? [] : (po.data || []);
+  let votes = [];
+  if(posts.some(p=> p.kind === 'encuesta')){
+    const { data } = await supabase.from('fantasy_poll_votes').select('post_id,profile_id,option_idx').in('post_id', posts.filter(p=> p.kind === 'encuesta').map(p=> p.id));
+    votes = data || [];
+  }
   return {
     missing: !!st.error, settings: st.data || { active:false, budget:70 },
     prices: Object.fromEntries((pr.data||[]).map(r=> [String(r.player_id), r])),
-    prizes: pz.data || [],
+    prizes: pz.data || [], posts, votes,
   };
+}
+function ftIsAdmin(settings){ return isMaster() || (settings?.delegate_ids || []).map(String).includes(String(profile?.id)); }
+// Avisos y encuestas (los crea el administrador del Fantasy)
+function ftPostsHTML(posts, votes){
+  if(!posts?.length) return '';
+  return posts.map(p=>{
+    if(p.kind !== 'encuesta') return `<div class="ft-post"><div class="ft-post-k">📣 Aviso</div><b>${ftEsc(p.title)}</b>${p.body ? `<p>${ftEsc(p.body).replace(/\n/g,'<br>')}</p>` : ''}</div>`;
+    const vs = (votes||[]).filter(v=> String(v.post_id) === String(p.id));
+    const mine = vs.find(v=> String(v.profile_id) === String(profile?.id));
+    const total = vs.length || 0;
+    return `<div class="ft-post poll"><div class="ft-post-k">🗳️ Encuesta · ${total} voto${total===1?'':'s'}</div><b>${ftEsc(p.title)}</b>${p.body ? `<p>${ftEsc(p.body)}</p>` : ''}
+      <div class="ft-opts">${(p.options||[]).map((o,i)=>{
+        const n = vs.filter(v=> v.option_idx === i).length; const pct = total ? Math.round(n/total*100) : 0;
+        return `<button type="button" class="ft-opt${mine && mine.option_idx === i ? ' mine' : ''}" data-ft-poll="${p.id}" data-ft-opt="${i}">
+          ${mine ? `<i style="width:${pct}%"></i>` : ''}<span>${ftEsc(o)}</span>${mine ? `<em>${pct}%</em>` : ''}</button>`;
+      }).join('')}</div>
+      <small class="muted">${mine ? 'Ya votaste. Puedes cambiar tu voto tocando otra opción.' : 'Toca una opción para votar.'}</small></div>`;
+  }).join('');
+}
+async function ftVotePoll(postId, idx){
+  const { error } = await supabase.from('fantasy_poll_votes').upsert({ post_id: postId, profile_id: profile.id, option_idx: idx }, { onConflict: 'post_id,profile_id' });
+  if(error){ toast(error.message, true); return false; }
+  toast('Voto registrado 🗳️'); return true;
+}
+function ftBindPolls(root, after){
+  root.querySelectorAll('[data-ft-poll]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(await ftVotePoll(b.dataset.ftPoll, Number(b.dataset.ftOpt))) after && after();
+  }));
 }
 async function ftNextMatch(){
   const today = new Date(Date.now() - 864e5).toISOString().slice(0,10);
@@ -7554,12 +7619,12 @@ async function renderFantasy(){
   if(!playersCache.length) await loadPlayersCache();
   main.innerHTML = `<div class="ft-head"><h2 class="section-title" style="margin:0">Fantasy ALS</h2></div><div id="ft-body"><p class="muted">Cargando…</p></div>`;
   const base = await ftBase();
-  FT = { ...base, tab: (FT && FT.tab) || 'quinteto', comite: isMaster() };
+  FT = { ...base, tab: (FT && FT.tab) || 'quinteto', comite: isMaster(), admin: ftIsAdmin(base.settings) };
   if(FT.missing){
     $('#ft-body').innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase el SQL del Fantasy (<b>fantasy.sql</b>).</p></div>`;
     return;
   }
-  if(!FT.settings.active && !FT.comite){
+  if(!FT.settings.active && !FT.admin){
     $('#ft-body').innerHTML = `
       <div class="ft-hero"><div class="ft-kick">Próximamente</div><h1>Fantasy ALS</h1><p>Cada fecha arma tu quinteto con 5 jugadores del equipo, elige capitán y predice el marcador. El que más puntos sume se lleva los premios.</p></div>
       <div id="ft-pane"></div>`;
@@ -7570,13 +7635,16 @@ async function renderFantasy(){
 }
 function ftRender(){
   const body = $('#ft-body'); if(!body) return;
-  const tabs = [['quinteto','Mi quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios'],['como','Cómo jugar']];
+  const tabs = [['quinteto','Quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios'],['como','Reglas'], ...(FT.admin ? [['admin','Admin']] : [])];
+  if(FT.tab === 'admin' && !FT.admin) FT.tab = 'quinteto';
   body.innerHTML = `
-    ${!FT.settings.active ? `<div class="notify-banner" style="margin-bottom:10px"><b>El Fantasy está apagado.</b> Solo el Comité lo ve. Actívalo en la pestaña Premios cuando arranque la temporada.</div>` : ''}
+    ${!FT.settings.active ? `<div class="notify-banner" style="margin-bottom:10px"><b>El Fantasy está apagado.</b> Solo lo ven el Comité y los delegados. Actívalo en la pestaña Admin cuando arranque.</div>` : ''}
+    <div id="ft-posts">${FT.tab !== 'admin' ? ftPostsHTML(FT.posts, FT.votes) : ''}</div>
     <div class="ft-tabs">${tabs.map(([k,l])=> `<button type="button" class="${FT.tab===k?'on':''}" data-ft-tab="${k}">${l}</button>`).join('')}</div>
     <div id="ft-pane"><p class="muted">Cargando…</p></div>`;
   body.querySelectorAll('[data-ft-tab]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftTab; ftRender(); }));
-  ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo })[FT.tab]();
+  ftBindPolls($('#ft-posts'), async ()=>{ const b = await ftBase(); FT.posts = b.posts; FT.votes = b.votes; ftRender(); });
+  ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin })[FT.tab]();
 }
 
 // ---- Mi quinteto ----
@@ -7708,7 +7776,8 @@ async function ftTabla(){
   const mon = FT.month && months.includes(FT.month) ? FT.month : months[months.length-1];
   const fec = FT.fecha && b.matches.some(x=> x.id === FT.fecha) ? FT.fecha : b.matches[b.matches.length-1]?.id;
   const ids = scope === 'temporada' ? b.matches.map(x=> x.id) : scope === 'mes' ? b.matches.filter(x=> String(x.date).startsWith(mon)).map(x=> x.id) : [fec];
-  const rows = b.managers.map(x=> ({ id:x.profile_id, name:x.name, pid:x.player_id, t: ids.reduce((s,id)=> s + (x.rows?.[id]?.total || 0), 0),
+  const adjOf = x=> (x.adj||[]).filter(a=> scope === 'temporada' || (scope === 'mes' && String(a.date).slice(0,7) === mon)).reduce((s,a)=> s + (a.points||0), 0);
+  const rows = b.managers.map(x=> ({ id:x.profile_id, name:x.name, pid:x.player_id, t: ids.reduce((s,id)=> s + (x.rows?.[id]?.total || 0), 0) + (scope === 'fecha' ? 0 : adjOf(x)),
     best: Math.max(0, ...Object.values(x.rows||{}).map(r=> r.total||0)) })).sort((a,c)=> c.t - a.t || a.name.localeCompare(c.name));
   const num = id=> playersCache.find(p=> String(p.id) === id)?.jersey_number ?? '';
   const monthName = k=> { const [y,mm] = k.split('-').map(Number); return new Date(y, mm-1, 1).toLocaleDateString('es-CO', { month:'long' }); };
@@ -7750,18 +7819,10 @@ function ftPrizesHTML(scope){
 function ftPremios(){
   const pane = $('#ft-pane');
   pane.innerHTML = `
-    ${FT.comite ? `
-    <div class="panel"><h3 style="margin-top:0">⚙️ Configuración (Comité)</h3>
-      <label class="ft-switch"><input type="checkbox" id="ft-active" ${FT.settings.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
-      <label class="field-label" for="ft-budget">Presupuesto por quinteto ($)</label>
-      <input type="number" id="ft-budget" min="40" max="150" value="${FT.settings.budget || 70}">
-      <p class="muted" style="margin:4px 0 0;font-size:12px">Con menos presupuesto es más difícil: no alcanza para escoger solo a los mejores. Recomendado: $70.</p>
-      <button type="button" id="ft-save-set" style="margin-top:8px">Guardar configuración</button>
-    </div>` : ''}
     <h3 class="section-title" style="margin:6px 0 8px">Premios</h3>
     ${ftPrizesHTML() || '<p class="muted">El Comité todavía no ha definido los premios.</p>'}
-    ${FT.comite ? `
-    <div class="panel"><h3 style="margin-top:0">Premios (Comité)</h3>
+    ${FT.admin ? `
+    <div class="panel"><h3 style="margin-top:0">Editar premios</h3>
       ${(FT.prizes||[]).map(p=> `<div class="ft-pz-edit"><div><b>${ftEsc(p.title)}</b><small>${FT_PERIOD[p.period]||p.period}${p.sponsor?' · '+ftEsc(p.sponsor):''}</small></div><button type="button" class="small secondary" data-ft-pz-del="${p.id}">Eliminar</button></div>`).join('') || '<p class="muted">Sin premios todavía.</p>'}
       <label class="field-label" for="ft-pz-period">Tipo</label>
       <select id="ft-pz-period">${Object.entries(FT_PERIOD).map(([k,l])=> `<option value="${k}">${l}</option>`).join('')}</select>
@@ -7775,12 +7836,6 @@ function ftPremios(){
     </div>` : ''}
     <button type="button" class="secondary ft-share-btn" data-ft-card="premios">${ic('chat')} Compartir premios por WhatsApp</button>`;
   pane.querySelector('[data-ft-card]')?.addEventListener('click', e=> ftShareCard('premios', e.currentTarget));
-  $('#ft-save-set')?.addEventListener('click', async ()=>{
-    const upd = { id: 1, active: $('#ft-active').checked, budget: Math.max(40, parseInt($('#ft-budget').value,10) || 70), updated_at: new Date().toISOString() };
-    const { error } = await supabase.from('fantasy_settings').upsert(upd);
-    if(error){ toast(error.message, true); return; }
-    FT.settings = { ...FT.settings, ...upd }; toast(upd.active ? 'Fantasy activado ⚽' : 'Configuración guardada'); ftRender();
-  });
   $('#ft-pz-add')?.addEventListener('click', async ()=>{
     const title = $('#ft-pz-title').value.trim();
     if(!title){ toast('Escribe el premio', true); return; }
@@ -7947,14 +8002,219 @@ async function ftShareCard(kind, btn){
   });
 }
 
+// ---- Admin del Fantasy (Comité y delegados) ----
+async function ftContacts(){
+  if(FT.contacts) return FT.contacts;
+  let list = [];
+  const r = await supabase.rpc('team_contacts');
+  if(!r.error && Array.isArray(r.data)) list = r.data;
+  if(!list.length){ const p = await supabase.from('profiles').select('id,full_name,role,player_id').order('full_name'); list = p.data || []; }
+  if(profile && !list.some(x=> String(x.id) === String(profile.id))) list.push({ id: profile.id, full_name: profile.full_name, role: profile.role, player_id: profile.player_id });
+  FT.contacts = list.filter(x=> x.full_name).sort((a,b)=> a.full_name.localeCompare(b.full_name));
+  return FT.contacts;
+}
+async function ftAdmin(){
+  const pane = $('#ft-pane'); if(!FT.admin){ pane.innerHTML = ''; return; }
+  pane.innerHTML = '<p class="muted">Cargando…</p>';
+  const [board, contacts, ent, m, allPosts, adjs] = await Promise.all([
+    ftBoard(true), ftContacts(),
+    supabase.from('fantasy_entries').select('*'),
+    ftNextMatch(),
+    supabase.from('fantasy_posts').select('*').order('created_at', {ascending:false}),
+    supabase.from('fantasy_adjustments').select('*').order('created_at', {ascending:false}).limit(30),
+  ]);
+  if(ent.error){ pane.innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase la versión nueva de <b>fantasy.sql</b> (inscritos, delegados, avisos y ajustes).</p></div>`; return; }
+  const entries = new Set((ent.data||[]).filter(e=> e.paid).map(e=> String(e.profile_id)));
+  let picked = new Set();
+  if(m){ const ps = await supabase.rpc('fantasy_pick_status', { p_match: String(m.id) }); picked = new Set((ps.data||[]).map(x=> String(x.profile_id))); }
+  const S = FT.settings; const fee = S.entry_fee ?? 20000;
+  const totals = {}; const played = {};
+  (board.managers||[]).forEach(x=>{
+    totals[x.profile_id] = Object.values(x.rows||{}).reduce((s,r)=> s + (r.total||0), 0) + (x.adj||[]).reduce((s,a)=> s + (a.points||0), 0);
+    played[x.profile_id] = Object.values(x.rows||{}).filter(r=> !r.auto && (r.players||[]).length).length;
+  });
+  const people = contacts.filter(c=> ['jugador','fichaje'].includes(c.role) || entries.has(String(c.id)) || totals[c.id] != null);
+  const ranked = Object.entries(totals).sort((a,b)=> b[1]-a[1]).map(([id])=> id);
+  const filter = FT.admFilter || 'todos';
+  const shown = people.filter(c=> filter === 'todos' || (filter === 'inscritos' && entries.has(String(c.id))) || (filter === 'faltan' && (!S.require_entry || entries.has(String(c.id))) && !picked.has(String(c.id))))
+    .sort((a,b)=> (totals[b.id] ?? -1) - (totals[a.id] ?? -1) || a.full_name.localeCompare(b.full_name));
+  const eligible = people.filter(c=> !S.require_entry || entries.has(String(c.id)));
+  const missing = eligible.filter(c=> !picked.has(String(c.id)));
+  const delegates = (S.delegate_ids||[]).map(String);
+  const money = n=> '$' + Number(n||0).toLocaleString('es-CO');
+  pane.innerHTML = `
+    <div class="ft-adm-stats">
+      <div><b>${entries.size}</b><span>Inscritos</span></div>
+      <div><b>${money(entries.size * fee)}</b><span>Recaudo</span></div>
+      <div><b>${m ? `${eligible.length - missing.length}/${eligible.length}` : '—'}</b><span>${m ? `Quinteto vs ${ftEsc(m.opponent)}` : 'Sin próximo partido'}</span></div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0">👥 Participantes</h3>
+      <div class="ft-filter">${[['todos','Todos'],['inscritos','Inscritos'],['faltan','Les falta quinteto']].map(([k,l])=> `<button type="button" class="${filter===k?'on':''}" data-ft-af="${k}">${l}</button>`).join('')}</div>
+      <div class="ft-adm-list">
+        ${shown.map(c=>{ const id = String(c.id); const pos = ranked.indexOf(id) + 1; return `
+          <div class="ft-adm-row">
+            <label class="ft-adm-chk" title="Inscrito (pagó)"><input type="checkbox" data-ft-entry="${id}" ${entries.has(id)?'checked':''}><span>pagó</span></label>
+            <div class="t"><b>${ftEsc(c.full_name)}${delegates.includes(id) ? ' <em class="ft-me">delegado</em>' : ''}</b>
+              <small>${m ? (picked.has(id) ? '✅ Armó quinteto' : '⏳ Sin quinteto') : ''}${played[id] ? ` · ${played[id]} fecha${played[id]===1?'':'s'} jugada${played[id]===1?'':'s'}` : ''}</small></div>
+            <div class="ft-adm-pts"><b>${totals[id] ?? 0}</b><small>${pos ? `#${pos}` : 'pts'}</small></div>
+          </div>`; }).join('') || '<p class="muted">No hay personas en este filtro.</p>'}
+      </div>
+      ${m && missing.length ? `<button type="button" class="wa-btn" style="width:100%;margin-top:10px" id="ft-remind">${ic('chat')} ${missing.length === 1 ? 'Recordar por WhatsApp al que falta' : `Recordar por WhatsApp a los ${missing.length} que faltan`}</button>` : ''}
+    </div>
+
+    <div class="panel"><h3 style="margin-top:0">⚙️ Configuración</h3>
+      <label class="ft-switch"><input type="checkbox" id="ft-active" ${S.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
+      <label class="ft-switch"><input type="checkbox" id="ft-req" ${S.require_entry?'checked':''}> <span>Solo juegan los inscritos (los que pagaron)</span></label>
+      <div class="ft-two">
+        <div><label class="field-label" for="ft-budget">Presupuesto por quinteto ($)</label><input type="number" id="ft-budget" min="40" max="150" value="${S.budget || 70}"></div>
+        <div><label class="field-label" for="ft-fee">Valor inscripción (COP)</label><input type="number" id="ft-fee" min="0" step="1000" value="${fee}"></div>
+      </div>
+      <button type="button" id="ft-save-set" style="margin-top:8px">Guardar configuración</button>
+    </div>
+
+    ${FT.comite ? `
+    <div class="panel"><h3 style="margin-top:0">🧑‍⚖️ Delegados del Fantasy</h3>
+      <p class="muted" style="margin-top:0;font-size:13px">Pueden manejar todo el juego (inscritos, premios, avisos, encuestas y ajustes), igual que el Comité. Solo el Comité nombra o quita delegados.</p>
+      ${delegates.map(id=> `<div class="ft-pz-edit"><div><b>${ftEsc(contacts.find(c=> String(c.id) === id)?.full_name || 'Usuario')}</b></div><button type="button" class="small secondary" data-ft-deldel="${id}">Quitar</button></div>`).join('') || '<p class="muted">Todavía no hay delegados.</p>'}
+      <div class="ft-two" style="margin-top:8px"><select id="ft-del-sel"><option value="">Elegir persona…</option>${contacts.filter(c=> !delegates.includes(String(c.id))).map(c=> `<option value="${c.id}">${ftEsc(c.full_name)}</option>`).join('')}</select>
+      <button type="button" id="ft-del-add">Nombrar delegado</button></div>
+    </div>` : ''}
+
+    <div class="panel"><h3 style="margin-top:0">📣 Avisos y encuestas</h3>
+      <p class="muted" style="margin-top:0;font-size:13px">Salen arriba en el Fantasy y en el Inicio de todos. Úsalos para un anuncio, un hecho fortuito (partido suspendido, cambio de reglas) o para preguntarle algo al grupo.</p>
+      <div class="ft-filter">${[['aviso','📣 Aviso'],['encuesta','🗳️ Encuesta']].map(([k,l])=> `<button type="button" class="${(FT.postKind||'aviso')===k?'on':''}" data-ft-pk="${k}">${l}</button>`).join('')}</div>
+      <label class="field-label" for="ft-p-title">${(FT.postKind||'aviso') === 'encuesta' ? 'Pregunta' : 'Título'}</label>
+      <input id="ft-p-title" placeholder="${(FT.postKind||'aviso') === 'encuesta' ? 'Ej. ¿Qué premio prefieren para el campeón?' : 'Ej. La fecha 8 se aplaza'}">
+      <label class="field-label" for="ft-p-body">Texto (opcional)</label>
+      <textarea id="ft-p-body" rows="2" placeholder="Detalle del aviso"></textarea>
+      ${(FT.postKind||'aviso') === 'encuesta' ? `<label class="field-label" for="ft-p-opts">Opciones (una por línea)</label><textarea id="ft-p-opts" rows="3" placeholder="Camiseta personalizada&#10;Cena pagada&#10;Guayos"></textarea>` : ''}
+      <button type="button" id="ft-p-add" style="margin-top:8px">Publicar</button>
+      <div style="margin-top:12px">${(allPosts.data||[]).map(p=>{
+        const opts = p.options || [];
+        return `<div class="ft-adm-post${p.active?'':' off'}"><div class="t"><small>${p.kind === 'encuesta' ? '🗳️ Encuesta' : '📣 Aviso'} · ${new Date(p.created_at).toLocaleDateString('es-CO')}${p.active ? '' : ' · oculto'}</small><b>${ftEsc(p.title)}</b>
+          ${p.kind === 'encuesta' ? `<div class="ft-adm-res" data-ft-res="${p.id}">${opts.map(o=> `<span>${ftEsc(o)}: …</span>`).join('')}</div>` : ''}</div>
+          <div class="ft-adm-btns"><button type="button" class="small secondary" data-ft-ptog="${p.id}" data-on="${p.active?1:0}">${p.active ? 'Ocultar' : 'Mostrar'}</button>
+          <button type="button" class="small secondary" data-ft-pwa="${p.id}">WhatsApp</button>
+          <button type="button" class="small secondary" data-ft-pdel="${p.id}">Eliminar</button></div></div>`;
+      }).join('')}</div>
+    </div>
+
+    <div class="panel"><h3 style="margin-top:0">➕➖ Ajuste de puntos</h3>
+      <p class="muted" style="margin-top:0;font-size:13px">Para hechos fortuitos: sumar o quitar puntos a alguien con el motivo. Se ve en la tabla de la temporada.</p>
+      <select id="ft-adj-who"><option value="">Elegir persona…</option>${people.map(c=> `<option value="${c.id}">${ftEsc(c.full_name)}</option>`).join('')}</select>
+      <div class="ft-two"><div><label class="field-label" for="ft-adj-pts">Puntos (+ o −)</label><input type="number" id="ft-adj-pts" placeholder="Ej. 5 o -3"></div>
+      <div><label class="field-label" for="ft-adj-why">Motivo</label><input id="ft-adj-why" placeholder="Ej. Partido suspendido"></div></div>
+      <button type="button" id="ft-adj-add" style="margin-top:8px">Aplicar ajuste</button>
+      ${(adjs.data||[]).map(a=> `<div class="ft-pz-edit"><div><b>${a.points > 0 ? '+' : ''}${a.points} · ${ftEsc(contacts.find(c=> String(c.id) === String(a.profile_id))?.full_name || '—')}</b><small>${ftEsc(a.reason)} · ${new Date(a.created_at).toLocaleDateString('es-CO')}</small></div><button type="button" class="small secondary" data-ft-adjdel="${a.id}">Quitar</button></div>`).join('')}
+    </div>`;
+
+  const reload = ()=>{ FT.contacts = FT.contacts; ftAdmin(); };
+  pane.querySelectorAll('[data-ft-af]').forEach(b=> b.addEventListener('click', ()=>{ FT.admFilter = b.dataset.ftAf; ftAdmin(); }));
+  pane.querySelectorAll('[data-ft-entry]').forEach(cb=> cb.addEventListener('change', async ()=>{
+    cb.disabled = true;
+    const id = cb.dataset.ftEntry;
+    const r = cb.checked ? await supabase.from('fantasy_entries').upsert({ profile_id: id, paid: true }, { onConflict: 'profile_id' }) : await supabase.from('fantasy_entries').delete().eq('profile_id', id);
+    cb.disabled = false;
+    if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
+    toast(cb.checked ? 'Inscrito ✅' : 'Inscripción quitada'); FT.board = null; ftAdmin();
+  }));
+  $('#ft-remind')?.addEventListener('click', ()=>{
+    const txt = `⚽ *Fantasy ALS*\nAún no han armado su quinteto para el partido vs ${m.opponent} (${fmtDayMon(m.match_date)}):\n${missing.map(c=> '• ' + c.full_name).join('\n')}\n\nSe cierra cuando empieza el partido. Entren a la app → Fantasy ALS → Mi quinteto 💪`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  });
+  $('#ft-save-set').addEventListener('click', async ()=>{
+    const upd = { id: 1, active: $('#ft-active').checked, require_entry: $('#ft-req').checked,
+      budget: Math.max(40, parseInt($('#ft-budget').value,10) || 70), entry_fee: Math.max(0, parseInt($('#ft-fee').value,10) || 0), updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('fantasy_settings').upsert(upd);
+    if(error){ toast(error.message, true); return; }
+    FT.settings = { ...FT.settings, ...upd }; toast(upd.active ? 'Configuración guardada · Fantasy activo ⚽' : 'Configuración guardada'); ftRender();
+  });
+  const saveDelegates = async ids=>{
+    const { error } = await supabase.from('fantasy_settings').update({ delegate_ids: ids, updated_at: new Date().toISOString() }).eq('id', 1);
+    if(error){ toast(error.message, true); return; }
+    FT.settings.delegate_ids = ids; toast('Delegados actualizados'); ftAdmin();
+  };
+  $('#ft-del-add')?.addEventListener('click', ()=>{ const v = $('#ft-del-sel').value; if(!v){ toast('Elige a la persona', true); return; } saveDelegates([...delegates, v]); });
+  pane.querySelectorAll('[data-ft-deldel]').forEach(b=> b.addEventListener('click', ()=>{ if(confirm('¿Quitar este delegado?')) saveDelegates(delegates.filter(x=> x !== b.dataset.ftDeldel)); }));
+  pane.querySelectorAll('[data-ft-pk]').forEach(b=> b.addEventListener('click', ()=>{ FT.postKind = b.dataset.ftPk; ftAdmin(); }));
+  $('#ft-p-add').addEventListener('click', async ()=>{
+    const kind = FT.postKind || 'aviso';
+    const title = $('#ft-p-title').value.trim(); if(!title){ toast('Escribe el título', true); return; }
+    const options = kind === 'encuesta' ? ($('#ft-p-opts').value || '').split('\n').map(s=> s.trim()).filter(Boolean) : [];
+    if(kind === 'encuesta' && options.length < 2){ toast('La encuesta necesita al menos 2 opciones', true); return; }
+    const { error } = await supabase.from('fantasy_posts').insert({ kind, title, body: $('#ft-p-body').value.trim() || null, options, active: true, created_by: profile.id });
+    if(error){ toast(error.message, true); return; }
+    toast('Publicado 📣'); const b = await ftBase(); FT.posts = b.posts; FT.votes = b.votes; ftAdmin();
+  });
+  pane.querySelectorAll('[data-ft-ptog]').forEach(b=> b.addEventListener('click', async ()=>{
+    const { error } = await supabase.from('fantasy_posts').update({ active: b.dataset.on !== '1' }).eq('id', b.dataset.ftPtog);
+    if(error){ toast(error.message, true); return; }
+    const x = await ftBase(); FT.posts = x.posts; FT.votes = x.votes; ftAdmin();
+  }));
+  pane.querySelectorAll('[data-ft-pdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('¿Eliminar esta publicación?')) return;
+    await supabase.from('fantasy_poll_votes').delete().eq('post_id', b.dataset.ftPdel);
+    const { error } = await supabase.from('fantasy_posts').delete().eq('id', b.dataset.ftPdel);
+    if(error){ toast(error.message, true); return; }
+    const x = await ftBase(); FT.posts = x.posts; FT.votes = x.votes; ftAdmin();
+  }));
+  pane.querySelectorAll('[data-ft-pwa]').forEach(b=> b.addEventListener('click', ()=>{
+    const p = (allPosts.data||[]).find(x=> String(x.id) === b.dataset.ftPwa); if(!p) return;
+    const txt = p.kind === 'encuesta'
+      ? `🗳️ *Encuesta Fantasy ALS*\n${p.title}${p.body ? '\n' + p.body : ''}\n\n${(p.options||[]).map((o,i)=> `${i+1}. ${o}`).join('\n')}\n\nVota en la app → Fantasy ALS 👆`
+      : `📣 *Fantasy ALS*\n*${p.title}*${p.body ? '\n' + p.body : ''}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }));
+  // Resultados de encuestas en la lista
+  const pollIds = (allPosts.data||[]).filter(p=> p.kind === 'encuesta').map(p=> p.id);
+  if(pollIds.length){
+    const { data: vs } = await supabase.from('fantasy_poll_votes').select('post_id,option_idx').in('post_id', pollIds);
+    pollIds.forEach(id=>{
+      const el = pane.querySelector(`[data-ft-res="${id}"]`); if(!el) return;
+      const p = allPosts.data.find(x=> x.id === id); const v = (vs||[]).filter(x=> String(x.post_id) === String(id));
+      el.innerHTML = (p.options||[]).map((o,i)=> `<span>${ftEsc(o)}: <b>${v.filter(x=> x.option_idx === i).length}</b></span>`).join('') + `<span class="muted">${v.length} voto${v.length===1?'':'s'}</span>`;
+    });
+  }
+  $('#ft-adj-add').addEventListener('click', async ()=>{
+    const who = $('#ft-adj-who').value, pts = parseInt($('#ft-adj-pts').value, 10), why = $('#ft-adj-why').value.trim();
+    if(!who || !pts || !why){ toast('Elige la persona, los puntos y el motivo', true); return; }
+    const { error } = await supabase.from('fantasy_adjustments').insert({ profile_id: who, points: pts, reason: why, created_by: profile.id });
+    if(error){ toast(error.message, true); return; }
+    toast('Ajuste aplicado'); FT.board = null; ftAdmin();
+  });
+  pane.querySelectorAll('[data-ft-adjdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('¿Quitar este ajuste?')) return;
+    const { error } = await supabase.from('fantasy_adjustments').delete().eq('id', b.dataset.ftAdjdel);
+    if(error){ toast(error.message, true); return; }
+    FT.board = null; ftAdmin();
+  }));
+}
+
 // ---- Aviso en el Inicio: arma tu quinteto ----
 async function renderFantasyBanner(){
   const el = $('#ft-banner'); if(!el) return;
   const st = await supabase.from('fantasy_settings').select('active').eq('id', 1).maybeSingle();
   if(st.error || !st.data?.active){ el.innerHTML = ''; return; }
-  const m = await ftNextMatch(); if(!m){ el.innerHTML = ''; return; }
-  const { data: mine } = await supabase.from('fantasy_picks').select('id').eq('match_id', String(m.id)).eq('profile_id', profile.id).maybeSingle();
-  if(mine){ el.innerHTML = ''; return; }
+  // Avisos y encuestas del Fantasy (las encuestas solo mientras no las hayas votado)
+  let postsHtml = '';
+  try{
+    const { data: posts } = await supabase.from('fantasy_posts').select('*').eq('active', true).order('created_at', {ascending:false}).limit(3);
+    let votes = [];
+    if((posts||[]).some(p=> p.kind === 'encuesta')){ const r = await supabase.from('fantasy_poll_votes').select('post_id,profile_id,option_idx').in('post_id', posts.map(p=> p.id)); votes = r.data || []; }
+    const show = (posts||[]).filter(p=> p.kind !== 'encuesta' || !votes.some(v=> String(v.post_id) === String(p.id) && String(v.profile_id) === String(profile.id)));
+    postsHtml = show.length ? `<div class="ft-home-posts"><div class="ft-post-k" style="margin:0 0 6px">Fantasy ALS</div>${ftPostsHTML(show, votes)}</div>` : '';
+  }catch(e){}
+  const m = await ftNextMatch();
+  let pickHtml = '';
+  if(m){
+    const { data: mine } = await supabase.from('fantasy_picks').select('id').eq('match_id', String(m.id)).eq('profile_id', profile.id).maybeSingle();
+    if(!mine) pickHtml = `<div class="ft-banner"><div><small>Fantasy ALS · vs ${ftEsc(m.opponent)}</small><b>Arma tu quinteto</b><span>Cierra en ${ftLeft(ftKickoff(m) - new Date())}</span></div><button type="button" class="small" onclick="window.__navigate('fantasy')">Armar</button></div>`;
+  }
+  el.innerHTML = postsHtml + pickHtml;
+  ftBindPolls(el, ()=> renderFantasyBanner());
+  return;
   el.innerHTML = `<div class="ft-banner"><div><small>Fantasy ALS · vs ${ftEsc(m.opponent)}</small><b>Arma tu quinteto</b><span>Cierra en ${ftLeft(ftKickoff(m) - new Date())}</span></div><button type="button" class="small" onclick="window.__navigate('fantasy')">Armar</button></div>`;
 }
 
