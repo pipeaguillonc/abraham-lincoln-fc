@@ -1685,6 +1685,20 @@
 .ft-adm-post.off{opacity:.55}.ft-adm-post .t small{display:block;font-size:12px;color:#6B7280}.ft-adm-post .t b{font:700 15px 'Barlow',sans-serif}
 .ft-adm-res{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;margin-top:2px}
 .ft-adm-btns{display:flex;gap:6px;flex-wrap:wrap}.ft-adm-btns button{width:auto}
+
+.tp-head{display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px}.tp-head h3{margin:0}.tp-head button{width:auto}
+.tp-post{background:#fff;border:1px solid #E6E7EA;border-left:4px solid var(--brand,#F5C400);border-radius:14px;padding:10px 12px;margin-bottom:10px;color:#0A0B0C}
+.tp-post.off{opacity:.55}
+.tp-k{font:700 11px 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6B7280}
+.tp-post b{display:block;font:800 18px 'Barlow Condensed',sans-serif;margin:2px 0}.tp-post p{margin:2px 0 0;font-size:14px}
+.tp-opts{display:grid;gap:6px;margin:8px 0 6px}
+.tp-opt{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;width:100%;min-height:0;padding:9px 12px;border-radius:10px;border:1px solid #D7DADF;background:#fff;color:#0A0B0C;text-align:left;font:600 14px 'Barlow',sans-serif}
+.tp-opt:disabled{opacity:1}
+.tp-opt i{position:absolute;left:0;top:0;bottom:0;background:rgba(245,196,0,.25)}.tp-opt span,.tp-opt em{position:relative;font-style:normal}.tp-opt em{font-weight:800;font-size:13px}
+.tp-opt.mine{border-color:var(--brand,#F5C400);border-width:2px}
+.tp-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tp-acts button{width:auto}
+.tp-home{margin:10px 0}
+.tp-form{margin-bottom:10px}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -3153,6 +3167,7 @@ async function renderDashboard(){
     <div id="notify-banner"></div>
     <div id="unread-msgs-banner"></div>
     <div id="store-mgr-banner"></div>
+    <div id="tp-home"></div>
     <div id="ft-banner"></div>
     <div id="dash-cards" class="cards"><p class="muted">Cargando…</p></div>
     <div id="dash-more"></div>
@@ -3163,6 +3178,7 @@ async function renderDashboard(){
   renderCoachNote();
   renderVoteCard();
   if(profile?.role !== 'jugador' && profile?.role !== 'fichaje') renderFantasyBanner();
+  renderTeamPostsHome();
   renderIgCard();
   renderDashHero();
   renderMonthlyHighlights();
@@ -7565,9 +7581,9 @@ async function ftBase(){
     supabase.from('fantasy_settings').select('*').eq('id', 1).maybeSingle(),
     supabase.rpc('fantasy_prices'),
     supabase.from('fantasy_prizes').select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true}),
-    supabase.from('fantasy_posts').select('*').eq('active', true).order('created_at', {ascending:false}),
+    Promise.resolve({ data: [] }),
   ]);
-  const posts = po.error ? [] : (po.data || []);
+  const posts = [];
   let votes = [];
   if(posts.some(p=> p.kind === 'encuesta')){
     const { data } = await supabase.from('fantasy_poll_votes').select('post_id,profile_id,option_idx').in('post_id', posts.filter(p=> p.kind === 'encuesta').map(p=> p.id));
@@ -7639,11 +7655,9 @@ function ftRender(){
   if(FT.tab === 'admin' && !FT.admin) FT.tab = 'quinteto';
   body.innerHTML = `
     ${!FT.settings.active ? `<div class="notify-banner" style="margin-bottom:10px"><b>El Fantasy está apagado.</b> Solo lo ven el Comité y los delegados. Actívalo en la pestaña Admin cuando arranque.</div>` : ''}
-    <div id="ft-posts">${FT.tab !== 'admin' ? ftPostsHTML(FT.posts, FT.votes) : ''}</div>
     <div class="ft-tabs">${tabs.map(([k,l])=> `<button type="button" class="${FT.tab===k?'on':''}" data-ft-tab="${k}">${l}</button>`).join('')}</div>
     <div id="ft-pane"><p class="muted">Cargando…</p></div>`;
   body.querySelectorAll('[data-ft-tab]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftTab; ftRender(); }));
-  ftBindPolls($('#ft-posts'), async ()=>{ const b = await ftBase(); FT.posts = b.posts; FT.votes = b.votes; ftRender(); });
   ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin })[FT.tab]();
 }
 
@@ -8082,25 +8096,6 @@ async function ftAdmin(){
       <button type="button" id="ft-del-add">Nombrar delegado</button></div>
     </div>` : ''}
 
-    <div class="panel"><h3 style="margin-top:0">📣 Avisos y encuestas</h3>
-      <p class="muted" style="margin-top:0;font-size:13px">Salen arriba en el Fantasy y en el Inicio de todos. Úsalos para un anuncio, un hecho fortuito (partido suspendido, cambio de reglas) o para preguntarle algo al grupo.</p>
-      <div class="ft-filter">${[['aviso','📣 Aviso'],['encuesta','🗳️ Encuesta']].map(([k,l])=> `<button type="button" class="${(FT.postKind||'aviso')===k?'on':''}" data-ft-pk="${k}">${l}</button>`).join('')}</div>
-      <label class="field-label" for="ft-p-title">${(FT.postKind||'aviso') === 'encuesta' ? 'Pregunta' : 'Título'}</label>
-      <input id="ft-p-title" placeholder="${(FT.postKind||'aviso') === 'encuesta' ? 'Ej. ¿Qué premio prefieren para el campeón?' : 'Ej. La fecha 8 se aplaza'}">
-      <label class="field-label" for="ft-p-body">Texto (opcional)</label>
-      <textarea id="ft-p-body" rows="2" placeholder="Detalle del aviso"></textarea>
-      ${(FT.postKind||'aviso') === 'encuesta' ? `<label class="field-label" for="ft-p-opts">Opciones (una por línea)</label><textarea id="ft-p-opts" rows="3" placeholder="Camiseta personalizada&#10;Cena pagada&#10;Guayos"></textarea>` : ''}
-      <button type="button" id="ft-p-add" style="margin-top:8px">Publicar</button>
-      <div style="margin-top:12px">${(allPosts.data||[]).map(p=>{
-        const opts = p.options || [];
-        return `<div class="ft-adm-post${p.active?'':' off'}"><div class="t"><small>${p.kind === 'encuesta' ? '🗳️ Encuesta' : '📣 Aviso'} · ${new Date(p.created_at).toLocaleDateString('es-CO')}${p.active ? '' : ' · oculto'}</small><b>${ftEsc(p.title)}</b>
-          ${p.kind === 'encuesta' ? `<div class="ft-adm-res" data-ft-res="${p.id}">${opts.map(o=> `<span>${ftEsc(o)}: …</span>`).join('')}</div>` : ''}</div>
-          <div class="ft-adm-btns"><button type="button" class="small secondary" data-ft-ptog="${p.id}" data-on="${p.active?1:0}">${p.active ? 'Ocultar' : 'Mostrar'}</button>
-          <button type="button" class="small secondary" data-ft-pwa="${p.id}">WhatsApp</button>
-          <button type="button" class="small secondary" data-ft-pdel="${p.id}">Eliminar</button></div></div>`;
-      }).join('')}</div>
-    </div>
-
     <div class="panel"><h3 style="margin-top:0">➕➖ Ajuste de puntos</h3>
       <p class="muted" style="margin-top:0;font-size:13px">Para hechos fortuitos: sumar o quitar puntos a alguien con el motivo. Se ve en la tabla de la temporada.</p>
       <select id="ft-adj-who"><option value="">Elegir persona…</option>${people.map(c=> `<option value="${c.id}">${ftEsc(c.full_name)}</option>`).join('')}</select>
@@ -8139,7 +8134,7 @@ async function ftAdmin(){
   $('#ft-del-add')?.addEventListener('click', ()=>{ const v = $('#ft-del-sel').value; if(!v){ toast('Elige a la persona', true); return; } saveDelegates([...delegates, v]); });
   pane.querySelectorAll('[data-ft-deldel]').forEach(b=> b.addEventListener('click', ()=>{ if(confirm('¿Quitar este delegado?')) saveDelegates(delegates.filter(x=> x !== b.dataset.ftDeldel)); }));
   pane.querySelectorAll('[data-ft-pk]').forEach(b=> b.addEventListener('click', ()=>{ FT.postKind = b.dataset.ftPk; ftAdmin(); }));
-  $('#ft-p-add').addEventListener('click', async ()=>{
+  $('#ft-p-add')?.addEventListener('click', async ()=>{
     const kind = FT.postKind || 'aviso';
     const title = $('#ft-p-title').value.trim(); if(!title){ toast('Escribe el título', true); return; }
     const options = kind === 'encuesta' ? ($('#ft-p-opts').value || '').split('\n').map(s=> s.trim()).filter(Boolean) : [];
@@ -8199,7 +8194,7 @@ async function renderFantasyBanner(){
   if(st.error || !st.data?.active){ el.innerHTML = ''; return; }
   // Avisos y encuestas del Fantasy (las encuestas solo mientras no las hayas votado)
   let postsHtml = '';
-  try{
+  if(false) try{
     const { data: posts } = await supabase.from('fantasy_posts').select('*').eq('active', true).order('created_at', {ascending:false}).limit(3);
     let votes = [];
     if((posts||[]).some(p=> p.kind === 'encuesta')){ const r = await supabase.from('fantasy_poll_votes').select('post_id,profile_id,option_idx').in('post_id', posts.map(p=> p.id)); votes = r.data || []; }
@@ -8216,6 +8211,109 @@ async function renderFantasyBanner(){
   ftBindPolls(el, ()=> renderFantasyBanner());
   return;
   el.innerHTML = `<div class="ft-banner"><div><small>Fantasy ALS · vs ${ftEsc(m.opponent)}</small><b>Arma tu quinteto</b><span>Cierra en ${ftLeft(ftKickoff(m) - new Date())}</span></div><button type="button" class="small" onclick="window.__navigate('fantasy')">Armar</button></div>`;
+}
+
+// ---------------- AVISOS Y ENCUESTAS DEL EQUIPO (en Mensajes) ----------------
+// El Comité y el cuerpo técnico publican avisos (anuncios, hechos fortuitos) o
+// encuestas; todos los ven en Mensajes y, mientras estén activos, en el Inicio.
+function tpCanManage(){ return isMaster() || profile?.role === 'cuerpo_tecnico'; }
+const tpEsc = v=> String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function tpLoad(all){
+  let q = supabase.from('team_posts').select('*').order('created_at', {ascending:false});
+  if(!all) q = q.eq('active', true);
+  const { data: posts, error } = await q;
+  if(error) return { error, posts: [], votes: [] };
+  const ids = (posts||[]).filter(p=> p.kind === 'encuesta').map(p=> p.id);
+  let votes = [];
+  if(ids.length){ const r = await supabase.from('team_poll_votes').select('post_id,profile_id,option_idx').in('post_id', ids); votes = r.data || []; }
+  return { posts: posts || [], votes };
+}
+function tpCard(p, votes, opts={}){
+  const date = new Date(p.created_at).toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+  if(p.kind !== 'encuesta') return `<div class="tp-post${p.active ? '' : ' off'}"><div class="tp-k">📣 Aviso · ${date}${p.active ? '' : ' · oculto'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body).replace(/\n/g,'<br>')}</p>` : ''}${opts.actions || ''}</div>`;
+  const vs = (votes||[]).filter(v=> String(v.post_id) === String(p.id));
+  const mine = vs.find(v=> String(v.profile_id) === String(profile?.id));
+  const total = vs.length;
+  const showRes = mine || opts.results;
+  return `<div class="tp-post poll${p.active ? '' : ' off'}"><div class="tp-k">🗳️ Encuesta · ${date} · ${total} voto${total===1?'':'s'}${p.active ? '' : ' · oculta'}</div><b>${tpEsc(p.title)}</b>${p.body ? `<p>${tpEsc(p.body)}</p>` : ''}
+    <div class="tp-opts">${(p.options||[]).map((o,i)=>{
+      const n = vs.filter(v=> v.option_idx === i).length; const pct = total ? Math.round(n/total*100) : 0;
+      return `<button type="button" class="tp-opt${mine && mine.option_idx === i ? ' mine' : ''}" data-tp-poll="${p.id}" data-tp-opt="${i}" ${p.active ? '' : 'disabled'}>
+        ${showRes ? `<i style="width:${pct}%"></i>` : ''}<span>${tpEsc(o)}</span>${showRes ? `<em>${n} · ${pct}%</em>` : ''}</button>`;
+    }).join('')}</div>
+    ${p.active ? `<small class="muted">${mine ? 'Ya votaste. Puedes cambiar tu voto tocando otra opción.' : 'Toca una opción para votar.'}</small>` : ''}${opts.actions || ''}</div>`;
+}
+function tpBind(root, after){
+  root.querySelectorAll('[data-tp-poll]').forEach(b=> b.addEventListener('click', async ()=>{
+    const { error } = await supabase.from('team_poll_votes').upsert({ post_id: b.dataset.tpPoll, profile_id: profile.id, option_idx: Number(b.dataset.tpOpt) }, { onConflict: 'post_id,profile_id' });
+    if(error){ toast(error.message, true); return; }
+    toast('Voto registrado 🗳️'); after && after();
+  }));
+}
+// Sección dentro de Mensajes
+async function renderTeamPosts(){
+  const el = $('#tp-box'); if(!el) return;
+  const manage = tpCanManage();
+  const d = await tpLoad(manage);
+  if(d.error){
+    el.innerHTML = manage ? `<div class="panel"><p class="muted" style="margin:0">Para usar avisos y encuestas falta ejecutar en Supabase el SQL <b>avisos-encuestas.sql</b>.</p></div>` : '';
+    return;
+  }
+  const kind = window.__tpKind || 'aviso';
+  el.innerHTML = `
+    <div class="tp-head"><h3>📣 Avisos y encuestas</h3>${manage ? `<button type="button" class="small" id="tp-new">${window.__tpOpen ? 'Cerrar' : '+ Nuevo'}</button>` : ''}</div>
+    ${manage && window.__tpOpen ? `
+    <div class="panel tp-form">
+      <div class="ft-filter">${[['aviso','📣 Aviso'],['encuesta','🗳️ Encuesta']].map(([k,l])=> `<button type="button" class="${kind===k?'on':''}" data-tp-kind="${k}">${l}</button>`).join('')}</div>
+      <label class="field-label" for="tp-title">${kind === 'encuesta' ? 'Pregunta' : 'Título'}</label>
+      <input id="tp-title" placeholder="${kind === 'encuesta' ? 'Ej. ¿Qué día prefieren para el asado?' : 'Ej. El entreno del jueves se cancela'}">
+      <label class="field-label" for="tp-body">Texto (opcional)</label>
+      <textarea id="tp-body" rows="2" placeholder="${kind === 'encuesta' ? 'Detalle de la encuesta' : 'Detalle del aviso'}"></textarea>
+      ${kind === 'encuesta' ? `<label class="field-label" for="tp-opts">Opciones (una por línea)</label><textarea id="tp-opts" rows="3" placeholder="Sábado&#10;Domingo"></textarea>` : ''}
+      <button type="button" id="tp-pub" style="margin-top:8px;width:100%">Publicar para todo el equipo</button>
+    </div>` : ''}
+    ${d.posts.length ? d.posts.map(p=> tpCard(p, d.votes, { results: manage, actions: manage ? `<div class="tp-acts">
+        <button type="button" class="small secondary" data-tp-tog="${p.id}" data-on="${p.active?1:0}">${p.active ? 'Ocultar' : 'Mostrar'}</button>
+        <button type="button" class="small secondary" data-tp-wa="${p.id}">${ic('chat','sm')} WhatsApp</button>
+        <button type="button" class="small secondary" data-tp-del="${p.id}">Eliminar</button></div>` : '' })).join('')
+      : `<p class="muted" style="margin:0 0 6px">${manage ? 'Todavía no hay avisos ni encuestas. Toca “+ Nuevo” para publicar uno.' : 'No hay avisos ni encuestas por ahora.'}</p>`}`;
+  tpBind(el, renderTeamPosts);
+  $('#tp-new')?.addEventListener('click', ()=>{ window.__tpOpen = !window.__tpOpen; renderTeamPosts(); });
+  el.querySelectorAll('[data-tp-kind]').forEach(b=> b.addEventListener('click', ()=>{ window.__tpKind = b.dataset.tpKind; renderTeamPosts(); }));
+  $('#tp-pub')?.addEventListener('click', async ()=>{
+    const title = $('#tp-title').value.trim(); if(!title){ toast('Escribe el título', true); return; }
+    const options = kind === 'encuesta' ? ($('#tp-opts').value || '').split('\n').map(s=> s.trim()).filter(Boolean) : [];
+    if(kind === 'encuesta' && options.length < 2){ toast('La encuesta necesita al menos 2 opciones', true); return; }
+    const { error } = await supabase.from('team_posts').insert({ kind, title, body: $('#tp-body').value.trim() || null, options, active: true, created_by: profile.id });
+    if(error){ toast(error.message, true); return; }
+    window.__tpOpen = false; toast('Publicado para todo el equipo 📣'); renderTeamPosts();
+  });
+  el.querySelectorAll('[data-tp-tog]').forEach(b=> b.addEventListener('click', async ()=>{
+    const { error } = await supabase.from('team_posts').update({ active: b.dataset.on !== '1' }).eq('id', b.dataset.tpTog);
+    if(error){ toast(error.message, true); return; } renderTeamPosts();
+  }));
+  el.querySelectorAll('[data-tp-del]').forEach(b=> b.addEventListener('click', async ()=>{
+    if(!confirm('¿Eliminar esta publicación?')) return;
+    await supabase.from('team_poll_votes').delete().eq('post_id', b.dataset.tpDel);
+    const { error } = await supabase.from('team_posts').delete().eq('id', b.dataset.tpDel);
+    if(error){ toast(error.message, true); return; } renderTeamPosts();
+  }));
+  el.querySelectorAll('[data-tp-wa]').forEach(b=> b.addEventListener('click', ()=>{
+    const p = d.posts.find(x=> String(x.id) === b.dataset.tpWa); if(!p) return;
+    const txt = p.kind === 'encuesta'
+      ? `🗳️ *Encuesta ${teamName()}*\n${p.title}${p.body ? '\n' + p.body : ''}\n\n${(p.options||[]).map((o,i)=> `${i+1}. ${o}`).join('\n')}\n\nVota en la app → Mensajes 👆`
+      : `📣 *${teamName()}*\n*${p.title}*${p.body ? '\n' + p.body : ''}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }));
+}
+// Aviso en el Inicio: avisos activos y encuestas que aún no has votado
+async function renderTeamPostsHome(){
+  const el = $('#tp-home'); if(!el) return;
+  const d = await tpLoad(false);
+  if(d.error){ el.innerHTML = ''; return; }
+  const show = d.posts.filter(p=> p.kind !== 'encuesta' || !d.votes.some(v=> String(v.post_id) === String(p.id) && String(v.profile_id) === String(profile.id))).slice(0, 3);
+  el.innerHTML = show.length ? `<div class="tp-home">${show.map(p=> tpCard(p, d.votes)).join('')}</div>` : '';
+  tpBind(el, renderTeamPostsHome);
 }
 
 // ---------------- FORMACIÓN (módulo propio) ----------------
@@ -10051,6 +10149,7 @@ window.__staffSetResponse = async (callUpId, playerId, response)=>{
 // escribirle, y el cuerpo técnico elige a qué jugador/fichaje responderle.
 // El usuario maestro no tiene acceso a este módulo.
 async function renderMensajes(){
+  setTimeout(()=> renderTeamPosts(), 0);
   const isStaffSide = profile.role === 'cuerpo_tecnico';
   // El usuario maestro (Comité ALS) puede escribirle tanto al cuerpo
   // técnico como a jugadores/fichajes, ve a todo el mundo como contacto, y
@@ -10063,6 +10162,7 @@ async function renderMensajes(){
   const canMassMessageTeam = isMaestro || isStaffSide;
   main.innerHTML = `
     <h2 class="section-title">Mensajes del equipo</h2>
+    <div id="tp-box"></div>
     <div class="seg" id="msg-seg"><button type="button" data-seg="recibidos">Recibidos</button><button type="button" class="active" data-seg="enviar">Enviar</button></div>
     <div class="panel" id="msg-compose">
       <label class="field-label" for="msg-contact">Destinatario</label>
