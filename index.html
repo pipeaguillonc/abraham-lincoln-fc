@@ -5343,6 +5343,14 @@ async function renderUsuarios(){
     .select('*, players(full_name, jersey_number)')
     .order('created_at', { ascending: false });
   const { data: teamSettings } = await supabase.from('team_settings').select('*').eq('id', 1).maybeSingle();
+  // Fantasy: quién administra (delegados) y quién está inscrito
+  const [ftSet, ftEnt] = await Promise.all([
+    supabase.from('fantasy_settings').select('delegate_ids').eq('id', 1).maybeSingle(),
+    supabase.from('fantasy_entries').select('profile_id,paid'),
+  ]);
+  const ftOk = !ftSet.error && !ftEnt.error;
+  const ftDelegates = new Set(((ftSet.data?.delegate_ids) || []).map(String));
+  const ftEntries = new Set((ftEnt.data || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
   const teamPhotoUrl = teamSettings?.team_photo_url || null;
 
   const linkedPlayerIds = new Set((profilesList || []).filter(p => p.player_id).map(p => p.player_id));
@@ -5424,7 +5432,7 @@ async function renderUsuarios(){
       <p id="nu-error" class="muted" style="color:#f66"></p>
     </div>
     <div class="cardify"><table>
-      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Cumpleaños</th><th>Finanzas</th><th>Partidos/Entrenos</th><th>Formación</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Contraseña</th><th>Rol</th><th>Jugador vinculado</th><th>Cumpleaños</th><th>Finanzas</th><th>Partidos/Entrenos</th><th>Formación</th><th>Fantasy</th><th>Creado</th><th>Restablecer contraseña</th><th></th></tr></thead>
       <tbody id="users-tbody">
         ${(profilesList || []).map(p => `
           <tr>
@@ -5440,6 +5448,9 @@ async function renderUsuarios(){
                 <option value="no" ${!p.can_view_lineup && !p.can_edit_lineup ? 'selected' : ''}>No</option>
                 <option value="armar" ${p.can_view_lineup || p.can_edit_lineup ? 'selected' : ''}>Ver y armar</option>
               </select>` : '<span class="muted">Según rol</span>'}</td>
+            <td class="c-more c-perm" data-label="Fantasy">${!ftOk ? '<span class="muted">Falta SQL</span>' : `
+              <label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-entry-cb" data-uid="${p.id}" ${ftEntries.has(String(p.id)) ? 'checked' : ''} /> Inscrito (pagó)</label>
+              ${p.role === 'usuario_maestro' ? '<span class="muted" style="font-size:12px">Administra (Comité)</span>' : `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-admin-cb" data-uid="${p.id}" ${ftDelegates.has(String(p.id)) ? 'checked' : ''} ${isMaster() ? '' : 'disabled'} /> Administra</label>`}`}</td>
             <td class="c-more" data-label="Creado">${fmtDate(p.created_at?.slice(0,10))}</td>
             <td class="c-more" data-label="Restablecer contraseña">
               <input type="text" class="rp-password" data-uid="${p.id}" placeholder="Nueva contraseña" style="width:140px;margin-bottom:0;display:inline-block" />
@@ -5447,7 +5458,7 @@ async function renderUsuarios(){
             </td>
             <td class="c-more">${p.id === session.user.id ? '' : `<button class="small danger" onclick="window.__deleteUser('${p.id}', '${p.full_name.replace(/'/g, "\\'")}', this)">Eliminar</button>`}</td>
           </tr>
-        `).join('') || '<tr><td colspan="11" class="muted">Sin usuarios registrados todavía</td></tr>'}
+        `).join('') || '<tr><td colspan="12" class="muted">Sin usuarios registrados todavía</td></tr>'}
       </tbody>
     </table></div>
   `;
@@ -5480,6 +5491,25 @@ async function renderUsuarios(){
     });
   });
 
+  $$('.ft-entry-cb').forEach(cb=> cb.addEventListener('change', async ()=>{
+    cb.disabled = true;
+    const r = cb.checked ? await supabase.from('fantasy_entries').upsert({ profile_id: cb.dataset.uid, paid: true }, { onConflict: 'profile_id' })
+                         : await supabase.from('fantasy_entries').delete().eq('profile_id', cb.dataset.uid);
+    cb.disabled = false;
+    if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
+    toast(cb.checked ? 'Inscrito en el Fantasy ✅' : 'Ya no está inscrito en el Fantasy');
+  }));
+  $$('.ft-admin-cb').forEach(cb=> cb.addEventListener('change', async ()=>{
+    cb.disabled = true;
+    const { data: s, error: e1 } = await supabase.from('fantasy_settings').select('delegate_ids').eq('id', 1).maybeSingle();
+    if(e1){ toast(e1.message, true); cb.disabled = false; cb.checked = !cb.checked; return; }
+    const ids = new Set(((s?.delegate_ids) || []).map(String));
+    if(cb.checked) ids.add(String(cb.dataset.uid)); else ids.delete(String(cb.dataset.uid));
+    const { error } = await supabase.from('fantasy_settings').update({ delegate_ids: [...ids], updated_at: new Date().toISOString() }).eq('id', 1);
+    cb.disabled = false;
+    if(error){ toast(error.message, true); cb.checked = !cb.checked; return; }
+    toast(cb.checked ? 'Ahora administra el Fantasy' : 'Ya no administra el Fantasy');
+  }));
   $$('.lineup-perm-sel').forEach(sel=>{
     let prev = sel.value;
     sel.addEventListener('change', async ()=>{
