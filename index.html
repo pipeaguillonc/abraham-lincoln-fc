@@ -7704,7 +7704,7 @@ async function renderFantasy(){
   }
   if(!FT.settings.active && !FT.admin){
     $('#ft-body').innerHTML = `
-      <div class="ft-hero"><div class="ft-kick">Próximamente</div><h1>Fantasy ALS</h1><p>Cada fecha arma tu quinteto con 5 jugadores del equipo, elige capitán y predice el marcador. El que más puntos sume se lleva los premios.</p></div>
+      <div class="ft-hero"><div class="ft-kick">Próximamente</div><h1>Fantasy ALS</h1><p>Cada fecha arma tu equipo con 4 o 5 jugadores del equipo, elige capitán y predice el marcador. El que más puntos sume se lleva los premios.</p></div>
       <div id="ft-pane"></div>`;
     ftComo();
     return;
@@ -7759,14 +7759,14 @@ function ftQRender(){
   }).join('');
   pane.innerHTML = `
     <div class="ft-hero"><div class="ft-kick">Próxima fecha · vs ${ftEsc(m.opponent)}</div><h1>Arma tu quinteto</h1>
-      <p>5 jugadores y un capitán (sus puntos valen doble). Puedes escogerte a ti mismo.</p>
+      <p>Escoge 4 o 5 jugadores y un capitán (sus puntos valen doble). Puedes escogerte a ti mismo.</p>
       <span class="ft-pill">⏱ Cierra en ${ftLeft(ko - new Date())} · ${fmtDayMon(m.match_date)} ${String(m.match_time||'').slice(0,5)}</span></div>
     <div class="ft-budget"><span>Presupuesto</span><span><b>$${cost}</b> / $${budget} · ${left >= 0 ? `te quedan $${left}` : `<span style="color:var(--danger,#D93025)">te pasaste $${-left}</span>`}</span></div>
     <div class="ft-bar"><i style="width:${Math.min(100, cost/budget*100)}%;${left<0?'background:#D93025':''}"></i></div>
     <div class="ft-five">${slots}</div>
-    <p class="ft-tip">${q.sel.length < 5 ? `Te faltan ${5 - q.sel.length}. Agrégalos con el <b>+</b> de la lista.` : q.cap ? 'Listo. Guarda tu quinteto (puedes cambiarlo hasta que empiece el partido).' : '<b>Toca un jugador de tu quinteto para hacerlo capitán.</b>'}</p>
+    <p class="ft-tip">${q.sel.length < 4 ? `Te faltan ${4 - q.sel.length} como mínimo (puedes llevar 4 o 5). Agrégalos con el <b>+</b> de la lista.` : !q.cap ? '<b>Toca un jugador de tu quinteto para hacerlo capitán.</b>' : q.sel.length === 4 ? 'Vas con 4 jugadores: puedes guardar así o agregar uno más.' : q.cap ? 'Listo. Guarda tu quinteto (puedes cambiarlo hasta que empiece el partido).' : '<b>Toca un jugador de tu quinteto para hacerlo capitán.</b>'}</p>
     <div class="ft-pred"><span>🎯 Tu predicción</span><span class="ft-pred-in"><small>ALS</small><input type="number" min="0" max="20" inputmode="numeric" id="ft-pf" value="${q.pf}"><b>–</b><input type="number" min="0" max="20" inputmode="numeric" id="ft-pa" value="${q.pa}"><small>${ftEsc(ftFirst(m.opponent))}</small></span></div>
-    <button type="button" class="ft-save" id="ft-save" ${q.sel.length===5 && q.cap && left>=0 ? '' : 'disabled'}>${q.saved ? 'Actualizar quinteto' : 'Guardar quinteto'}</button>
+    <button type="button" class="ft-save" id="ft-save" ${q.sel.length>=4 && q.cap && left>=0 ? '' : 'disabled'}>${q.saved ? 'Actualizar quinteto' : 'Guardar quinteto'}</button>
     <div class="ft-filter">${['todos','POR','DEF','MED','DEL'].map(k=> `<button type="button" class="${q.filter===k?'on':''}" data-ft-f="${k}">${k==='todos'?'Todos':k}</button>`).join('')}</div>
     <div class="ft-sec">Jugadores <small>precio · promedio por fecha</small></div>
     ${list.map(p=>{
@@ -7782,7 +7782,7 @@ function ftQRender(){
   pane.querySelectorAll('[data-ft-add]').forEach(b=> b.addEventListener('click', ()=>{
     keepPred(); const id = b.dataset.ftAdd;
     if(q.sel.includes(id)){ q.sel = q.sel.filter(x=> x!==id); if(q.cap === id) q.cap = null; }
-    else if(q.sel.length < 5){ q.sel.push(id); if(q.sel.length === 5 && !q.cap) toast('Ahora toca un jugador de tu quinteto para hacerlo capitán'); }
+    else if(q.sel.length < 5){ q.sel.push(id); if(q.sel.length === 4 && !q.cap) toast('Ahora toca un jugador de tu quinteto para hacerlo capitán'); }
     ftQRender();
   }));
   pane.querySelectorAll('[data-ft-rm]').forEach(x=> x.addEventListener('click', e=>{ e.stopPropagation(); keepPred(); const id = x.dataset.ftRm; q.sel = q.sel.filter(v=> v!==id); if(q.cap===id) q.cap=null; ftQRender(); }));
@@ -7930,7 +7930,7 @@ function ftPremios(){
 
 // ---- Cómo jugar: explicación simple + tarjetas para WhatsApp ----
 const FT_STEPS = [
-  ['Arma tu quinteto', 'Escoge 5 jugadores del equipo. Puedes escogerte a ti mismo.'],
+  ['Arma tu quinteto', 'Escoge 4 o 5 jugadores del equipo. Puedes escogerte a ti mismo.'],
   ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no.'],
   ['Elige tu capitán', 'Sus puntos valen doble.'],
   ['Predice el marcador', 'Si aciertas, sumas puntos extra.'],
