@@ -7646,7 +7646,7 @@ window.__saveMatchStat = async (matchId, playerId, btn)=>{
 const ftEsc = v=> String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ftFirst = n=> (n||'').split(' ')[0];
 const FT_ITEM = { jugo:['Jugó',''], goles:['Gol','⚽ '], asist:['Asist.','🅰️ '], amarillas:['Amarilla','🟨 '], rojas:['Roja','🟥 '], figura:['Figura','🏅 '], calif:['Calif.','★ '], valla:['Valla invicta','🧤 '] };
-const FT_PERIOD = { fecha:'Mejor de la fecha', mes:'Premio del mes', temporada:'Campeón de temporada', compromiso:'Premio Compromiso', otro:'Premio especial' };
+const FT_PERIOD = { fecha:'Mejor de la fecha', mes:'Premio del mes', temporada:'Campeón de temporada', compromiso:'Premio de participación', otro:'Premio especial' };
 let FT = null;
 function ftKickoff(m){ return new Date(`${m.match_date}T${(m.match_time||'00:00').slice(0,5)}:00-05:00`); }
 function ftLeft(ms){
@@ -7918,8 +7918,7 @@ async function ftPuntos(){
         <div class="ft-row"><div class="n${p && fmGroup(p.position)==='POR'?' gk':''}">${p?.jersey_number ?? ''}</div>
           <div class="t"><b>${ftEsc(p?.full_name || '—')}${x.cap ? ' <span class="ft-capt">C x2</span>' : ''}</b><div class="ft-chips">${ftChips(x.items) || '<span class="ft-chip">No jugó 0</span>'}</div></div>
           <div class="ft-pts${x.pts?'':' z'}">${x.pts}</div></div>`; }).join('')}
-      <div class="ft-sec">Bonos</div>
-      <div class="ft-bonus"><div><b>💪 Compromiso</b><small>+2 por responder la convocatoria · +2 por ir a entrenar esa semana</small></div><div class="ft-pts g">+${row.comp}</div></div>
+      <div class="ft-sec">Predicción</div>
       <div class="ft-bonus"><div><b>🎯 Predicción</b><small>${row.pred_for != null ? `Dijiste ${row.pred_for}-${row.pred_against}` : 'No hiciste predicción'} · exacta +5, ganador +2</small></div><div class="ft-pts g">+${row.pred}</div></div>`}`;
   $('#ft-pts-m').addEventListener('change', e=>{ FT.ptsMatch = e.target.value; ftPuntos(); });
 }
@@ -7964,7 +7963,6 @@ function ftRulesHTML(){
     <div class="ft-rule"><span>🧤 Valla invicta (portero y defensas)</span><b>+4</b></div>
     <div class="ft-rule"><span>🟨 Amarilla · 🟥 Roja</span><b>−2 · −5</b></div>
     <div class="ft-rule"><span>Capitán</span><b>x2</b></div>
-    <div class="ft-rule"><span>💪 Compromiso: responder convocatoria · ir a entrenar esa semana</span><b>+2 · +2</b></div>
     <div class="ft-rule"><span>🎯 Predicción exacta · acertar ganador</span><b>+5 · +2</b></div>
     <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido.</p></div>`;
 }
@@ -8015,7 +8013,6 @@ const FT_STEPS = [
   ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no.'],
   ['Elige tu capitán', 'Sus puntos valen doble.'],
   ['Predice el marcador', 'Si aciertas, sumas puntos extra.'],
-  ['Cumple con el equipo', 'Responder la convocatoria en la app e ir a entrenar también te da puntos.'],
 ];
 const FT_PTS_PLAYER = [
   ['Jugó de titular', '+3'], ['Entró de cambio', '+2'], ['Gol', '+5'], ['Asistencia', '+3'],
@@ -8023,7 +8020,6 @@ const FT_PTS_PLAYER = [
   ['Tarjeta amarilla', '−2'], ['Tarjeta roja', '−5'], ['Capitán', 'x2'],
 ];
 const FT_PTS_BONUS = [
-  ['Responder la convocatoria en la app', '+2'], ['Ir a entrenar esa semana', '+2'],
   ['Predicción exacta del marcador', '+5'], ['Acertar quién gana (o empate)', '+2'],
 ];
 function ftComo(){
@@ -8036,11 +8032,10 @@ function ftComo(){
       <p class="ft-note">⏱ Puedes armarlo o cambiarlo hasta que empiece el partido. Si no lo armas, juegas con el de la fecha anterior, pero sin capitán.</p>
     </div>
     <div class="panel"><h3 style="margin-top:0">Puntos de cada jugador de tu quinteto</h3>${FT_PTS_PLAYER.map(row).join('')}</div>
-    <div class="panel"><h3 style="margin-top:0">Tus bonos (son tuyos, no del quinteto)</h3>${FT_PTS_BONUS.map(row).join('')}
+    <div class="panel"><h3 style="margin-top:0">Tu predicción (puntos tuyos, no del quinteto)</h3>${FT_PTS_BONUS.map(row).join('')}
       <div class="ft-faq">
         <p><b>¿La predicción suma?</b> Sí: +5 si aciertas el marcador exacto, +2 si aciertas quién gana o que empatan.</p>
-        <p><b>¿Ir a entrenar suma?</b> Sí: +2 si fuiste al menos a un entreno en la semana antes del partido.</p>
-        <p><b>¿Responder la convocatoria suma?</b> Sí: +2 por responder en la app (vayas o no).</p>
+        <p><b>¿Ir a entrenar o responder la convocatoria suma?</b> No. La asistencia no cuenta en el Fantasy, para que sea justo con los lesionados.</p>
       </div></div>
     ${ftPrizesHTML() ? `<h3 class="section-title" style="margin:6px 0 8px">Premios</h3>${ftPrizesHTML()}` : ''}
     <div class="panel ft-share-panel"><h3 style="margin-top:0">Compartir por WhatsApp</h3>
@@ -8104,7 +8099,7 @@ async function ftDrawCard(kind){
       y += 40;
     };
     section('POR CADA JUGADOR DE TU QUINTETO', FT_PTS_PLAYER);
-    section('TUS BONOS', FT_PTS_BONUS);
+    section('TU PREDICCIÓN', FT_PTS_BONUS);
   } else {
     const list = FT?.prizes || [];
     let y = 410;
