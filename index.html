@@ -1719,6 +1719,22 @@
 .bday-admin small{display:block;font:700 11px 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6B7280}
 .bday-admin b{display:block;font:800 17px 'Barlow Condensed',sans-serif}.bday-admin div>span{font-size:13px;color:#4B5058}
 .bday-admin button{width:auto}
+
+.fr-hero h1{font-size:30px}
+.fr-cta{margin-top:12px;width:auto;background:var(--brand,#F5C400);color:#0A0B0C;border:0;border-radius:12px;padding:10px 18px;font:800 17px 'Barlow Condensed',sans-serif}
+.fr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 10px}
+.fr-stats div{background:#fff;border:1px solid #E6E7EA;border-radius:14px;padding:10px 6px;text-align:center}
+.fr-stats b{display:block;font:800 26px 'Barlow Condensed',sans-serif}.fr-stats span{font-size:12px;color:#6B7280}
+.fr-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.fr-head h3{margin:0}.fr-head button{width:auto}
+.fr-rk{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid #EEF0F2}
+.fr-rk .p{width:30px;text-align:center;font:800 17px 'Barlow Condensed',sans-serif;color:#6B7280}
+.fr-rk .n{flex:1;font:600 15px 'Barlow',sans-serif}.fr-rk .s{font:800 20px 'Barlow Condensed',sans-serif}
+.fr-rk.me{background:#FFFBEA;border-radius:10px;border-bottom-color:transparent}
+.fr-sub{font:700 13px 'Barlow',sans-serif;color:#4B5058;margin:10px 0 6px}
+.fr-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fr-chip{font:600 13px 'Barlow',sans-serif;padding:5px 10px;border-radius:999px;background:#EEF0F2;color:#0A0B0C}
+.fr-chip.ok{background:rgba(31,157,85,.14);color:#16733F}.fr-chip.pend{background:#FFF4D6;color:#7A5A00}
+.fr-chip.me{outline:2px solid var(--brand,#F5C400)}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7697,7 +7713,7 @@ async function renderFantasy(){
   if(!playersCache.length) await loadPlayersCache();
   main.innerHTML = `<div class="ft-head"><h2 class="section-title" style="margin:0">Fantasy ALS</h2></div><div id="ft-body"><p class="muted">Cargando…</p></div>`;
   const base = await ftBase();
-  FT = { ...base, tab: (FT && FT.tab) || 'quinteto', comite: isMaster(), admin: ftIsAdmin(base.settings) };
+  FT = { ...base, tab: 'resumen', comite: isMaster(), admin: ftIsAdmin(base.settings) };
   if(FT.missing){
     $('#ft-body').innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase el SQL del Fantasy (<b>fantasy.sql</b>).</p></div>`;
     return;
@@ -7713,14 +7729,79 @@ async function renderFantasy(){
 }
 function ftRender(){
   const body = $('#ft-body'); if(!body) return;
-  const tabs = [['quinteto','Quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios'],['como','Reglas'], ...(FT.admin ? [['admin','Admin']] : [])];
-  if(FT.tab === 'admin' && !FT.admin) FT.tab = 'quinteto';
+  const tabs = [['resumen','Resumen'],['quinteto','Quinteto'],['puntos','Puntos'],['tabla','Tabla'],['premios','Premios'],['como','Reglas'], ...(FT.admin ? [['admin','Admin']] : [])];
+  if(FT.tab === 'admin' && !FT.admin) FT.tab = 'resumen';
   body.innerHTML = `
     ${!FT.settings.active ? `<div class="notify-banner" style="margin-bottom:10px"><b>El Fantasy está apagado.</b> Solo lo ven el Comité y los delegados. Actívalo en la pestaña Admin cuando arranque.</div>` : ''}
     <div class="ft-tabs">${tabs.map(([k,l])=> `<button type="button" class="${FT.tab===k?'on':''}" data-ft-tab="${k}">${l}</button>`).join('')}</div>
     <div id="ft-pane"><p class="muted">Cargando…</p></div>`;
   body.querySelectorAll('[data-ft-tab]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftTab; ftRender(); }));
-  ({ quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin })[FT.tab]();
+  ({ resumen: ftResumen, quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin })[FT.tab]();
+}
+
+// ---- Resumen: primera pantalla del Fantasy ----
+async function ftResumen(){
+  const pane = $('#ft-pane');
+  pane.innerHTML = '<p class="muted">Cargando…</p>';
+  const [board, contacts, ent, m] = await Promise.all([ftBoard(true), ftContacts(), supabase.from('fantasy_entries').select('profile_id,paid'), ftNextMatch()]);
+  const entries = new Set(((ent.error ? [] : ent.data) || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
+  let picked = new Set(); let pickErr = false;
+  if(m){
+    const ps = await supabase.rpc('fantasy_pick_status', { p_match: String(m.id) });
+    if(ps.error) pickErr = true; else picked = new Set((ps.data||[]).map(x=> String(x.profile_id)));
+  }
+  const S = FT.settings;
+  const nameOf = id=> contacts.find(c=> String(c.id) === String(id))?.full_name || (board.managers||[]).find(x=> String(x.profile_id) === String(id))?.name || '—';
+  const totals = {}; const playedN = {};
+  (board.managers||[]).forEach(x=>{
+    totals[x.profile_id] = Object.values(x.rows||{}).reduce((s,r)=> s + (r.total||0), 0) + (x.adj||[]).reduce((s,a)=> s + (a.points||0), 0);
+    playedN[x.profile_id] = Object.values(x.rows||{}).filter(r=> !r.auto && (r.players||[]).length).length;
+  });
+  // Participando: armó quinteto alguna vez esta temporada o para la próxima fecha
+  const participating = new Set([...Object.keys(playedN).filter(id=> playedN[id] > 0), ...picked]);
+  // Los que deberían armar: inscritos (si hay inscripción) o todos los que juegan
+  const base = entries.size ? [...entries] : [...new Set([...participating, ...(board.managers||[]).map(x=> String(x.profile_id))])];
+  const ready = base.filter(id=> picked.has(id)).sort((a,b)=> nameOf(a).localeCompare(nameOf(b)));
+  const missing = base.filter(id=> !picked.has(id)).sort((a,b)=> nameOf(a).localeCompare(nameOf(b)));
+  const ranking = Object.entries(totals).filter(([id])=> !entries.size || entries.has(String(id))).sort((a,b)=> b[1]-a[1]);
+  const mineReady = picked.has(String(profile.id));
+  const first = n=> String(n||'').trim().split(/\s+/).slice(0,2).join(' ');
+  const chip = (id, cls)=> `<span class="fr-chip ${cls}${String(id)===String(profile.id)?' me':''}">${ftEsc(first(nameOf(id)))}</span>`;
+  pane.innerHTML = `
+    ${m ? `<div class="ft-hero fr-hero"><div class="ft-kick">Próxima fecha · vs ${ftEsc(m.opponent)}</div>
+      <h1>${mineReady ? '✅ Ya armaste tu quinteto' : 'Arma tu quinteto'}</h1>
+      <span class="ft-pill">⏱ Cierra en ${ftLeft(ftKickoff(m) - new Date())} · ${fmtDayMon(m.match_date)} ${String(m.match_time||'').slice(0,5)}</span>
+      <button type="button" class="fr-cta" data-ft-go="quinteto">${mineReady ? 'Ver o cambiar mi quinteto' : 'Armar mi quinteto'}</button></div>`
+      : `<div class="panel empty-state"><p>No hay un próximo partido abierto todavía.</p></div>`}
+
+    <div class="fr-stats">
+      <div><b>${entries.size}</b><span>Inscritos</span></div>
+      <div><b>${participating.size}</b><span>Participando</span></div>
+      <div><b>${m ? `${ready.length}/${base.length}` : '—'}</b><span>Quinteto listo</span></div>
+    </div>
+
+    <div class="panel"><div class="fr-head"><h3>🏆 Ranking</h3><button type="button" class="small secondary" data-ft-go="tabla">Ver tabla</button></div>
+      ${ranking.length ? ranking.slice(0, 10).map(([id, pts], i)=> `
+        <div class="fr-rk${String(id)===String(profile.id)?' me':''}"><span class="p">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</span>
+          <span class="n">${String(id)===String(profile.id)?'Tú · ':''}${ftEsc(nameOf(id))}</span><span class="s">${pts}</span></div>`).join('')
+        + (ranking.length > 10 && !ranking.slice(0,10).some(([id])=> String(id)===String(profile.id)) && ranking.some(([id])=> String(id)===String(profile.id))
+          ? (()=>{ const i = ranking.findIndex(([id])=> String(id)===String(profile.id)); return `<div class="fr-rk me"><span class="p">${i+1}</span><span class="n">Tú · ${ftEsc(nameOf(profile.id))}</span><span class="s">${ranking[i][1]}</span></div>`; })() : '')
+        : '<p class="muted" style="margin:0">El ranking arranca con la primera fecha jugada.</p>'}
+    </div>
+
+    ${m ? `<div class="panel"><h3 style="margin-top:0">⚽ Quinteto para vs ${ftEsc(m.opponent)}</h3>
+      ${pickErr ? '<p class="muted">Para ver quién ya lo armó, ejecuta en Supabase la última versión de <b>fantasy.sql</b>.</p>' : `
+      <div class="fr-sub">✅ Ya lo armaron (${ready.length})</div>
+      <div class="fr-chips">${ready.map(id=> chip(id, 'ok')).join('') || '<span class="muted">Nadie todavía</span>'}</div>
+      <div class="fr-sub">⏳ Les falta (${missing.length})</div>
+      <div class="fr-chips">${missing.map(id=> chip(id, 'pend')).join('') || '<span class="muted">¡Todos listos!</span>'}</div>`}
+    </div>` : ''}
+
+    <div class="panel"><h3 style="margin-top:0">📝 Inscritos (${entries.size})</h3>
+      <div class="fr-chips">${[...entries].sort((a,b)=> nameOf(a).localeCompare(nameOf(b))).map(id=> chip(id, participating.has(id) ? 'ok' : '')).join('') || '<span class="muted">Todavía no hay inscritos.</span>'}</div>
+      ${entries.size ? `<p class="muted" style="margin:10px 0 0;font-size:13px">En verde, los que ya están participando.</p>` : ''}
+    </div>`;
+  pane.querySelectorAll('[data-ft-go]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftGo; ftRender(); window.scrollTo(0,0); }));
 }
 
 // ---- Mi quinteto ----
