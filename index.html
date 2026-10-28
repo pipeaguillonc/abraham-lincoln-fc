@@ -1735,6 +1735,15 @@
 .fr-chip{font:600 13px 'Barlow',sans-serif;padding:5px 10px;border-radius:999px;background:#EEF0F2;color:#0A0B0C}
 .fr-chip.ok{background:rgba(31,157,85,.14);color:#16733F}.fr-chip.pend{background:#FFF4D6;color:#7A5A00}
 .fr-chip.me{outline:2px solid var(--brand,#F5C400)}
+
+.ft-prize.has-img{flex-direction:column;align-items:stretch;gap:10px}
+.ft-prize-img{width:100%;height:220px;object-fit:cover;border-radius:12px;cursor:zoom-in;background:#222}
+.ft-prize.has-img .ic{display:none}
+.ft-pz-edit{gap:10px;flex-wrap:wrap}
+.ft-pz-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;flex:0 0 48px}
+.ft-pz-thumb.empty{display:grid;place-items:center;background:#EEF0F2;font-size:22px}
+.ft-pz-edit .ft-pz-photo{margin-left:58px}
+.ft-pz-photo{display:inline-flex;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border-radius:10px;background:#EEF0F2;font:700 13px 'Barlow',sans-serif;color:#0A0B0C}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7966,10 +7975,31 @@ function ftRulesHTML(){
     <div class="ft-rule"><span>🎯 Predicción exacta · acertar ganador</span><b>+5 · +2</b></div>
     <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido.</p></div>`;
 }
+
+// Foto del premio: se sube al mismo almacenamiento de fotos del equipo
+async function ftUploadPrizeImg(prizeId, file){
+  if(!file || !file.type.startsWith('image/')){ toast('Elige una imagen', true); return null; }
+  toast('Subiendo foto…');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `fantasy-prizes/${prizeId}-${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  if(upErr){ toast('No se pudo subir la foto: ' + upErr.message, true); return null; }
+  const url = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
+  const { error } = await supabase.from('fantasy_prizes').update({ image_url: url }).eq('id', prizeId);
+  if(error){ toast(/image_url/.test(error.message) ? 'Falta ejecutar en Supabase la última versión de fantasy.sql (foto de premios).' : error.message, true); return null; }
+  return url;
+}
+window.__ftPrizeZoom = (src)=>{
+  let ov = document.getElementById('st-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'st-modal'; ov.className = 'st-modal'; document.body.appendChild(ov);
+    ov.addEventListener('click', e=>{ if(e.target === ov) ov.classList.remove('open'); }); }
+  ov.innerHTML = `<div class="panel st-modal-box" style="max-width:420px;padding:10px"><img src="${src}" alt="" style="width:100%;border-radius:12px;display:block"><button type="button" class="secondary" style="width:100%;margin-top:8px" onclick="document.getElementById('st-modal').classList.remove('open')">Cerrar</button></div>`;
+  ov.classList.add('open');
+};
 function ftPrizesHTML(scope){
   const list = (FT?.prizes||[]).filter(p=> !scope || scope === 'temporada' || p.period === scope || (scope === 'fecha' && p.period === 'fecha'));
   if(!list.length) return '';
-  return list.map(p=> `<div class="ft-prize ${p.period}"><div class="ic">${p.period==='temporada'?'🏆':p.period==='compromiso'?'💪':'🎁'}</div><div><small>${FT_PERIOD[p.period] || 'Premio'}</small><b>${ftEsc(p.title)}</b>${p.description ? `<span>${ftEsc(p.description)}</span>` : ''}${p.sponsor ? `<span>Presentado por ${ftEsc(p.sponsor)}</span>` : ''}</div></div>`).join('');
+  return list.map(p=> `<div class="ft-prize ${p.period}${p.image_url ? ' has-img' : ''}">${p.image_url ? `<img class="ft-prize-img" src="${ftEsc(p.image_url)}" alt="${ftEsc(p.title)}" loading="lazy" onclick="window.__ftPrizeZoom(this.src)">` : ''}<div class="ic">${p.period==='temporada'?'🏆':p.period==='compromiso'?'💪':'🎁'}</div><div><small>${FT_PERIOD[p.period] || 'Premio'}</small><b>${ftEsc(p.title)}</b>${p.description ? `<span>${ftEsc(p.description)}</span>` : ''}${p.sponsor ? `<span>Presentado por ${ftEsc(p.sponsor)}</span>` : ''}</div></div>`).join('');
 }
 function ftPremios(){
   const pane = $('#ft-pane');
@@ -7978,7 +8008,9 @@ function ftPremios(){
     ${ftPrizesHTML() || '<p class="muted">El Comité todavía no ha definido los premios.</p>'}
     ${FT.admin ? `
     <div class="panel"><h3 style="margin-top:0">Editar premios</h3>
-      ${(FT.prizes||[]).map(p=> `<div class="ft-pz-edit"><div><b>${ftEsc(p.title)}</b><small>${FT_PERIOD[p.period]||p.period}${p.sponsor?' · '+ftEsc(p.sponsor):''}</small></div><button type="button" class="small secondary" data-ft-pz-del="${p.id}">Eliminar</button></div>`).join('') || '<p class="muted">Sin premios todavía.</p>'}
+      ${(FT.prizes||[]).map(p=> `<div class="ft-pz-edit">${p.image_url ? `<img class="ft-pz-thumb" src="${ftEsc(p.image_url)}" alt="">` : '<span class="ft-pz-thumb empty">🎁</span>'}<div style="flex:1 1 60%;min-width:0"><b>${ftEsc(p.title)}</b><small>${FT_PERIOD[p.period]||p.period}${p.sponsor?' · '+ftEsc(p.sponsor):''}</small></div>
+        <label class="small secondary ft-pz-photo">📷 ${p.image_url ? 'Cambiar foto' : 'Subir foto'}<input type="file" accept="image/*" data-ft-pz-img="${p.id}" hidden></label>
+        <button type="button" class="small secondary" data-ft-pz-del="${p.id}">Eliminar</button></div>`).join('') || '<p class="muted">Sin premios todavía.</p>'}
       <label class="field-label" for="ft-pz-period">Tipo</label>
       <select id="ft-pz-period">${Object.entries(FT_PERIOD).map(([k,l])=> `<option value="${k}">${l}</option>`).join('')}</select>
       <label class="field-label" for="ft-pz-title">Premio</label>
@@ -7987,6 +8019,8 @@ function ftPremios(){
       <input id="ft-pz-desc" placeholder="Ej. Se entrega en la cena de fin de año">
       <label class="field-label" for="ft-pz-sp">Patrocinador (opcional)</label>
       <input id="ft-pz-sp" placeholder="Ej. nombre del patrocinador">
+      <label class="field-label" for="ft-pz-file">Foto del premio (opcional)</label>
+      <input type="file" id="ft-pz-file" accept="image/*">
       <button type="button" id="ft-pz-add" style="margin-top:8px">Agregar premio</button>
     </div>` : ''}
     <button type="button" class="secondary ft-share-btn" data-ft-card="premios">${ic('chat')} Compartir premios por WhatsApp</button>`;
@@ -7995,10 +8029,19 @@ function ftPremios(){
     const title = $('#ft-pz-title').value.trim();
     if(!title){ toast('Escribe el premio', true); return; }
     const row = { period: $('#ft-pz-period').value, title, description: $('#ft-pz-desc').value.trim() || null, sponsor: $('#ft-pz-sp').value.trim() || null, sort_order: (FT.prizes||[]).length };
+    const file = $('#ft-pz-file')?.files?.[0];
+    const btn = $('#ft-pz-add'); btn.disabled = true;
     const { data, error } = await supabase.from('fantasy_prizes').insert(row).select().single();
-    if(error){ toast(error.message, true); return; }
-    FT.prizes = [...(FT.prizes||[]), data || row]; toast('Premio agregado'); ftPremios();
+    if(error){ btn.disabled = false; toast(error.message, true); return; }
+    let saved = data || row;
+    if(file && data?.id){ const url = await ftUploadPrizeImg(data.id, file); if(url) saved = { ...saved, image_url: url }; }
+    FT.prizes = [...(FT.prizes||[]), saved]; toast('Premio agregado'); ftPremios();
   });
+  pane.querySelectorAll('[data-ft-pz-img]').forEach(inp=> inp.addEventListener('change', async ()=>{
+    const f = inp.files?.[0]; if(!f) return;
+    const url = await ftUploadPrizeImg(inp.dataset.ftPzImg, f);
+    if(url){ FT.prizes = FT.prizes.map(p=> String(p.id) === inp.dataset.ftPzImg ? { ...p, image_url: url } : p); toast('Foto del premio guardada 📷'); ftPremios(); }
+  }));
   pane.querySelectorAll('[data-ft-pz-del]').forEach(b=> b.addEventListener('click', async ()=>{
     if(!confirm('¿Eliminar este premio?')) return;
     const { error } = await supabase.from('fantasy_prizes').delete().eq('id', b.dataset.ftPzDel);
@@ -8104,18 +8147,21 @@ async function ftDrawCard(kind){
     const list = FT?.prizes || [];
     let y = 410;
     if(!list.length){ x.fillStyle = '#C9CCD2'; x.font = `600 40px ${T}`; x.fillText('Los premios se anuncian pronto.', 64, y + 40); }
-    list.slice(0, 6).forEach(p=>{
-      const hBox = p.description || p.sponsor ? 170 : 120;
+    for(const p of list.slice(0, 5)){
+      const pimg = p.image_url ? await loadImg(p.image_url) : null;
+      const hBox = pimg ? 190 : (p.description || p.sponsor ? 170 : 120);
+      const tx = pimg ? 84 + (hBox - 40) + 26 : 180, tw = W - 64 - 30 - tx;
       roundRect(x, 64, y, W - 128, hBox, 24);
       x.fillStyle = p.period === 'temporada' ? '#6B5600' : p.period === 'compromiso' ? '#17643A' : 'rgba(255,255,255,.08)'; x.fill();
-      x.fillStyle = '#fff'; x.font = `48px ${T}`; x.fillText(p.period === 'temporada' ? '🏆' : p.period === 'compromiso' ? '💪' : '🎁', 96, y + 76);
-      x.fillStyle = brand; x.font = `800 24px ${T}`; x.fillText((FT_PERIOD[p.period] || 'Premio').toUpperCase(), 180, y + 46);
-      x.fillStyle = '#fff'; fitText(x, p.title, W - 300, 50, 800, D); x.fillText(p.title, 180, y + 96);
+      if(pimg){ x.save(); roundRect(x, 84, y + 20, hBox - 40, hBox - 40, 16); x.clip(); drawCover(x, pimg, 84, y + 20, hBox - 40, hBox - 40); x.restore(); }
+      else { x.fillStyle = '#fff'; x.font = `48px ${T}`; x.fillText(p.period === 'temporada' ? '🏆' : p.period === 'compromiso' ? '💪' : '🎁', 96, y + 76); }
+      x.fillStyle = brand; x.font = `800 24px ${T}`; x.fillText((FT_PERIOD[p.period] || 'Premio').toUpperCase(), tx, y + 50);
+      x.fillStyle = '#fff'; fitText(x, p.title, tw, 50, 800, D); x.fillText(p.title, tx, y + 102);
       x.fillStyle = '#D5D8DC'; x.font = `500 26px ${T}`;
       const sub = [p.description, p.sponsor ? 'Presentado por ' + p.sponsor : ''].filter(Boolean).join(' · ');
-      if(sub){ fitText(x, sub, W - 300, 26, 500, T); x.fillText(sub, 180, y + 140); }
+      if(sub){ fitText(x, sub, tw, 26, 500, T); x.fillText(sub, tx, y + 146); }
       y += hBox + 22;
-    });
+    }
   }
   x.textAlign = 'center'; x.fillStyle = '#8A8F96'; x.font = `600 24px ${T}`;
   x.fillText(`Juega en la app del equipo · Presupuesto $${budget} por quinteto`, W/2, H - 40);
