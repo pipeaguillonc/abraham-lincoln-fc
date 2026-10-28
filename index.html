@@ -1672,7 +1672,7 @@
 .ft-opt i{position:absolute;left:0;top:0;bottom:0;background:rgba(245,196,0,.25)}.ft-opt span,.ft-opt em{position:relative;font-style:normal}.ft-opt em{font-weight:800}
 .ft-opt.mine{border-color:var(--brand,#F5C400);border-width:2px}
 .ft-home-posts{margin:10px 0}
-.ft-adm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.ft-adm-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
 .ft-adm-stats div{background:#0A0B0C;color:#fff;border-radius:14px;padding:10px 8px;text-align:center}
 .ft-adm-stats b{display:block;font:800 22px 'Barlow Condensed',sans-serif;color:var(--brand,#F5C400)}.ft-adm-stats span{font-size:11px;color:#cfd2d6}
 .ft-adm-list{display:grid;gap:6px;max-height:520px;overflow-y:auto}
@@ -1744,6 +1744,8 @@
 .ft-pz-thumb.empty{display:grid;place-items:center;background:#EEF0F2;font-size:22px}
 .ft-pz-edit .ft-pz-photo{margin-left:58px}
 .ft-pz-photo{display:inline-flex;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border-radius:10px;background:#EEF0F2;font:700 13px 'Barlow',sans-serif;color:#0A0B0C}
+
+.ft-mora{font-style:normal;font-size:10px;font-weight:800;background:#FDE2E0;color:#B3261E;border-radius:6px;padding:1px 6px;vertical-align:2px}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -5407,7 +5409,8 @@ async function renderUsuarios(){
   ]);
   const ftOk = !ftSet.error && !ftEnt.error;
   const ftDelegates = new Set(((ftSet.data?.delegate_ids) || []).map(String));
-  const ftEntries = new Set((ftEnt.data || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
+  const ftEntries = new Set((ftEnt.data || []).map(e=> String(e.profile_id)));
+  const ftPaid = new Set((ftEnt.data || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
   const teamPhotoUrl = teamSettings?.team_photo_url || null;
 
   const linkedPlayerIds = new Set((profilesList || []).filter(p => p.player_id).map(p => p.player_id));
@@ -5506,7 +5509,8 @@ async function renderUsuarios(){
                 <option value="armar" ${p.can_view_lineup || p.can_edit_lineup ? 'selected' : ''}>Ver y armar</option>
               </select>` : '<span class="muted">Según rol</span>'}</td>
             <td class="c-more c-perm" data-label="Fantasy">${!ftOk ? '<span class="muted">Falta SQL</span>' : `
-              <label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-entry-cb" data-uid="${p.id}" ${ftEntries.has(String(p.id)) ? 'checked' : ''} /> Inscrito (pagó)</label>
+              <label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-entry-cb" data-uid="${p.id}" ${ftEntries.has(String(p.id)) ? 'checked' : ''} /> Juega</label>
+              <label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-paid-cb" data-uid="${p.id}" ${ftPaid.has(String(p.id)) ? 'checked' : ''} ${ftEntries.has(String(p.id)) ? '' : 'disabled'} /> Pagó</label>
               ${p.role === 'usuario_maestro' ? '<span class="muted" style="font-size:12px">Administra (Comité)</span>' : `<label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="ft-admin-cb" data-uid="${p.id}" ${ftDelegates.has(String(p.id)) ? 'checked' : ''} ${isMaster() ? '' : 'disabled'} /> Administra</label>`}`}</td>
             <td class="c-more" data-label="Creado">${fmtDate(p.created_at?.slice(0,10))}</td>
             <td class="c-more" data-label="Restablecer contraseña">
@@ -5549,12 +5553,20 @@ async function renderUsuarios(){
   });
 
   $$('.ft-entry-cb').forEach(cb=> cb.addEventListener('change', async ()=>{
+    const paidCb = document.querySelector(`.ft-paid-cb[data-uid="${cb.dataset.uid}"]`);
     cb.disabled = true;
-    const r = cb.checked ? await supabase.from('fantasy_entries').upsert({ profile_id: cb.dataset.uid, paid: true }, { onConflict: 'profile_id' })
-                         : await supabase.from('fantasy_entries').delete().eq('profile_id', cb.dataset.uid);
+    const r = await ftSetEntry(cb.dataset.uid, cb.checked, paidCb?.checked && cb.checked);
     cb.disabled = false;
     if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
-    toast(cb.checked ? 'Inscrito en el Fantasy ✅' : 'Ya no está inscrito en el Fantasy');
+    if(paidCb){ paidCb.disabled = !cb.checked; if(!cb.checked) paidCb.checked = false; }
+    toast(cb.checked ? 'Ahora juega el Fantasy ⚽' : 'Ya no juega el Fantasy');
+  }));
+  $$('.ft-paid-cb').forEach(cb=> cb.addEventListener('change', async ()=>{
+    cb.disabled = true;
+    const r = await ftSetEntry(cb.dataset.uid, true, cb.checked);
+    cb.disabled = false;
+    if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
+    toast(cb.checked ? 'Pago registrado ✅' : 'Queda en mora');
   }));
   $$('.ft-admin-cb').forEach(cb=> cb.addEventListener('change', async ()=>{
     cb.disabled = true;
@@ -7753,7 +7765,8 @@ async function ftResumen(){
   const pane = $('#ft-pane');
   pane.innerHTML = '<p class="muted">Cargando…</p>';
   const [board, contacts, ent, m] = await Promise.all([ftBoard(true), ftContacts(), supabase.from('fantasy_entries').select('profile_id,paid'), ftNextMatch()]);
-  const entries = new Set(((ent.error ? [] : ent.data) || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
+  const entries = new Set(((ent.error ? [] : ent.data) || []).map(e=> String(e.profile_id)));
+  const paidSet = new Set(((ent.error ? [] : ent.data) || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
   let picked = new Set(); let pickErr = false;
   if(m){
     const ps = await supabase.rpc('fantasy_pick_status', { p_match: String(m.id) });
@@ -7784,8 +7797,8 @@ async function ftResumen(){
       : `<div class="panel empty-state"><p>No hay un próximo partido abierto todavía.</p></div>`}
 
     <div class="fr-stats">
-      <div><b>${entries.size}</b><span>Inscritos</span></div>
-      <div><b>${participating.size}</b><span>Participando</span></div>
+      <div><b>${entries.size || participating.size}</b><span>Juegan</span></div>
+      <div><b>${participating.size}</b><span>Ya han jugado</span></div>
       <div><b>${m ? `${ready.length}/${base.length}` : '—'}</b><span>Quinteto listo</span></div>
     </div>
 
@@ -7806,10 +7819,11 @@ async function ftResumen(){
       <div class="fr-chips">${missing.map(id=> chip(id, 'pend')).join('') || '<span class="muted">¡Todos listos!</span>'}</div>`}
     </div>` : ''}
 
-    <div class="panel"><h3 style="margin-top:0">📝 Inscritos (${entries.size})</h3>
-      <div class="fr-chips">${[...entries].sort((a,b)=> nameOf(a).localeCompare(nameOf(b))).map(id=> chip(id, participating.has(id) ? 'ok' : '')).join('') || '<span class="muted">Todavía no hay inscritos.</span>'}</div>
-      ${entries.size ? `<p class="muted" style="margin:10px 0 0;font-size:13px">En verde, los que ya están participando.</p>` : ''}
-    </div>`;
+    <div class="panel"><h3 style="margin-top:0">📝 Participantes (${entries.size})</h3>
+      <div class="fr-chips">${[...entries].sort((a,b)=> nameOf(a).localeCompare(nameOf(b))).map(id=> chip(id, participating.has(id) ? 'ok' : '') .replace('</span>', FT.admin && !paidSet.has(id) ? ' · mora</span>' : '</span>')).join('') || '<span class="muted">El Comité todavía no ha activado participantes.</span>'}</div>
+      ${entries.size ? `<p class="muted" style="margin:10px 0 0;font-size:13px">En verde, los que ya han armado quinteto alguna vez.${FT.admin ? ' “mora” = no ha pagado (solo lo ve el administrador).' : ''}</p>` : ''}
+    </div>
+    ${(()=>{ const me = String(profile.id); return entries.has(me) && !paidSet.has(me) ? `<div class="notify-banner" style="margin-top:10px">💳 <b>Tienes pendiente la inscripción del Fantasy (${'$' + Number(S.entry_fee ?? 20000).toLocaleString('es-CO')}).</b> Puedes jugar igual; paga por Bre-B a alsfutbolclub@gmail.com y envía el comprobante.</div>` : ''; })()}`;
   pane.querySelectorAll('[data-ft-go]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftGo; ftRender(); window.scrollTo(0,0); }));
 }
 
@@ -7976,6 +7990,11 @@ function ftRulesHTML(){
     <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido.</p></div>`;
 }
 
+// Participantes del Fantasy: una fila en fantasy_entries = juega; paid = pagó (si no, queda en mora).
+async function ftSetEntry(profileId, plays, paid){
+  if(!plays) return supabase.from('fantasy_entries').delete().eq('profile_id', profileId);
+  return supabase.from('fantasy_entries').upsert({ profile_id: profileId, paid: !!paid }, { onConflict: 'profile_id' });
+}
 // Foto del premio: se sube al mismo almacenamiento de fotos del equipo
 async function ftUploadPrizeImg(prizeId, file){
   if(!file || !file.type.startsWith('image/')){ toast('Elige una imagen', true); return null; }
@@ -8221,8 +8240,9 @@ async function ftAdmin(){
     supabase.from('fantasy_posts').select('*').order('created_at', {ascending:false}),
     supabase.from('fantasy_adjustments').select('*').order('created_at', {ascending:false}).limit(30),
   ]);
-  if(ent.error){ pane.innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase la versión nueva de <b>fantasy.sql</b> (inscritos, delegados, avisos y ajustes).</p></div>`; return; }
-  const entries = new Set((ent.data||[]).filter(e=> e.paid).map(e=> String(e.profile_id)));
+  if(ent.error){ pane.innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase la versión nueva de <b>fantasy.sql</b> (participantes, delegados y ajustes).</p></div>`; return; }
+  const entries = new Set((ent.data||[]).map(e=> String(e.profile_id)));
+  const paidSet = new Set((ent.data||[]).filter(e=> e.paid).map(e=> String(e.profile_id)));
   let picked = new Set();
   if(m){ const ps = await supabase.rpc('fantasy_pick_status', { p_match: String(m.id) }); picked = new Set((ps.data||[]).map(x=> String(x.profile_id))); }
   const S = FT.settings; const fee = S.entry_fee ?? 20000;
@@ -8234,7 +8254,7 @@ async function ftAdmin(){
   const people = contacts.filter(c=> ['jugador','fichaje'].includes(c.role) || entries.has(String(c.id)) || totals[c.id] != null);
   const ranked = Object.entries(totals).sort((a,b)=> b[1]-a[1]).map(([id])=> id);
   const filter = FT.admFilter || 'todos';
-  const shown = people.filter(c=> filter === 'todos' || (filter === 'inscritos' && entries.has(String(c.id))) || (filter === 'faltan' && (!S.require_entry || entries.has(String(c.id))) && !picked.has(String(c.id))))
+  const shown = people.filter(c=> filter === 'todos' || (filter === 'inscritos' && entries.has(String(c.id))) || (filter === 'mora' && entries.has(String(c.id)) && !paidSet.has(String(c.id))) || (filter === 'faltan' && (!S.require_entry || entries.has(String(c.id))) && !picked.has(String(c.id))))
     .sort((a,b)=> (totals[b.id] ?? -1) - (totals[a.id] ?? -1) || a.full_name.localeCompare(b.full_name));
   const eligible = people.filter(c=> !S.require_entry || entries.has(String(c.id)));
   const missing = eligible.filter(c=> !picked.has(String(c.id)));
@@ -8242,19 +8262,21 @@ async function ftAdmin(){
   const money = n=> '$' + Number(n||0).toLocaleString('es-CO');
   pane.innerHTML = `
     <div class="ft-adm-stats">
-      <div><b>${entries.size}</b><span>Inscritos</span></div>
-      <div><b>${money(entries.size * fee)}</b><span>Recaudo</span></div>
+      <div><b>${entries.size}</b><span>Juegan</span></div>
+      <div><b>${money(paidSet.size * fee)}</b><span>Recaudado · ${paidSet.size} pagaron</span></div>
+      <div><b>${entries.size - paidSet.size}</b><span>En mora · ${money((entries.size - paidSet.size) * fee)}</span></div>
       <div><b>${m ? `${eligible.length - missing.length}/${eligible.length}` : '—'}</b><span>${m ? `Quinteto vs ${ftEsc(m.opponent)}` : 'Sin próximo partido'}</span></div>
     </div>
 
     <div class="panel">
       <h3 style="margin-top:0">👥 Participantes</h3>
-      <div class="ft-filter">${[['todos','Todos'],['inscritos','Inscritos'],['faltan','Les falta quinteto']].map(([k,l])=> `<button type="button" class="${filter===k?'on':''}" data-ft-af="${k}">${l}</button>`).join('')}</div>
+      <div class="ft-filter">${[['todos','Todos'],['inscritos','Juegan'],['mora','En mora'],['faltan','Les falta quinteto']].map(([k,l])=> `<button type="button" class="${filter===k?'on':''}" data-ft-af="${k}">${l}</button>`).join('')}</div>
       <div class="ft-adm-list">
         ${shown.map(c=>{ const id = String(c.id); const pos = ranked.indexOf(id) + 1; return `
           <div class="ft-adm-row">
-            <label class="ft-adm-chk" title="Inscrito (pagó)"><input type="checkbox" data-ft-entry="${id}" ${entries.has(id)?'checked':''}><span>pagó</span></label>
-            <div class="t"><b>${ftEsc(c.full_name)}${delegates.includes(id) ? ' <em class="ft-me">delegado</em>' : ''}</b>
+            <label class="ft-adm-chk" title="Juega el Fantasy"><input type="checkbox" data-ft-entry="${id}" ${entries.has(id)?'checked':''}><span>juega</span></label>
+            <label class="ft-adm-chk" title="Pagó la inscripción"><input type="checkbox" data-ft-paid="${id}" ${paidSet.has(id)?'checked':''} ${entries.has(id)?'':'disabled'}><span>pagó</span></label>
+            <div class="t"><b>${ftEsc(c.full_name)}${delegates.includes(id) ? ' <em class="ft-me">delegado</em>' : ''}${entries.has(id) && !paidSet.has(id) ? ' <em class="ft-mora">mora</em>' : ''}</b>
               <small>${m ? (picked.has(id) ? '✅ Armó quinteto' : '⏳ Sin quinteto') : ''}${played[id] ? ` · ${played[id]} fecha${played[id]===1?'':'s'} jugada${played[id]===1?'':'s'}` : ''}</small></div>
             <div class="ft-adm-pts"><b>${totals[id] ?? 0}</b><small>${pos ? `#${pos}` : 'pts'}</small></div>
           </div>`; }).join('') || '<p class="muted">No hay personas en este filtro.</p>'}
@@ -8264,7 +8286,7 @@ async function ftAdmin(){
 
     <div class="panel"><h3 style="margin-top:0">⚙️ Configuración</h3>
       <label class="ft-switch"><input type="checkbox" id="ft-active" ${S.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
-      <label class="ft-switch"><input type="checkbox" id="ft-req" ${S.require_entry?'checked':''}> <span>Solo juegan los inscritos (los que pagaron)</span></label>
+      <label class="ft-switch"><input type="checkbox" id="ft-req" ${S.require_entry?'checked':''}> <span>Solo juegan los que el Comité active (marcados con "juega")</span></label>
       <div class="ft-two">
         <div><label class="field-label" for="ft-budget">Presupuesto por quinteto ($)</label><input type="number" id="ft-budget" min="40" max="150" value="${S.budget || 70}"></div>
         <div><label class="field-label" for="ft-fee">Valor inscripción (COP)</label><input type="number" id="ft-fee" min="0" step="1000" value="${fee}"></div>
@@ -8294,10 +8316,17 @@ async function ftAdmin(){
   pane.querySelectorAll('[data-ft-entry]').forEach(cb=> cb.addEventListener('change', async ()=>{
     cb.disabled = true;
     const id = cb.dataset.ftEntry;
-    const r = cb.checked ? await supabase.from('fantasy_entries').upsert({ profile_id: id, paid: true }, { onConflict: 'profile_id' }) : await supabase.from('fantasy_entries').delete().eq('profile_id', id);
+    const r = await ftSetEntry(id, cb.checked, cb.checked && paidSet.has(id));
     cb.disabled = false;
     if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
-    toast(cb.checked ? 'Inscrito ✅' : 'Inscripción quitada'); FT.board = null; ftAdmin();
+    toast(cb.checked ? 'Ahora juega ⚽' : 'Ya no juega'); FT.board = null; ftAdmin();
+  }));
+  pane.querySelectorAll('[data-ft-paid]').forEach(cb=> cb.addEventListener('change', async ()=>{
+    cb.disabled = true;
+    const r = await ftSetEntry(cb.dataset.ftPaid, true, cb.checked);
+    cb.disabled = false;
+    if(r.error){ toast(r.error.message, true); cb.checked = !cb.checked; return; }
+    toast(cb.checked ? 'Pago registrado ✅' : 'Queda en mora'); ftAdmin();
   }));
   $('#ft-remind')?.addEventListener('click', ()=>{
     const txt = `⚽ *Fantasy ALS*\nAún no han armado su quinteto para el partido vs ${m.opponent} (${fmtDayMon(m.match_date)}):\n${missing.map(c=> '• ' + c.full_name).join('\n')}\n\nSe cierra cuando empieza el partido. Entren a la app → Fantasy ALS → Mi quinteto 💪`;
