@@ -1746,6 +1746,11 @@
 .ft-pz-photo{display:inline-flex;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border-radius:10px;background:#EEF0F2;font:700 13px 'Barlow',sans-serif;color:#0A0B0C}
 
 .ft-mora{font-style:normal;font-size:10px;font-weight:800;background:#FDE2E0;color:#B3261E;border-radius:6px;padding:1px 6px;vertical-align:2px}
+
+.ft-pk-row{display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid #EEF0F2}
+.ft-pk-row .p{width:30px;text-align:center;font:800 17px 'Barlow Condensed',sans-serif;color:#6B7280;padding-top:2px}
+.ft-pk-row .t{flex:1;min-width:0}.ft-pk-row .t b{font:700 15px 'Barlow',sans-serif}.ft-pk-row small{color:#6B7280;font-size:12px}
+.ft-pk-bar{height:8px;border-radius:8px;background:#EEF0F2;margin:5px 0 3px;overflow:hidden}.ft-pk-bar i{display:block;height:100%;background:var(--brand,#F5C400);border-radius:8px}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -8230,6 +8235,32 @@ async function ftContacts(){
   FT.contacts = list.filter(x=> x.full_name).sort((a,b)=> a.full_name.localeCompare(b.full_name));
   return FT.contacts;
 }
+// Jugadores más escogidos (Admin): cuántas veces aparece cada jugador en los quintetos
+function ftPickStatsHtml(res, board){
+  if(res.error) return `<div class="panel" id="ft-pk-box"><h3 style="margin-top:0">📊 Jugadores más escogidos</h3><p class="muted">Para ver este ranking ejecuta en Supabase la última versión de <b>fantasy.sql</b>.</p></div>`;
+  const rows = res.data || [];
+  const matchIds = [...new Set(rows.map(r=> String(r.match_id)))];
+  const matches = (board.matches||[]).filter(x=> matchIds.includes(String(x.id))).sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  let sel = FT.pkMatch || 'all'; if(sel !== 'all' && !matchIds.includes(sel)) sel = 'all';
+  const use = rows.filter(r=> sel === 'all' || String(r.match_id) === sel);
+  const quintetos = sel === 'all' ? Object.values(Object.fromEntries(use.map(r=> [r.match_id, r.quintetos]))).reduce((s,n)=> s+n, 0) : (use[0]?.quintetos || 0);
+  const agg = {};
+  use.forEach(r=>{ const a = agg[r.player_id] ||= { picks:0, caps:0 }; a.picks += r.picks; a.caps += r.captains; });
+  const list = Object.entries(agg).sort((a,b)=> b[1].picks - a[1].picks || b[1].caps - a[1].caps || playerName(a[0]).localeCompare(playerName(b[0])));
+  const top = list[0]?.[1].picks || 1;
+  const pl = id=> playersCache.find(p=> String(p.id) === String(id));
+  return `<div class="panel" id="ft-pk-box"><div class="fr-head"><h3>📊 Jugadores más escogidos</h3></div>
+    <select id="ft-pk-match"><option value="all">Toda la temporada</option>${matches.map(x=> `<option value="${x.id}" ${sel===String(x.id)?'selected':''}>vs ${ftEsc(x.opponent)} · ${fmtDayMon(x.date)}</option>`).join('')}</select>
+    <p class="muted" style="margin:8px 0;font-size:13px">${quintetos} quinteto${quintetos===1?'':'s'} contado${quintetos===1?'':'s'}. Cada fecha aparece aquí cuando arranca el partido, para que nadie vea la tendencia antes del cierre.</p>
+    ${list.length ? list.map(([id, a], i)=>{ const p = pl(id); const pct = quintetos ? Math.round(a.picks * 100 / quintetos) : 0; return `
+      <div class="ft-pk-row">
+        <span class="p">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</span>
+        <div class="t"><b>${ftEsc(p?.full_name || 'Jugador')}</b> <small>${p ? fmGroup(p.position) : ''} · $${ftPrice(id)}</small>
+          <div class="ft-pk-bar"><i style="width:${Math.max(4, a.picks * 100 / top)}%"></i></div>
+          <small>${a.picks} ${a.picks===1?'vez':'veces'} · ${pct}% de los quintetos${a.caps ? ` · 👑 capitán ${a.caps}` : ''}</small></div>
+      </div>`; }).join('') : '<p class="muted" style="margin:0">Todavía no hay quintetos de partidos que ya hayan arrancado.</p>'}
+  </div>`;
+}
 async function ftAdmin(){
   const pane = $('#ft-pane'); if(!FT.admin){ pane.innerHTML = ''; return; }
   pane.innerHTML = '<p class="muted">Cargando…</p>';
@@ -8240,6 +8271,7 @@ async function ftAdmin(){
     supabase.from('fantasy_posts').select('*').order('created_at', {ascending:false}),
     supabase.from('fantasy_adjustments').select('*').order('created_at', {ascending:false}).limit(30),
   ]);
+  const pkStats = await supabase.rpc('fantasy_pick_stats');
   if(ent.error){ pane.innerHTML = `<div class="panel"><p>Falta ejecutar en Supabase la versión nueva de <b>fantasy.sql</b> (participantes, delegados y ajustes).</p></div>`; return; }
   const entries = new Set((ent.data||[]).map(e=> String(e.profile_id)));
   const paidSet = new Set((ent.data||[]).filter(e=> e.paid).map(e=> String(e.profile_id)));
@@ -8284,6 +8316,8 @@ async function ftAdmin(){
       ${m && missing.length ? `<button type="button" class="wa-btn" style="width:100%;margin-top:10px" id="ft-remind">${ic('chat')} ${missing.length === 1 ? 'Recordar por WhatsApp al que falta' : `Recordar por WhatsApp a los ${missing.length} que faltan`}</button>` : ''}
     </div>
 
+    ${ftPickStatsHtml(pkStats, board)}
+
     <div class="panel"><h3 style="margin-top:0">⚙️ Configuración</h3>
       <label class="ft-switch"><input type="checkbox" id="ft-active" ${S.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
       <label class="ft-switch"><input type="checkbox" id="ft-req" ${S.require_entry?'checked':''}> <span>Solo juegan los que el Comité active (marcados con "juega")</span></label>
@@ -8313,6 +8347,8 @@ async function ftAdmin(){
 
   const reload = ()=>{ FT.contacts = FT.contacts; ftAdmin(); };
   pane.querySelectorAll('[data-ft-af]').forEach(b=> b.addEventListener('click', ()=>{ FT.admFilter = b.dataset.ftAf; ftAdmin(); }));
+  const bindPk = ()=>{ const sel = pane.querySelector('#ft-pk-match'); if(sel) sel.addEventListener('change', ()=>{ FT.pkMatch = sel.value; pane.querySelector('#ft-pk-box').outerHTML = ftPickStatsHtml(pkStats, board); bindPk(); }); };
+  bindPk();
   pane.querySelectorAll('[data-ft-entry]').forEach(cb=> cb.addEventListener('change', async ()=>{
     cb.disabled = true;
     const id = cb.dataset.ftEntry;
