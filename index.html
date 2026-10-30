@@ -1792,6 +1792,14 @@
 .ft-nocap-modal .box{background:#fff;border-radius:20px;padding:22px 20px;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .ft-nocap-modal .nci{font-size:42px;line-height:1.1}.ft-nocap-modal h3{margin:6px 0 8px;font:800 24px 'Barlow Condensed',sans-serif}
 .ft-nocap-modal p{margin:0 0 8px;font-size:15px}.ft-nocap-modal button{margin-top:8px;width:100%}
+
+.vd-panel summary{cursor:pointer;font:800 17px 'Barlow Condensed',sans-serif;list-style:none}
+.vd-panel summary::-webkit-details-marker{display:none}
+.vd-panel summary small{font:600 12px 'Barlow',sans-serif;color:#6B7280;margin-left:4px}
+.vd-row{padding:10px 0;border-bottom:1px solid #EEF0F2}.vd-row:last-child{border-bottom:0}
+.vd-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.vd-h span{font:800 15px 'Barlow Condensed',sans-serif;color:#4B5058}
+.vd-chips{display:flex;flex-wrap:wrap;gap:5px}.vd-chips span{font-size:12.5px;background:#EEF0F2;border-radius:999px;padding:3px 9px}
+.vd-chips.off span{background:#FFF4D6;color:#7A5A00}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -4133,6 +4141,32 @@ async function renderMatchVote(matchId){
     ${canManage() && lead ? `<button type="button" style="margin-top:10px" onclick="window.__confirmMvp('${m.id}','${lead.p.id}')">🏅 Nombrar figura a ${escS(lead.p.full_name)}</button>` : ''}`}
     ${canManage() ? voteVotersHTML(m, d) : ''}`;
   el.querySelectorAll('[data-vt-extra]').forEach(cb=> cb.addEventListener('change', ()=> window.__toggleVoter(m.id, cb.dataset.vtExtra, cb.checked, cb)));
+}
+// Solo Comité (usuario maestro): quién votó por quién en la figura del partido
+async function renderVoteDetail(matchId){
+  const el = document.getElementById('match-vote-detail'); if(!el || !isMaster()) return;
+  const { data: m } = await supabase.from('matches').select('*').eq('id', matchId).single();
+  const { data: votes, error } = await supabase.from('mvp_votes').select('voter_player_id,voted_player_id').eq('match_id', matchId);
+  if(error || !m){ el.innerHTML = ''; return; }
+  const d = await voteData(m);
+  const pl = id=> playersCache.find(p=> String(p.id) === String(id));
+  const nm = id=> { const p = pl(id); return p ? `#${p.jersey_number ?? ''} ${escS(p.full_name)}` : 'Jugador'; };
+  const by = {};
+  (votes||[]).forEach(v=> (by[v.voted_player_id] ||= []).push(v.voter_player_id));
+  const rows = Object.entries(by).sort((a,b)=> b[1].length - a[1].length || nm(a[0]).localeCompare(nm(b[0])));
+  const voted = new Set((votes||[]).map(v=> String(v.voter_player_id)));
+  const eligible = [...new Set([...d.baseIds, ...d.extra])];
+  const missing = eligible.filter(id=> !voted.has(String(id))).map(pl).filter(Boolean).sort((a,b)=> (a.jersey_number||0) - (b.jersey_number||0));
+  el.innerHTML = `<details class="panel vd-panel"${(votes||[]).length ? '' : ''}>
+    <summary>🔎 ¿Quién votó por quién? <small>solo Comité · ${(votes||[]).length} voto${(votes||[]).length===1?'':'s'}</small></summary>
+    ${rows.length ? rows.map(([pid, vs], i)=> `
+      <div class="vd-row">
+        <div class="vd-h"><b>${String(pid) === String(m.mvp_player_id) ? '🏅 ' : ''}${nm(pid)}</b><span>${vs.length} voto${vs.length===1?'':'s'}</span></div>
+        <div class="vd-chips">${vs.map(v=> `<span>${nm(v)}</span>`).sort().join('')}</div>
+      </div>`).join('') : '<p class="muted" style="margin:8px 0 0">Nadie ha votado en este partido.</p>'}
+    ${missing.length ? `<div class="vd-row"><div class="vd-h"><b>⏳ No votaron</b><span>${missing.length}</span></div>
+      <div class="vd-chips off">${missing.map(p=> `<span>#${p.jersey_number ?? ''} ${escS(p.full_name)}</span>`).join('')}</div></div>` : ''}
+  </details>`;
 }
 // Quiénes pueden votar: por defecto los que jugaron (o confirmaron); el Comité chulea a otros que fueron.
 function voteVotersHTML(m, d){
@@ -7490,6 +7524,7 @@ window.__openMatch = async (matchId)=>{
       </div>
       ${m.mvp_player_id ? `<div class="mvp-badge">${playerAvatarHtml(m.mvp_player_id,'mvp-badge-photo')} 🏅 Figura del partido: ${playerName(m.mvp_player_id)}</div>` : ''}
       ${!m.mvp_player_id && m.match_date <= new Date().toISOString().slice(0,10) ? `<div class="panel match-cu-panel"><h4 style="margin-top:0">🗳️ Votación de la figura</h4><div id="match-vote"><p class="muted">Cargando…</p></div></div>` : ''}
+      ${isMaster() && m.match_date <= new Date().toISOString().slice(0,10) ? `<div id="match-vote-detail"></div>` : ''}
       ${m.result ? `<button type="button" class="piece-btn" onclick="window.__matchPiece('${m.id}', this)">📸 Crear pieza para redes</button>` : ''}
       <div class="panel match-cu-panel"><h4 style="margin-top:0">📋 Convocatoria</h4><div id="match-cu"><p class="muted">Cargando…</p></div></div>
       <div class="embed-wrap">
@@ -7637,6 +7672,7 @@ window.__openMatch = async (matchId)=>{
   renderMatchCallUp(matchId);
   renderMatchVote(matchId);
   renderMatchPlays(matchId);
+  renderVoteDetail(matchId);
   // load instagram embed script (official, público)
   if(m.instagram_url && !window.instgrm){
     const s = document.createElement('script'); s.src = 'https://www.instagram.com/embed.js'; s.async = true;
