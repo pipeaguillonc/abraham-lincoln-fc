@@ -1785,6 +1785,13 @@
 .mp-chip.on{background:var(--brand,#F5C400);border-color:var(--brand,#F5C400)}.mp-chip.on b{color:#0A0B0C}
 .ft-pt-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #EEF0F2}
 .ft-pt-row .t{flex:1;font-size:14px}.ft-pt-row input[type=number]{width:70px;margin:0}
+
+.ft-slot .nc{position:absolute;right:4px;bottom:4px;font:800 10px 'Barlow',sans-serif;background:#FDE2E0;color:#B3261E;border-radius:6px;padding:1px 4px}
+.ft-nocap{background:#FDE2E0;color:#7A1C16;border-radius:12px;padding:9px 12px;font-size:13px;margin:8px 0}
+.ft-nocap-modal{position:fixed;inset:0;z-index:9999;background:rgba(10,11,12,.55);display:grid;place-items:center;padding:20px}
+.ft-nocap-modal .box{background:#fff;border-radius:20px;padding:22px 20px;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.ft-nocap-modal .nci{font-size:42px;line-height:1.1}.ft-nocap-modal h3{margin:6px 0 8px;font:800 24px 'Barlow Condensed',sans-serif}
+.ft-nocap-modal p{margin:0 0 8px;font-size:15px}.ft-nocap-modal button{margin-top:8px;width:100%}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -8017,12 +8024,25 @@ async function ftQuinteto(){
     supabase.from('call_ups').select('id').eq('match_id', m.id).maybeSingle(),
     supabase.rpc('fantasy_surcharge', { p_match: String(m.id) }),
   ]);
+  const lc = await supabase.rpc('fantasy_last_captain', { p_match: String(m.id) });
+  const lastCap = lc.error || !lc.data ? null : String(lc.data);
   const surch = Object.fromEntries(((sc.error ? [] : sc.data) || []).map(r=> [String(r.player_id), r]));
   let resp = {};
   if(cu){ const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', cu.id); (rs||[]).forEach(r=> resp[String(r.player_id)] = r.response); }
   FT.q = { m, sel: (mine?.player_ids || []).map(String), cap: mine?.captain_id ? String(mine.captain_id) : null,
-    pf: mine?.pred_for ?? '', pa: mine?.pred_against ?? '', saved: !!mine, resp, surch, filter: FT.q?.filter || 'todos' };
+    pf: mine?.pred_for ?? '', pa: mine?.pred_against ?? '', saved: !!mine, resp, surch, lastCap, filter: FT.q?.filter || 'todos' };
   ftQRender();
+}
+// Aviso grande: no se puede repetir capitán dos fechas seguidas
+function ftNoCapAlert(name){
+  document.querySelector('.ft-nocap-modal')?.remove();
+  const d = document.createElement('div'); d.className = 'ft-nocap-modal';
+  d.innerHTML = `<div class="box"><div class="nci">🚫</div><h3>No puedes repetir capitán</h3>
+    <p><b>${ftEsc(name)}</b> fue tu capitán la fecha pasada. No puedes tener el mismo capitán dos fechas seguidas.</p>
+    <p class="muted">Puedes dejarlo en tu quinteto, pero elige a otro jugador como capitán.</p>
+    <button type="button">Entendido, elijo otro</button></div>`;
+  d.addEventListener('click', e=>{ if(e.target === d || e.target.tagName === 'BUTTON') d.remove(); });
+  document.body.appendChild(d);
 }
 function ftPrice(pid){ return FT.prices[pid]?.price ?? 12; }
 function ftQRender(){
@@ -8042,7 +8062,7 @@ function ftQRender(){
     const id = q.sel[i]; const p = id && pById(id);
     if(!p) return `<div class="ft-slot empty"><div class="n">+</div><b>Elegir</b><small>&nbsp;</small></div>`;
     return `<button type="button" class="ft-slot${fmGroup(p.position)==='POR'?' gk':''}" data-ft-cap="${id}" title="Toca para hacerlo capitán">
-      ${q.cap === id ? '<span class="c">C</span>' : ''}<span class="x" data-ft-rm="${id}" aria-label="Quitar">✕</span>
+      ${q.cap === id ? '<span class="c">C</span>' : ''}${q.lastCap === id ? '<span class="nc" title="Fue tu capitán la fecha pasada">🚫C</span>' : ''}<span class="x" data-ft-rm="${id}" aria-label="Quitar">✕</span>
       <div class="n">${p.jersey_number ?? ''}</div><b>${ftEsc(ftFirst(p.full_name))}</b><small>$${myPrice(id)}</small></button>`;
   }).join('');
   pane.innerHTML = `
@@ -8052,6 +8072,7 @@ function ftQRender(){
     <div class="ft-budget"><span>Presupuesto</span><span><b>$${cost}</b> / $${budget} · ${left >= 0 ? `te quedan $${left}` : `<span style="color:var(--danger,#D93025)">te pasaste $${-left}</span>`}</span></div>
     <div class="ft-bar"><i style="width:${Math.min(100, cost/budget*100)}%;${left<0?'background:#D93025':''}"></i></div>
     <div class="ft-five">${slots}</div>
+    ${q.lastCap ? `<p class="ft-nocap">🚫 <b>${ftEsc(playerName(q.lastCap))}</b> fue tu capitán la fecha pasada: puedes llevarlo, pero no puede ser capitán dos fechas seguidas.</p>` : ''}
     <p class="ft-tip">${q.sel.length < 4 ? `Te faltan ${4 - q.sel.length} como mínimo (puedes llevar 4 o 5). Agrégalos con el <b>+</b> de la lista.` : !q.cap ? '<b>Toca un jugador de tu quinteto para hacerlo capitán.</b>' : q.sel.length === 4 ? 'Vas con 4 jugadores: puedes guardar así o agregar uno más.' : q.cap ? 'Listo. Guarda tu quinteto (puedes cambiarlo hasta que empiece el partido).' : '<b>Toca un jugador de tu quinteto para hacerlo capitán.</b>'}</p>
     <div class="ft-pred"><span>🎯 Tu predicción</span><span class="ft-pred-in"><small>ALS</small><input type="number" min="0" max="20" inputmode="numeric" id="ft-pf" value="${q.pf}"><b>–</b><input type="number" min="0" max="20" inputmode="numeric" id="ft-pa" value="${q.pa}"><small>${ftEsc(ftFirst(m.opponent))}</small></span></div>
     <button type="button" class="ft-save" id="ft-save" ${q.sel.length>=4 && q.cap && left>=0 ? '' : 'disabled'}>${q.saved ? 'Actualizar quinteto' : 'Guardar quinteto'}</button>
@@ -8074,7 +8095,11 @@ function ftQRender(){
     ftQRender();
   }));
   pane.querySelectorAll('[data-ft-rm]').forEach(x=> x.addEventListener('click', e=>{ e.stopPropagation(); keepPred(); const id = x.dataset.ftRm; q.sel = q.sel.filter(v=> v!==id); if(q.cap===id) q.cap=null; ftQRender(); }));
-  pane.querySelectorAll('[data-ft-cap]').forEach(b=> b.addEventListener('click', ()=>{ keepPred(); q.cap = b.dataset.ftCap; ftQRender(); }));
+  pane.querySelectorAll('[data-ft-cap]').forEach(b=> b.addEventListener('click', ()=>{
+    keepPred();
+    if(q.lastCap && b.dataset.ftCap === q.lastCap){ ftNoCapAlert(playerName(q.lastCap)); return; }
+    q.cap = b.dataset.ftCap; ftQRender();
+  }));
   $('#ft-save').addEventListener('click', async ()=>{
     keepPred();
     const num = v=> v === '' || v == null ? null : Math.max(0, parseInt(v,10) || 0);
@@ -8172,7 +8197,7 @@ function ftRulesHTML(){
     <div class="ft-rule"><span>★ Calificación del DT</span><b>0 a +4</b></div>
     <div class="ft-rule"><span>🧤 Valla invicta (portero y defensas)</span><b>+4</b></div>
     <div class="ft-rule"><span>🟨 Amarilla · 🟥 Roja</span><b>−2 · −5</b></div>
-    <div class="ft-rule"><span>Capitán</span><b>x2</b></div>
+    <div class="ft-rule"><span>Capitán (no se repite dos fechas seguidas)</span><b>x2</b></div>
     <div class="ft-rule"><span>🎯 Predicción exacta · acertar ganador</span><b>+5 · +2</b></div>
     <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido. Repetir un jugador de la fecha pasada te cuesta $3 más (máximo $6).</p></div>`;
 }
@@ -8260,7 +8285,7 @@ function ftPremios(){
 const FT_STEPS = [
   ['Arma tu quinteto', 'Escoge 4 o 5 jugadores del equipo. Puedes escogerte a ti mismo.'],
   ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no. Además, si repites un jugador que usaste la fecha pasada, para ti cuesta $3 más (+$6 si lo llevas 2 fechas seguidas o más). Si lo dejas descansar una fecha, vuelve a su precio normal.'],
-  ['Elige tu capitán', 'Sus puntos valen doble.'],
+  ['Elige tu capitán', 'Sus puntos valen doble. No puedes repetir el mismo capitán dos fechas seguidas.'],
   ['Predice el marcador', 'Si aciertas, sumas puntos extra.'],
 ];
 const FT_PTS_PLAYER = [
