@@ -2309,11 +2309,30 @@ async function stCompress(file){
     const c = document.createElement('canvas'); c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
     const g = c.getContext('2d');
     if(!isPng){ g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    // (en PNG el fondo se decide abajo, según tenga o no transparencia)
     g.drawImage(bmp, 0, 0, c.width, c.height);
-    const outType = isPng ? 'image/png' : 'image/jpeg';
-    const blob = await new Promise(res=> c.toBlob(res, outType, 0.82));
+    // PNG: si no tiene partes transparentes se guarda como JPG (pesa ~10 veces menos).
+    // Si tiene transparencia (fotos recortadas) se usa WebP, que la conserva; si el celular no sabe hacer WebP, PNG más pequeño.
+    let transparent = false;
+    if(isPng){
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      for(let i = 3; i < d.length; i += 16){ if(d[i] < 250){ transparent = true; break; } }
+      if(!transparent){ g.globalCompositeOperation = 'destination-over'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    }
+    let blob, outType;
+    if(isPng && transparent){
+      blob = await new Promise(res=> c.toBlob(res, 'image/webp', 0.85)); outType = 'image/webp';
+      if(!blob || blob.type !== 'image/webp'){
+        const k2 = Math.min(1, 700 / Math.max(c.width, c.height));
+        const c2 = document.createElement('canvas'); c2.width = Math.round(c.width * k2); c2.height = Math.round(c.height * k2);
+        c2.getContext('2d').drawImage(c, 0, 0, c2.width, c2.height);
+        blob = await new Promise(res=> c2.toBlob(res, 'image/png')); outType = 'image/png';
+      }
+    } else {
+      blob = await new Promise(res=> c.toBlob(res, 'image/jpeg', 0.82)); outType = 'image/jpeg';
+    }
     if(!blob || (blob.size >= file.size && type !== 'image/heic' && type !== 'image/heif')) return file;
-    const name = String(file.name || 'foto').replace(/\.[^.]+$/, '') + (isPng ? '.png' : '.jpg');
+    const name = String(file.name || 'foto').replace(/\.[^.]+$/, '') + ({ 'image/png':'.png', 'image/webp':'.webp' }[outType] || '.jpg');
     return new File([blob], name, { type: outType });
   }catch(e){ return file; }
 }
@@ -2349,7 +2368,7 @@ window.__optimizePhotos = async (btn)=>{
         const file = new File([blob], f.path.split('/').pop(), { type: f.type });
         const small = await stCompress(file);
         if(small !== file && small.size < file.size){
-          const { error } = await supabase.storage.from('match-photos').upload(f.path, small, { upsert: true, contentType: small.type === 'image/png' ? 'image/png' : f.type.replace('webp','jpeg'), cacheControl: '31536000' });
+          const { error } = await supabase.storage.from('match-photos').upload(f.path, small, { upsert: true, contentType: small.type, cacheControl: '31536000' });
           if(error) throw error;
           before += file.size; after += small.size;
         }
