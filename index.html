@@ -2289,6 +2289,79 @@ const INSTAGRAM_PROXY_URL = "https://TU-PROYECTO.functions.supabase.co/instagram
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ---- Fotos livianas: para no gastar las descargas (Egress) del plan gratis de Supabase ----
+// 1) Toda foto se reduce antes de subirla (máx. 1600 px, JPG 82 %; PNG con transparencia máx. 1024 px).
+// 2) Se sube con caché de 1 año: el celular la guarda y no la vuelve a descargar.
+//    (Todas las rutas llevan fecha, así que una foto nueva nunca reemplaza a una vieja en caché.)
+async function stCompress(file){
+  try{
+    const type = String(file?.type || '').toLowerCase();
+    if(!/^image\/(jpe?g|png|webp|heic|heif)$/.test(type)) return file;
+    const isPng = type === 'image/png';
+    const max = isPng ? 1024 : 1600;
+    let bmp;
+    try{ bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch(e){ bmp = await new Promise((res, rej)=>{ const im = new Image(); im.onload = ()=> res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); }
+    const w0 = bmp.width, h0 = bmp.height;
+    if(!w0 || !h0) return file;
+    if(Math.max(w0, h0) <= max && file.size < 350 * 1024 && type !== 'image/heic' && type !== 'image/heif') return file;
+    const k = Math.min(1, max / Math.max(w0, h0));
+    const c = document.createElement('canvas'); c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+    const g = c.getContext('2d');
+    if(!isPng){ g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    g.drawImage(bmp, 0, 0, c.width, c.height);
+    const outType = isPng ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise(res=> c.toBlob(res, outType, 0.82));
+    if(!blob || (blob.size >= file.size && type !== 'image/heic' && type !== 'image/heif')) return file;
+    const name = String(file.name || 'foto').replace(/\.[^.]+$/, '') + (isPng ? '.png' : '.jpg');
+    return new File([blob], name, { type: outType });
+  }catch(e){ return file; }
+}
+async function stUpload(path, file, opts = {}){
+  const f = await stCompress(file);
+  return supabase.storage.from('match-photos').upload(path, f, { ...opts, contentType: f.type || opts.contentType, cacheControl: '31536000' });
+}
+// Comité: reduce las fotos que ya están subidas (las reemplaza en el mismo lugar, sin cambiar enlaces)
+window.__optimizePhotos = async (btn)=>{
+  const out = document.getElementById('opt-photos-out');
+  const say = t=>{ if(out) out.innerHTML = t; };
+  btn.disabled = true;
+  const files = [];
+  const walk = async (prefix)=>{
+    const { data, error } = await supabase.storage.from('match-photos').list(prefix, { limit: 1000 });
+    if(error) throw error;
+    for(const it of (data||[])){
+      const full = prefix ? `${prefix}/${it.name}` : it.name;
+      if(!it.id) await walk(full); else files.push({ path: full, size: it.metadata?.size || 0, type: it.metadata?.mimetype || '' });
+    }
+  };
+  try{
+    say('Buscando fotos…'); await walk('');
+    const todo = files.filter(f=> /^image\/(jpe?g|png|webp)$/i.test(f.type) && f.size > 400 * 1024);
+    if(!files.length){ say('No encontré fotos (puede que falte permiso para listar el almacenamiento).'); btn.disabled = false; return; }
+    if(!todo.length){ say(`✅ Las ${files.length} fotos ya están livianas. No hay nada que reducir.`); btn.disabled = false; return; }
+    let before = 0, after = 0, done = 0, fails = 0;
+    for(const f of todo){
+      say(`Reduciendo ${done + 1} de ${todo.length}…`);
+      try{
+        const url = supabase.storage.from('match-photos').getPublicUrl(f.path).data.publicUrl;
+        const blob = await (await fetch(url, { cache: 'no-store' })).blob();
+        const file = new File([blob], f.path.split('/').pop(), { type: f.type });
+        const small = await stCompress(file);
+        if(small !== file && small.size < file.size){
+          const { error } = await supabase.storage.from('match-photos').upload(f.path, small, { upsert: true, contentType: small.type === 'image/png' ? 'image/png' : f.type.replace('webp','jpeg'), cacheControl: '31536000' });
+          if(error) throw error;
+          before += file.size; after += small.size;
+        }
+      }catch(e){ fails++; console.warn('optimizar', f.path, e); }
+      done++;
+    }
+    const mb = n=> (n / 1048576).toFixed(1).replace('.', ',');
+    say(`✅ Listo: ${done - fails} fotos reducidas de ${mb(before)} MB a ${mb(after)} MB.${fails ? ` ${fails} no se pudieron cambiar.` : ''}`);
+  }catch(e){ say('No se pudo: ' + (e.message || e)); }
+  btn.disabled = false;
+};
+
 let session = null;
 let profile = null; // { id, full_name, role, player_id }
 let currentView = 'dashboard';
@@ -2816,7 +2889,7 @@ async function renderPatrocinadores(){
       if(!file.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); btn.disabled = false; return; }
       const ext = (file.name.split('.').pop() || 'png').toLowerCase();
       const path = `sponsors/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+      const { error: upErr } = await stUpload(path, file, { upsert: true });
       if(upErr){ toast(upErr.message, true); btn.disabled = false; return; }
       const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
       logo_url = pub.publicUrl;
@@ -2852,7 +2925,7 @@ window.__saveSponsor = async (id)=>{
     if(!logoFile.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
     const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
     const path = `sponsors/${id}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, logoFile, { upsert: true });
+    const { error: upErr } = await stUpload(path, logoFile, { upsert: true });
     if(upErr){ toast(upErr.message, true); return; }
     const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
     payload.logo_url = pub.publicUrl;
@@ -2872,7 +2945,7 @@ window.__replaceSponsorLogo = async (id, btn)=>{
   if(!file.type.startsWith('image/')){ toast('El logo debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
   const path = `sponsors/${id}-${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  const { error: upErr } = await stUpload(path, file, { upsert: true });
   if(upErr){ toast(upErr.message, true); return; }
   const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
   const { error } = await supabase.from('sponsors').update({ logo_url: pub.publicUrl }).eq('id', id);
@@ -3519,7 +3592,7 @@ window.__editMyStaffProfile = async (targetId)=>{
       if(!f.type.startsWith('image/')){ toast('La foto debe ser una imagen', true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
       const file = (typeof shrinkImage === 'function') ? await shrinkImage(f) : f;
       const path = `staff/${tid}-${Date.now()}.${(file.name.split('.').pop()||'jpg').toLowerCase()}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true, contentType: file.type });
+      const { error: upErr } = await stUpload(path, file, { upsert: true, contentType: file.type });
       if(upErr){ toast(upErr.message, true); btn.disabled = false; btn.textContent = 'Guardar'; return; }
       photo = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
     }
@@ -4587,7 +4660,7 @@ async function renderGaleria(){
       const f = await shrinkImage(f0);
       const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `gallery/${folder}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, f, { upsert: false, contentType: f.type });
+      const { error: upErr } = await stUpload(path, f, { upsert: false, contentType: f.type });
       if(upErr){ toast('Una foto no se pudo subir: ' + upErr.message, true); continue; }
       const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
       const row = { match_id: matchId, url: pub.publicUrl, storage_path: path, caption, uploaded_by: profile.id, uploader_name: profile.full_name };
@@ -5129,7 +5202,7 @@ function openPlayerDetail(id){
       if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.)', true); return; }
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `players/${id}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+      const { error: upErr } = await stUpload(path, file, { upsert: true });
       if(upErr){ toast(upErr.message, true); return; }
       const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
       const { error } = await supabase.from('players').update({ photo_url: pub.publicUrl }).eq('id', id);
@@ -5221,7 +5294,7 @@ window.__updatePhoto = async (id, inputEl)=>{
   if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `players/${id}-${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  const { error: upErr } = await stUpload(path, file, { upsert: true });
   if(upErr){ toast(upErr.message, true); return; }
   const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
   const { error } = await supabase.from('players').update({ photo_url: pub.publicUrl }).eq('id', id);
@@ -5301,7 +5374,7 @@ async function openPlayerEditor(id, returnTo){
     status.textContent = 'Subiendo foto…'; status.className = 'pe-status';
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `players/${id}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+    const { error: upErr } = await stUpload(path, file, { upsert: true });
     if(upErr){
       status.textContent = 'No se pudo subir la foto'; status.className = 'pe-status err';
       toast(/row-level security|policy|permission|not authorized|unauthorized/i.test(upErr.message) ? PERMISSION_HELP : upErr.message, true);
@@ -5414,7 +5487,7 @@ async function renderPerfil(){
     if(!file.type.startsWith('image/')){ toast('La foto debe ser una imagen (PNG, JPG, etc.), no un PDF u otro archivo', true); return; }
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `players/${p.id}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+    const { error: upErr } = await stUpload(path, file, { upsert: true });
     if(upErr){ toast(upErr.message, true); return; }
     const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
     const { error } = await supabase.from('players').update({ photo_url: pub.publicUrl }).eq('id', p.id);
@@ -5468,6 +5541,10 @@ async function renderUsuarios(){
     <button type="button" class="block" style="font-size:22px;margin-bottom:14px" onclick="const p=document.getElementById('nu-panel');p.style.display=p.style.display==='none'?'block':'none'">${ic('plus','lg')} Crear cuenta</button>
     <div class="icon-field">${ic('search')}<input id="users-search" placeholder="Buscar usuario" oninput="const q=this.value.trim().toLowerCase();document.querySelectorAll('#users-tbody tr').forEach(tr=>{tr.style.display=!q||tr.textContent.toLowerCase().includes(q)?'':'none'})" /></div>
     <p class="muted">Crea el usuario y la contraseña con la que cada jugador o miembro del cuerpo técnico va a entrar a la app. Después compárteles ese correo y contraseña.</p>
+    ${isMaster() ? `<div class="panel"><h3 style="margin-top:0">📦 Fotos livianas</h3>
+      <p class="muted" style="margin-top:0">Reduce el tamaño de las fotos que ya están subidas para gastar menos del plan gratis de Supabase. Se ven igual en el celular y no cambia ningún enlace. Las fotos nuevas ya se reducen solas.</p>
+      <button type="button" onclick="window.__optimizePhotos(this)">Reducir fotos existentes</button>
+      <p id="opt-photos-out" class="muted" style="margin:8px 0 0"></p></div>` : ''}
     ${isMaster() ? `
     <div class="panel">
       <h3>Personalización de la app</h3>
@@ -5676,7 +5753,7 @@ async function renderUsuarios(){
     if(f){
       if(!f.type.startsWith('image/')){ toast('El escudo debe ser una imagen', true); btn.disabled = false; return; }
       const path = `team/crest-${Date.now()}.${(f.name.split('.').pop()||'png').toLowerCase()}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, f, { upsert: true, contentType: f.type });
+      const { error: upErr } = await stUpload(path, f, { upsert: true, contentType: f.type });
       if(upErr){ toast(upErr.message, true); btn.disabled = false; return; }
       payload.crest_url = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
     }
@@ -5702,7 +5779,7 @@ async function renderUsuarios(){
     const btn = $('#banner-photo-save'); btn.disabled = true;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `team/banner-${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+    const { error: upErr } = await stUpload(path, file, { upsert: true });
     if(upErr){ errEl.textContent = upErr.message; btn.disabled = false; return; }
     const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
     const { error } = await supabase.from('team_settings').upsert({ id: 1, banner_photo_url: pub.publicUrl, updated_at: new Date().toISOString() });
@@ -5729,7 +5806,7 @@ async function renderUsuarios(){
     const btn = $('#team-photo-save'); btn.disabled = true;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `team/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+    const { error: upErr } = await stUpload(path, file, { upsert: true });
     if(upErr){ errEl.textContent = upErr.message; btn.disabled = false; return; }
     const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
     const { error: saveErr } = await supabase.from('team_settings').upsert({ id: 1, team_photo_url: pub.publicUrl, updated_at: new Date().toISOString() });
@@ -6342,7 +6419,7 @@ window.__brebEdit = async (sel)=>{
     if(f){
       if(!f.type.startsWith('image/')){ toast('El QR debe ser una imagen (PNG o JPG).', true); btn.disabled = false; return; }
       const path = `team/breb-qr-${Date.now()}.${(f.name.split('.').pop()||'png').toLowerCase()}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, f, { upsert: true, contentType: f.type });
+      const { error: upErr } = await stUpload(path, f, { upsert: true, contentType: f.type });
       if(upErr){ toast(upErr.message, true); btn.disabled = false; return; }
       payload.breb_qr_url = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
     } else if($('#breb-qr-remove')?.checked) payload.breb_qr_url = null;
@@ -7623,7 +7700,7 @@ window.__uploadMatchPhoto = async (matchId, slot)=>{
   if(!file.type.startsWith('image/')){ toast('El archivo debe ser una imagen', true); return; }
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${matchId}/foto${slot}-${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  const { error: upErr } = await stUpload(path, file, { upsert: true });
   if(upErr){ toast(upErr.message, true); return; }
   const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
   const field = slot === 1 ? 'photo_url_1' : 'photo_url_2';
@@ -8213,7 +8290,7 @@ async function ftUploadPrizeImg(prizeId, file){
   toast('Subiendo foto…');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `fantasy-prizes/${prizeId}-${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+  const { error: upErr } = await stUpload(path, file, { upsert: true });
   if(upErr){ toast('No se pudo subir la foto: ' + upErr.message, true); return null; }
   const url = supabase.storage.from('match-photos').getPublicUrl(path).data.publicUrl;
   const { error } = await supabase.from('fantasy_prizes').update({ image_url: url }).eq('id', prizeId);
@@ -9828,7 +9905,7 @@ async function renderEquipacionAdmin(){
         if(!file.type.startsWith('image/')) continue;
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
         const path = `store-items/${inserted.id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+        const { error: upErr } = await stUpload(path, file, { upsert: true });
         if(upErr){ toast('Una foto no se pudo subir: ' + upErr.message, true); continue; }
         const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
         urls.push(pub.publicUrl);
@@ -9971,7 +10048,7 @@ async function renderEquipacionAdmin(){
       if(!file.type.startsWith('image/')){ toast('Una foto no era una imagen válida, se omitió', true); continue; }
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `store-items/${id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file, { upsert: true });
+      const { error: upErr } = await stUpload(path, file, { upsert: true });
       if(upErr){ toast('No se pudo subir una foto: ' + upErr.message, true); continue; }
       const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
       urls.push(pub.publicUrl);
@@ -10763,7 +10840,7 @@ async function renderMensajes(){
     if(file.size > 15 * 1024 * 1024){ throw new Error('El archivo adjunto no puede pesar más de 15 MB'); }
     const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
     const path = `message-attachments/${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('match-photos').upload(path, file);
+    const { error: upErr } = await stUpload(path, file);
     if(upErr) throw upErr;
     const { data: pub } = supabase.storage.from('match-photos').getPublicUrl(path);
     return { attachment_url: pub.publicUrl, attachment_name: file.name };
