@@ -1770,6 +1770,21 @@
 .ft-auto{font-style:normal;font-size:10px;font-weight:800;background:#EEF0F2;color:#4B5058;border-radius:6px;padding:1px 6px;vertical-align:2px}
 .ft-sur{display:block;font-size:11.5px;font-weight:700;color:#B3261E;margin-top:2px}
 .ft-row .price s{color:#9AA0A6;font-weight:600;font-size:.8em}
+
+.mp-panel h4 small{font-size:12px}
+.mp-list{display:grid;gap:6px;margin-bottom:10px}
+.mp-item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #E6E7EA;border-radius:12px;padding:8px 10px}
+.mp-item .e{font-size:20px}.mp-item .t{flex:1;min-width:0}.mp-item .t b{display:block;font-size:14px}.mp-item .t small{color:#6B7280;font-size:12px}
+.mp-item .v{font:800 18px 'Barlow Condensed',sans-serif;color:#16733F}.mp-item .v.neg{color:#B3261E}
+.mp-x{width:auto;background:transparent;border:0;color:#9AA0A6;font-size:16px;padding:4px 6px}
+.mp-step{font:800 14px 'Barlow',sans-serif;margin:12px 0 6px}
+.mp-g{font:700 12px 'Barlow',sans-serif;color:#6B7280;margin:8px 0 4px}
+.mp-chips{display:flex;flex-wrap:wrap;gap:6px}
+.mp-chip{width:auto;text-align:left;background:#fff;color:#0A0B0C;border:1.5px solid #E1E3E6;border-radius:999px;padding:6px 11px;font:600 13px 'Barlow',sans-serif}
+.mp-chip b{color:#16733F;margin-left:2px}.mp-chip.neg b{color:#B3261E}
+.mp-chip.on{background:var(--brand,#F5C400);border-color:var(--brand,#F5C400)}.mp-chip.on b{color:#0A0B0C}
+.ft-pt-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #EEF0F2}
+.ft-pt-row .t{flex:1;font-size:14px}.ft-pt-row input[type=number]{width:70px;margin:0}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7503,6 +7518,8 @@ window.__openMatch = async (matchId)=>{
       }).join('')||'<tr><td colspan="9" class="muted">Sin jugadores activos</td></tr>'}</tbody></table>
       `}
 
+      <div id="match-plays"></div>
+
       <h4>Comentarios del partido</h4>
       <div id="comments-list">${(comments||[]).map(c=>`
         <div class="comment"><div class="meta">#${c.players.jersey_number} ${c.players.full_name} · ${new Date(c.created_at).toLocaleString('es-ES')}</div>${c.comment_text}</div>
@@ -7516,6 +7533,7 @@ window.__openMatch = async (matchId)=>{
 
   renderMatchCallUp(matchId);
   renderMatchVote(matchId);
+  renderMatchPlays(matchId);
   // load instagram embed script (official, público)
   if(m.instagram_url && !window.instgrm){
     const s = document.createElement('script'); s.src = 'https://www.instagram.com/embed.js'; s.async = true;
@@ -7914,6 +7932,81 @@ async function ftQuintetos(){
     const s = new Set((FT.roundOpen||[]).map(String)); d.open ? s.add(d.dataset.ftQ) : s.delete(d.dataset.ftQ); FT.roundOpen = [...s]; }));
 }
 
+// ---- Jugadas especiales del partido (suman en el Fantasy) ----
+// Quien carga estadísticas marca hechos puntuales: atajó un penal, salvó un gol en la línea,
+// muchos balones recuperados... Cada jugada tiene un valor que el Comité ajusta en Fantasy › Admin.
+const MP_GROUPS = [['POR','🧤 Portero'],['DEF','🛡️ Defensas'],['MED','🔄 Mediocampo'],['TODOS','⭐ Cualquiera'],['NEG','😬 Restan puntos']];
+async function renderMatchPlays(matchId){
+  const box = $('#match-plays'); if(!box) return;
+  const [ty, pl, st] = await Promise.all([
+    supabase.from('fantasy_play_types').select('*').order('sort'),
+    supabase.from('match_plays').select('*').eq('match_id', String(matchId)).order('created_at'),
+    supabase.from('player_match_stats').select('player_id,minutes_played,started').eq('match_id', matchId),
+  ]);
+  if(ty.error){ box.innerHTML = canManageEvents() ? `<div class="panel mp-panel"><h4 style="margin-top:0">⭐ Jugadas especiales</h4><p class="muted" style="margin:0">Para activarlas, ejecuta en Supabase la última versión de <b>fantasy.sql</b>.</p></div>` : ''; return; }
+  const types = ty.data || []; const plays = pl.data || [];
+  const T = Object.fromEntries(types.map(t=> [t.code, t]));
+  const edit = canManageEvents();
+  if(!edit && !plays.length){ box.innerHTML = ''; return; }
+  const played = new Set((st.data||[]).filter(s=> s.started || s.minutes_played > 0).map(s=> String(s.player_id)));
+  const act = playersCache.filter(p=> p.active || played.has(String(p.id))).sort((a,b)=> (a.jersey_number||0) - (b.jersey_number||0));
+  const sel = window.__mpSel && T[window.__mpSel]?.active ? window.__mpSel : null;
+  const opt = p=> `<option value="${p.id}">#${p.jersey_number ?? ''} ${ftEsc(p.full_name)}</option>`;
+  const pts = n=> `${n>0?'+':''}${n}`;
+  box.innerHTML = `<div class="panel mp-panel">
+    <h4 style="margin-top:0">⭐ Jugadas especiales <small class="muted" style="font-weight:600">· suman en el Fantasy</small></h4>
+    ${plays.length ? `<div class="mp-list">${plays.map(x=>{ const t = T[x.code] || {}; return `
+      <div class="mp-item"><span class="e">${t.emoji || '⭐'}</span><div class="t"><b>${ftEsc(t.label || x.code)}</b><small>${ftEsc(playerName(x.player_id))}</small></div>
+        <span class="v ${(t.points||0) < 0 ? 'neg' : ''}">${pts(t.points||0)}</span>
+        ${edit ? `<button type="button" class="mp-x" data-mp-del="${x.id}" aria-label="Quitar">✕</button>` : ''}</div>`; }).join('')}</div>`
+      : `<p class="muted" style="margin:0 0 8px">Todavía no hay jugadas especiales en este partido.</p>`}
+    ${edit ? `
+    <div class="mp-add">
+      <div class="mp-step">1. ¿Qué pasó?</div>
+      ${MP_GROUPS.map(([g, gl])=>{ const ts = types.filter(t=> t.active && t.grp === g); return ts.length ? `<div class="mp-g">${gl}</div><div class="mp-chips">${ts.map(t=> `<button type="button" class="mp-chip${sel===t.code?' on':''}${t.points<0?' neg':''}" data-mp-code="${t.code}">${t.emoji} ${ftEsc(t.label)} <b>${pts(t.points)}</b></button>`).join('')}</div>` : ''; }).join('')}
+      <div class="mp-step">2. ¿Quién la hizo?</div>
+      <select id="mp-player">${played.size ? `<optgroup label="Jugaron este partido">${act.filter(p=> played.has(String(p.id))).map(opt).join('')}</optgroup><optgroup label="Otros">${act.filter(p=> !played.has(String(p.id))).map(opt).join('')}</optgroup>` : `<option value="">Elegir jugador…</option>${act.map(opt).join('')}`}</select>
+      <button type="button" id="mp-add" style="margin-top:8px" ${sel ? '' : 'disabled'}>${sel ? `Agregar: ${T[sel].emoji} ${ftEsc(T[sel].label)}` : 'Elige primero la jugada'}</button>
+      ${!played.size ? '<p class="muted" style="margin:6px 0 0;font-size:12px">Tip: guarda primero los minutos para que arriba salgan solo los que jugaron.</p>' : ''}
+    </div>` : ''}
+  </div>`;
+  box.querySelectorAll('[data-mp-code]').forEach(b=> b.addEventListener('click', ()=>{ window.__mpSel = window.__mpSel === b.dataset.mpCode ? null : b.dataset.mpCode; const keep = $('#mp-player')?.value; renderMatchPlays(matchId).then(()=>{ if(keep && $('#mp-player')) $('#mp-player').value = keep; }); }));
+  box.querySelector('#mp-add')?.addEventListener('click', async ()=>{
+    const pid = $('#mp-player').value; if(!pid || !sel){ toast('Elige la jugada y el jugador', true); return; }
+    const btn = $('#mp-add'); btn.disabled = true;
+    const { error } = await supabase.from('match_plays').insert({ match_id: String(matchId), player_id: String(pid), code: sel });
+    if(error){ toast(error.message, true); btn.disabled = false; return; }
+    toast(`${T[sel].emoji} ${T[sel].label} · ${playerName(pid)} ${pts(T[sel].points)} ✅`);
+    window.__mpSel = null; renderMatchPlays(matchId);
+  });
+  box.querySelectorAll('[data-mp-del]').forEach(b=> b.addEventListener('click', async ()=>{
+    b.disabled = true;
+    const { error } = await supabase.from('match_plays').delete().eq('id', b.dataset.mpDel);
+    if(error){ toast(error.message, true); b.disabled = false; return; }
+    toast('Jugada quitada'); renderMatchPlays(matchId);
+  }));
+}
+
+// Fantasy › Admin: valor de cada jugada especial
+async function ftPlayTypesAdmin(root){
+  const box = root.querySelector('#ft-pt-box'); if(!box) return;
+  const { data, error } = await supabase.from('fantasy_play_types').select('*').order('sort');
+  if(error){ box.innerHTML = `<div class="panel"><h3 style="margin-top:0">⭐ Jugadas especiales</h3><p class="muted">Ejecuta en Supabase la última versión de <b>fantasy.sql</b>.</p></div>`; return; }
+  box.innerHTML = `<div class="panel"><h3 style="margin-top:0">⭐ Jugadas especiales</h3>
+    <p class="muted" style="margin-top:0;font-size:13px">Las marca quien carga las estadísticas en cada partido (Partidos › abrir partido). Aquí defines cuánto vale cada una o la apagas.</p>
+    ${(data||[]).map(t=> `<div class="ft-pt-row"><label class="ft-adm-chk" title="Activa"><input type="checkbox" data-pt-on="${t.code}" ${t.active?'checked':''}></label>
+      <span class="t">${t.emoji} ${ftEsc(t.label)}</span><input type="number" min="-10" max="10" data-pt-val="${t.code}" value="${t.points}"></div>`).join('')}
+    <button type="button" id="ft-pt-save" style="margin-top:8px">Guardar valores</button></div>`;
+  box.querySelector('#ft-pt-save').addEventListener('click', async ()=>{
+    const btn = box.querySelector('#ft-pt-save'); btn.disabled = true;
+    const rows = (data||[]).map(t=> ({ ...t, points: parseInt(box.querySelector(`[data-pt-val="${t.code}"]`).value, 10) || 0, active: box.querySelector(`[data-pt-on="${t.code}"]`).checked }));
+    const { error } = await supabase.from('fantasy_play_types').upsert(rows, { onConflict: 'code' });
+    btn.disabled = false;
+    if(error){ toast(error.message, true); return; }
+    toast('Valores guardados ✅');
+  });
+}
+
 // ---- Mi quinteto ----
 async function ftQuinteto(){
   const pane = $('#ft-pane');
@@ -8004,11 +8097,12 @@ async function ftBoard(force){
   return FT.board;
 }
 function ftChips(items){
+  const extras = (items?.extras || []).map(([lbl, v])=> `<span class="ft-chip ${v>0?'p':'m'}">${ftEsc(lbl)} ${v>0?'+':''}${v}</span>`).join('');
   return Object.entries(items||{}).filter(([k])=> FT_ITEM[k]).map(([k,v])=>{
     const [lbl, ic] = FT_ITEM[k];
     const label = k === 'calif' ? `${ic}${String(items.rating ?? '').replace('.',',')}` : `${ic}${lbl}`;
     return `<span class="ft-chip ${v>0?'p':'m'}">${label} ${v>0?'+':''}${v}</span>`;
-  }).join('');
+  }).join('') + extras;
 }
 async function ftPuntos(){
   const pane = $('#ft-pane'); const b = await ftBoard();
@@ -8188,6 +8282,7 @@ function ftComo(){
       <p class="ft-note">👀 Apenas arranca el partido, todos pueden ver qué escogió cada uno (jugadores, capitán y predicción). Antes nadie lo ve.</p>
     </div>
     <div class="panel"><h3 style="margin-top:0">Puntos de cada jugador de tu quinteto</h3>${FT_PTS_PLAYER.map(row).join('')}</div>
+    <div id="ft-rules-plays"></div>
     <div class="panel"><h3 style="margin-top:0">Tu predicción (puntos tuyos, no del quinteto)</h3>${FT_PTS_BONUS.map(row).join('')}
       <div class="ft-faq">
         <p><b>¿La predicción suma?</b> Sí: +5 si aciertas el marcador exacto, +2 si aciertas quién gana o que empatan.</p>
@@ -8202,6 +8297,12 @@ function ftComo(){
       <button type="button" data-ft-card="premios">${ic('chat')} Premios</button>
     </div>`;
   pane.querySelectorAll('[data-ft-card]').forEach(b=> b.addEventListener('click', ()=> ftShareCard(b.dataset.ftCard, b)));
+  supabase.from('fantasy_play_types').select('*').eq('active', true).order('sort').then(({ data })=>{
+    const box = $('#ft-rules-plays'); if(!box || !(data||[]).length) return;
+    box.innerHTML = `<div class="panel"><h3 style="margin-top:0">⭐ Jugadas especiales</h3>
+      <p class="muted" style="margin-top:0;font-size:13px">Las marca el cuerpo técnico en cada partido. Así también suman los defensas, mediocampistas y el portero.</p>
+      ${data.map(t=> row([`${t.emoji} ${ftEsc(t.label)}`, `${t.points > 0 ? '+' : '−'}${Math.abs(t.points)}`])).join('')}</div>`;
+  });
 }
 
 async function ftDrawCard(kind){
@@ -8408,6 +8509,8 @@ async function ftAdmin(){
 
     ${ftPickStatsHtml(pkStats, board)}
 
+    <div id="ft-pt-box"></div>
+
     <div class="panel"><h3 style="margin-top:0">⚙️ Configuración</h3>
       <label class="ft-switch"><input type="checkbox" id="ft-active" ${S.active?'checked':''}> <span>Fantasy activo para todo el equipo</span></label>
       <label class="ft-switch"><input type="checkbox" id="ft-req" ${S.require_entry?'checked':''}> <span>Solo juegan los que el Comité active (marcados con "juega")</span></label>
@@ -8439,6 +8542,7 @@ async function ftAdmin(){
   pane.querySelectorAll('[data-ft-af]').forEach(b=> b.addEventListener('click', ()=>{ FT.admFilter = b.dataset.ftAf; ftAdmin(); }));
   const bindPk = ()=>{ const sel = pane.querySelector('#ft-pk-match'); if(sel) sel.addEventListener('change', ()=>{ FT.pkMatch = sel.value; pane.querySelector('#ft-pk-box').outerHTML = ftPickStatsHtml(pkStats, board); bindPk(); }); };
   bindPk();
+  ftPlayTypesAdmin(pane);
   pane.querySelectorAll('[data-ft-entry]').forEach(cb=> cb.addEventListener('change', async ()=>{
     cb.disabled = true;
     const id = cb.dataset.ftEntry;
