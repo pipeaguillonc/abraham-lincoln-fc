@@ -1751,6 +1751,25 @@
 .ft-pk-row .p{width:30px;text-align:center;font:800 17px 'Barlow Condensed',sans-serif;color:#6B7280;padding-top:2px}
 .ft-pk-row .t{flex:1;min-width:0}.ft-pk-row .t b{font:700 15px 'Barlow',sans-serif}.ft-pk-row small{color:#6B7280;font-size:12px}
 .ft-pk-bar{height:8px;border-radius:8px;background:#EEF0F2;margin:5px 0 3px;overflow:hidden}.ft-pk-bar i{display:block;height:100%;background:var(--brand,#F5C400);border-radius:8px}
+
+.ft-live{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#0A0B0C;color:#fff;border:0;border-radius:16px;padding:12px 14px;margin:0 0 10px}
+.ft-live .dot{width:12px;height:12px;border-radius:50%;background:#1F9D55;flex:none}
+.ft-live.on .dot{background:#E53935;box-shadow:0 0 0 0 rgba(229,57,53,.6);animation:ftPulse 1.4s infinite}
+@keyframes ftPulse{0%{box-shadow:0 0 0 0 rgba(229,57,53,.6)}70%{box-shadow:0 0 0 10px rgba(229,57,53,0)}100%{box-shadow:0 0 0 0 rgba(229,57,53,0)}}
+.ft-live .t{flex:1;min-width:0}.ft-live .t b{display:block;font:800 17px 'Barlow Condensed',sans-serif;letter-spacing:.02em}.ft-live .t small{color:#C9CCD1;font-size:12px}
+.ft-live .go{font:800 15px 'Barlow Condensed',sans-serif;color:var(--brand,#F5C400)}
+.ft-qlist{display:grid;gap:8px}
+.ft-q{background:#fff;border:1px solid #E6E7EA;border-radius:14px;overflow:hidden}
+.ft-q.me{border-color:var(--brand,#F5C400);background:#FFFBEA}
+.ft-q summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}
+.ft-q summary::-webkit-details-marker{display:none}
+.ft-q summary .p{width:28px;text-align:center;font:800 17px 'Barlow Condensed',sans-serif;color:#6B7280}
+.ft-q summary .n{flex:1;font:700 15px 'Barlow',sans-serif}.ft-q summary .s{font:800 20px 'Barlow Condensed',sans-serif}.ft-q summary .s small{font-size:11px;color:#6B7280;margin-left:2px}
+.ft-q summary .chev{color:#9AA0A6;transition:transform .15s;font-weight:700}.ft-q[open] summary .chev{transform:rotate(90deg)}
+.ft-q .b{padding:0 12px 10px;border-top:1px solid #EEF0F2}
+.ft-auto{font-style:normal;font-size:10px;font-weight:800;background:#EEF0F2;color:#4B5058;border-radius:6px;padding:1px 6px;vertical-align:2px}
+.ft-sur{display:block;font-size:11.5px;font-weight:700;color:#B3261E;margin-top:2px}
+.ft-row .price s{color:#9AA0A6;font-weight:600;font-size:.8em}
 </style>
 </head>
 <body data-hdr="dash" data-tab="dark">
@@ -7762,14 +7781,15 @@ function ftRender(){
     <div class="ft-tabs">${tabs.map(([k,l])=> `<button type="button" class="${FT.tab===k?'on':''}" data-ft-tab="${k}">${l}</button>`).join('')}</div>
     <div id="ft-pane"><p class="muted">Cargando…</p></div>`;
   body.querySelectorAll('[data-ft-tab]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftTab; ftRender(); }));
-  ({ resumen: ftResumen, quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin })[FT.tab]();
+  ({ resumen: ftResumen, quinteto: ftQuinteto, puntos: ftPuntos, tabla: ftTabla, premios: ftPremios, como: ftComo, admin: ftAdmin, quintetos: ftQuintetos })[FT.tab]();
 }
 
 // ---- Resumen: primera pantalla del Fantasy ----
 async function ftResumen(){
   const pane = $('#ft-pane');
   pane.innerHTML = '<p class="muted">Cargando…</p>';
-  const [board, contacts, ent, m] = await Promise.all([ftBoard(true), ftContacts(), supabase.from('fantasy_entries').select('profile_id,paid'), ftNextMatch()]);
+  const [board, contacts, ent, m, R] = await Promise.all([ftBoard(true), ftContacts(), supabase.from('fantasy_entries').select('profile_id,paid'), ftNextMatch(), ftRounds()]);
+  const lastRound = (R.rounds||[])[0];
   const entries = new Set(((ent.error ? [] : ent.data) || []).map(e=> String(e.profile_id)));
   const paidSet = new Set(((ent.error ? [] : ent.data) || []).filter(e=> e.paid).map(e=> String(e.profile_id)));
   let picked = new Set(); let pickErr = false;
@@ -7795,6 +7815,7 @@ async function ftResumen(){
   const first = n=> String(n||'').trim().split(/\s+/).slice(0,2).join(' ');
   const chip = (id, cls)=> `<span class="fr-chip ${cls}${String(id)===String(profile.id)?' me':''}">${ftEsc(first(nameOf(id)))}</span>`;
   pane.innerHTML = `
+    ${ftRoundCard(lastRound)}
     ${m ? `<div class="ft-hero fr-hero"><div class="ft-kick">Próxima fecha · vs ${ftEsc(m.opponent)}</div>
       <h1>${mineReady ? '✅ Ya armaste tu quinteto' : 'Arma tu quinteto'}</h1>
       <span class="ft-pill">⏱ Cierra en ${ftLeft(ftKickoff(m) - new Date())} · ${fmtDayMon(m.match_date)} ${String(m.match_time||'').slice(0,5)}</span>
@@ -7830,6 +7851,67 @@ async function ftResumen(){
     </div>
     ${(()=>{ const me = String(profile.id); return entries.has(me) && !paidSet.has(me) ? `<div class="notify-banner" style="margin-top:10px">💳 <b>Tienes pendiente la inscripción del Fantasy (${'$' + Number(S.entry_fee ?? 20000).toLocaleString('es-CO')}).</b> Puedes jugar igual; paga por Bre-B a alsfutbolclub@gmail.com y envía el comprobante.</div>` : ''; })()}`;
   pane.querySelectorAll('[data-ft-go]').forEach(b=> b.addEventListener('click', ()=>{ FT.tab = b.dataset.ftGo; ftRender(); window.scrollTo(0,0); }));
+  ftBindRoundCard(pane);
+}
+
+// ---- Quintetos de todos: se ven desde que arranca el partido (solo para ver) ----
+async function ftRounds(){
+  const { data, error } = await supabase.rpc('fantasy_rounds');
+  return error ? { rounds: [], error } : (data || { rounds: [] });
+}
+function ftRoundCard(r){
+  if(!r) return '';
+  const live = !r.result;
+  return `<button type="button" class="ft-live${live ? ' on' : ''}" data-ft-round="${r.id}">
+    <span class="dot"></span>
+    <span class="t"><b>${live ? 'Fecha en curso' : 'Última fecha'} · vs ${ftEsc(r.opponent)}${r.result ? ` (${ftEsc(r.result)})` : ''}</b>
+      <small>Mira qué escogió cada uno · ${(r.picks||[]).length} quinteto${(r.picks||[]).length === 1 ? '' : 's'}</small></span>
+    <span class="go">Ver ›</span></button>`;
+}
+function ftBindRoundCard(root){
+  root.querySelectorAll('[data-ft-round]').forEach(b=> b.addEventListener('click', ()=>{ FT.roundSel = b.dataset.ftRound; FT.tab = 'quintetos'; ftRender(); window.scrollTo(0,0); }));
+}
+async function ftQuintetos(){
+  const pane = $('#ft-pane');
+  pane.innerHTML = '<p class="muted">Cargando…</p>';
+  const [R, board] = await Promise.all([ftRounds(), ftBoard(true)]);
+  if(R.error){ pane.innerHTML = `<div class="panel"><p>Para ver los quintetos de todos, ejecuta en Supabase la última versión de <b>fantasy.sql</b>.</p></div>`; return; }
+  const rounds = R.rounds || [];
+  if(!rounds.length){ pane.innerHTML = `<div class="panel empty-state"><p>Los quintetos de todos se ven aquí apenas arranque el partido. Antes nadie puede verlos.</p></div>`; return; }
+  const r = rounds.find(x=> String(x.id) === String(FT.roundSel)) || rounds[0];
+  FT.roundSel = r.id;
+  const pl = id=> playersCache.find(p=> String(p.id) === String(id));
+  const mgr = id=> (board.managers||[]).find(x=> String(x.profile_id) === String(id));
+  const rows = (r.picks||[]).map(k=>{ const row = mgr(k.profile_id)?.rows?.[r.id]; return { ...k, row, total: row ? row.total : null }; })
+    .sort((a,b)=> (b.total ?? -1) - (a.total ?? -1) || String(a.name).localeCompare(String(b.name)));
+  const hasPts = rows.some(x=> x.total != null);
+  const open = new Set((FT.roundOpen||[]).map(String));
+  const nRound = rounds.length - rounds.indexOf(r);
+  pane.innerHTML = `
+    <button type="button" class="small secondary" id="ft-back" style="width:auto;margin-bottom:8px">‹ Volver</button>
+    <select id="ft-rd" class="ft-select">${rounds.map((x,i)=> `<option value="${x.id}" ${x.id===r.id?'selected':''}>Fecha ${rounds.length - i} · vs ${ftEsc(x.opponent)}${x.result ? ` (${ftEsc(x.result)})` : ' · en curso'}</option>`).join('')}</select>
+    <div class="ft-hero"><div class="ft-kick">${r.result ? `Fecha ${nRound} · ALS ${ftEsc(r.result)} ${ftEsc(r.opponent)}` : `🔴 Fecha ${nRound} en curso · vs ${ftEsc(r.opponent)}`}</div>
+      <h1>¿Qué escogió cada uno?</h1>
+      <p>${hasPts ? 'Ordenado por puntos de esta fecha.' : 'Los puntos aparecen cuando el Comité cargue el resultado y las estadísticas.'} Toca un nombre para ver su quinteto. Es solo para ver: nadie puede cambiar nada después de que arranca el partido.</p></div>
+    <div class="ft-qlist">${rows.map((k,i)=>{
+      const id = String(k.profile_id); const me = id === String(profile.id);
+      const pts = {}; (k.row?.players||[]).forEach(x=> pts[String(x.pid)] = x);
+      return `<details class="ft-q${me?' me':''}" data-ft-q="${id}" ${open.has(id)?'open':''}>
+        <summary><span class="p">${hasPts ? (i < 3 && k.total ? ['🥇','🥈','🥉'][i] : i+1) : '⚽'}</span>
+          <span class="n">${me ? 'Tú · ' : ''}${ftEsc(k.name)}${k.auto ? ' <em class="ft-auto">automático</em>' : ''}</span>
+          <span class="s">${k.total != null ? `${k.total}<small>pts</small>` : ''}</span><span class="chev">›</span></summary>
+        <div class="b">
+          ${k.auto ? `<p class="ft-tip" style="margin:0 0 6px">No armó quinteto: juega con el de la fecha anterior, sin capitán.</p>` : ''}
+          ${(k.player_ids||[]).map(pid=>{ const p = pl(pid); const x = pts[String(pid)]; const cap = String(pid) === String(k.captain); return `
+            <div class="ft-row"><div class="n${p && fmGroup(p.position)==='POR'?' gk':''}">${p?.jersey_number ?? ''}</div>
+              <div class="t"><b>${ftEsc(p?.full_name || 'Jugador')}${cap ? ' <span class="ft-capt">C x2</span>' : ''}</b>${x ? `<div class="ft-chips">${ftChips(x.items) || '<span class="ft-chip">No jugó 0</span>'}</div>` : `<small>${ftEsc(p?.position || '')}</small>`}</div>
+              ${x ? `<div class="ft-pts${x.pts?'':' z'}">${x.pts}</div>` : ''}</div>`; }).join('')}
+          <div class="ft-bonus"><div><b>🎯 Predicción</b><small>${k.pred_for != null ? `ALS ${k.pred_for} - ${k.pred_against} ${ftEsc(r.opponent)}` : 'No hizo predicción'}</small></div>${k.row ? `<div class="ft-pts g">+${k.row.pred}</div>` : ''}</div>
+        </div></details>`; }).join('') || '<p class="muted">Nadie armó quinteto para esta fecha.</p>'}</div>`;
+  $('#ft-back').addEventListener('click', ()=>{ FT.tab = 'resumen'; ftRender(); });
+  $('#ft-rd').addEventListener('change', e=>{ FT.roundSel = e.target.value; FT.roundOpen = []; ftQuintetos(); });
+  pane.querySelectorAll('[data-ft-q]').forEach(d=> d.addEventListener('toggle', ()=>{
+    const s = new Set((FT.roundOpen||[]).map(String)); d.open ? s.add(d.dataset.ftQ) : s.delete(d.dataset.ftQ); FT.roundOpen = [...s]; }));
 }
 
 // ---- Mi quinteto ----
@@ -7837,26 +7919,30 @@ async function ftQuinteto(){
   const pane = $('#ft-pane');
   const m = await ftNextMatch();
   if(!m){ pane.innerHTML = `<div class="panel empty-state"><p>No hay un próximo partido abierto. Cuando el Comité cree el partido, aquí armas tu quinteto.</p></div>`; return; }
-  const [{ data: mine }, { data: cu }] = await Promise.all([
+  const [{ data: mine }, { data: cu }, sc] = await Promise.all([
     supabase.from('fantasy_picks').select('*').eq('match_id', String(m.id)).eq('profile_id', profile.id).maybeSingle(),
     supabase.from('call_ups').select('id').eq('match_id', m.id).maybeSingle(),
+    supabase.rpc('fantasy_surcharge', { p_match: String(m.id) }),
   ]);
+  const surch = Object.fromEntries(((sc.error ? [] : sc.data) || []).map(r=> [String(r.player_id), r]));
   let resp = {};
   if(cu){ const { data: rs } = await supabase.from('call_up_responses').select('player_id,response').eq('call_up_id', cu.id); (rs||[]).forEach(r=> resp[String(r.player_id)] = r.response); }
   FT.q = { m, sel: (mine?.player_ids || []).map(String), cap: mine?.captain_id ? String(mine.captain_id) : null,
-    pf: mine?.pred_for ?? '', pa: mine?.pred_against ?? '', saved: !!mine, resp, filter: FT.q?.filter || 'todos' };
+    pf: mine?.pred_for ?? '', pa: mine?.pred_against ?? '', saved: !!mine, resp, surch, filter: FT.q?.filter || 'todos' };
   ftQRender();
 }
 function ftPrice(pid){ return FT.prices[pid]?.price ?? 12; }
 function ftQRender(){
   const pane = $('#ft-pane'); const q = FT.q; const m = q.m;
+  const myPrice = id=> ftPrice(id) + (q.surch?.[id]?.extra || 0);
+  const surTxt = id=>{ const s = q.surch?.[id]; return s ? `<span class="ft-sur">+$${s.extra} para ti · lo usaste ${s.streak === 1 ? 'la fecha pasada' : `${s.streak} fechas seguidas`}</span>` : ''; };
   const budget = FT.settings.budget || 70;
-  const cost = q.sel.reduce((s,pid)=> s + ftPrice(pid), 0);
+  const cost = q.sel.reduce((s,pid)=> s + myPrice(pid), 0);
   const left = budget - cost;
   const ko = ftKickoff(m);
   const pool = playersCache.filter(p=> p.active && !p.injured);
   const list = pool.filter(p=> q.filter === 'todos' || fmGroup(p.position) === q.filter)
-    .sort((a,b)=> ftPrice(String(b.id)) - ftPrice(String(a.id)) || (a.jersey_number||0) - (b.jersey_number||0));
+    .sort((a,b)=> myPrice(String(b.id)) - myPrice(String(a.id)) || (a.jersey_number||0) - (b.jersey_number||0));
   const pById = id=> playersCache.find(p=> String(p.id) === id);
   const respTxt = id=> q.resp[id] === 'asiste' ? 'confirmó ✅' : q.resp[id] ? 'no va ❌' : 'sin responder ⏳';
   const slots = [0,1,2,3,4].map(i=>{
@@ -7864,7 +7950,7 @@ function ftQRender(){
     if(!p) return `<div class="ft-slot empty"><div class="n">+</div><b>Elegir</b><small>&nbsp;</small></div>`;
     return `<button type="button" class="ft-slot${fmGroup(p.position)==='POR'?' gk':''}" data-ft-cap="${id}" title="Toca para hacerlo capitán">
       ${q.cap === id ? '<span class="c">C</span>' : ''}<span class="x" data-ft-rm="${id}" aria-label="Quitar">✕</span>
-      <div class="n">${p.jersey_number ?? ''}</div><b>${ftEsc(ftFirst(p.full_name))}</b><small>$${ftPrice(id)}</small></button>`;
+      <div class="n">${p.jersey_number ?? ''}</div><b>${ftEsc(ftFirst(p.full_name))}</b><small>$${myPrice(id)}</small></button>`;
   }).join('');
   pane.innerHTML = `
     <div class="ft-hero"><div class="ft-kick">Próxima fecha · vs ${ftEsc(m.opponent)}</div><h1>Arma tu quinteto</h1>
@@ -7880,10 +7966,10 @@ function ftQRender(){
     <div class="ft-sec">Jugadores <small>precio · promedio por fecha</small></div>
     ${list.map(p=>{
       const id = String(p.id); const inSel = q.sel.includes(id);
-      const can = inSel || (q.sel.length < 5 && ftPrice(id) <= left);
+      const can = inSel || (q.sel.length < 5 && myPrice(id) <= left);
       return `<div class="ft-row"><div class="n${fmGroup(p.position)==='POR'?' gk':''}">${p.jersey_number ?? ''}</div>
-        <div class="t"><b>${ftEsc(p.full_name)}${id === String(profile.player_id) ? ' <em class="ft-me">tú</em>' : ''}</b><small>${ftEsc(p.position || 'Sin posición')} · ${respTxt(id)}</small></div>
-        <div class="price">$${ftPrice(id)}<small>${(FT.prices[id]?.avg_pts ?? 0).toString().replace('.',',')} pts</small></div>
+        <div class="t"><b>${ftEsc(p.full_name)}${id === String(profile.player_id) ? ' <em class="ft-me">tú</em>' : ''}</b><small>${ftEsc(p.position || 'Sin posición')} · ${respTxt(id)}</small>${surTxt(id)}</div>
+        <div class="price">${q.surch?.[id] ? `<s>$${ftPrice(id)}</s> ` : ''}$${myPrice(id)}<small>${(FT.prices[id]?.avg_pts ?? 0).toString().replace('.',',')} pts</small></div>
         <button type="button" class="ft-add${inSel?' on':''}" data-ft-add="${id}" ${can ? '' : 'disabled'} aria-label="${inSel?'Quitar':'Agregar'}">${inSel ? '✓' : '+'}</button></div>`;
     }).join('')}`;
   const keepPred = ()=>{ q.pf = $('#ft-pf').value; q.pa = $('#ft-pa').value; };
@@ -7949,6 +8035,8 @@ async function ftPuntos(){
       <div class="ft-sec">Predicción</div>
       <div class="ft-bonus"><div><b>🎯 Predicción</b><small>${row.pred_for != null ? `Dijiste ${row.pred_for}-${row.pred_against}` : 'No hiciste predicción'} · exacta +5, ganador +2</small></div><div class="ft-pts g">+${row.pred}</div></div>`}`;
   $('#ft-pts-m').addEventListener('change', e=>{ FT.ptsMatch = e.target.value; ftPuntos(); });
+  pane.insertAdjacentHTML('beforeend', `<button type="button" class="secondary" style="width:100%;margin-top:12px" data-ft-round="${mid}">👀 Ver qué escogió cada uno en esta fecha</button>`);
+  ftBindRoundCard(pane);
 }
 
 // ---- Tabla ----
@@ -7992,7 +8080,7 @@ function ftRulesHTML(){
     <div class="ft-rule"><span>🟨 Amarilla · 🟥 Roja</span><b>−2 · −5</b></div>
     <div class="ft-rule"><span>Capitán</span><b>x2</b></div>
     <div class="ft-rule"><span>🎯 Predicción exacta · acertar ganador</span><b>+5 · +2</b></div>
-    <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido.</p></div>`;
+    <p class="muted" style="margin:8px 0 0;font-size:13px">Si no armas quinteto, juegas con el de la fecha anterior pero sin capitán. Se puede cambiar hasta que empiece el partido. Repetir un jugador de la fecha pasada te cuesta $3 más (máximo $6).</p></div>`;
 }
 
 // Participantes del Fantasy: una fila en fantasy_entries = juega; paid = pagó (si no, queda en mora).
@@ -8077,7 +8165,7 @@ function ftPremios(){
 // ---- Cómo jugar: explicación simple + tarjetas para WhatsApp ----
 const FT_STEPS = [
   ['Arma tu quinteto', 'Escoge 4 o 5 jugadores del equipo. Puedes escogerte a ti mismo.'],
-  ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no.'],
+  ['No te pases del presupuesto', 'Los mejores cuestan más. El precio cambia después de cada partido: sube si el jugador viene sumando (goles, asistencias, calificación) o si muchos lo escogen, y baja si no. Además, si repites un jugador que usaste la fecha pasada, para ti cuesta $3 más (+$6 si lo llevas 2 fechas seguidas o más). Si lo dejas descansar una fecha, vuelve a su precio normal.'],
   ['Elige tu capitán', 'Sus puntos valen doble.'],
   ['Predice el marcador', 'Si aciertas, sumas puntos extra.'],
 ];
@@ -8097,12 +8185,14 @@ function ftComo(){
     <div class="panel"><h3 style="margin-top:0">¿Cómo se juega?</h3>
       <ol class="ft-steps">${FT_STEPS.map(([t,d])=> `<li><b>${t}</b><span>${d.replace('Los mejores cuestan más.', `Tienes $${budget}. Los mejores cuestan más.`)}</span></li>`).join('')}</ol>
       <p class="ft-note">⏱ Puedes armarlo o cambiarlo hasta que empiece el partido. Si no lo armas, juegas con el de la fecha anterior, pero sin capitán.</p>
+      <p class="ft-note">👀 Apenas arranca el partido, todos pueden ver qué escogió cada uno (jugadores, capitán y predicción). Antes nadie lo ve.</p>
     </div>
     <div class="panel"><h3 style="margin-top:0">Puntos de cada jugador de tu quinteto</h3>${FT_PTS_PLAYER.map(row).join('')}</div>
     <div class="panel"><h3 style="margin-top:0">Tu predicción (puntos tuyos, no del quinteto)</h3>${FT_PTS_BONUS.map(row).join('')}
       <div class="ft-faq">
         <p><b>¿La predicción suma?</b> Sí: +5 si aciertas el marcador exacto, +2 si aciertas quién gana o que empatan.</p>
         <p><b>¿Ir a entrenar o responder la convocatoria suma?</b> No. La asistencia no cuenta en el Fantasy, para que sea justo con los lesionados.</p>
+        <p><b>¿Por qué un jugador me sale más caro que a otro?</b> Porque lo usaste la fecha pasada: repetir cuesta $3 más por cada fecha seguida (máximo $6). Así no todos llevan siempre a los mismos.</p>
       </div></div>
     ${ftPrizesHTML() ? `<h3 class="section-title" style="margin:6px 0 8px">Premios</h3>${ftPrizesHTML()}` : ''}
     <div class="panel ft-share-panel"><h3 style="margin-top:0">Compartir por WhatsApp</h3>
